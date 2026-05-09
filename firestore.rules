@@ -1,0 +1,114 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      // Use this if we want to enforce verification, but let's keep it simple for now as requested.
+      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'dsquaregee@gmail.com';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+    // --- End Helpers ---
+
+    // 1. Users Collection
+    match /users/{userId} {
+      function isValidUser(data) {
+        let requiredKeys = ['uid', 'email', 'displayName', 'photoURL', 'tier'];
+        return data.keys().hasAll(requiredKeys) &&
+               data.uid == userId &&
+               data.email is string && data.email.size() <= 200 &&
+               data.displayName is string && data.displayName.size() <= 100 &&
+               data.photoURL is string && data.photoURL.size() <= 500 &&
+               data.tier in ['free', 'premium'] &&
+               (data.get('isAdmin', false) == false || isAdmin());
+      }
+
+      // Read access strictly restricted to owner or admin (PII Isolation)
+      allow get: if isOwner(userId) || isAdmin();
+      
+      // Prevent query scraping
+      allow list: if isAdmin(); 
+
+      allow create: if isOwner(userId) && isValidUser(incoming()) && 
+                    (incoming().tier == 'free' || isAdmin()) && 
+                    (incoming().get('isAdmin', false) == false || isAdmin());
+                    
+      allow update: if isOwner(userId) && (
+        // Allow updating core profile fields
+        (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt', 'email', 'uid', 'tier']) && 
+         isValidUser(incoming())) ||
+        // Admin override
+        isAdmin()
+      );
+    }
+
+    // 2. Categories Collection
+    match /categories/{categoryId} {
+      function isValidCategory(data) {
+        return data.id == categoryId &&
+               data.name is string && data.name.size() <= 100 &&
+               data.slug is string && data.slug.size() <= 100;
+      }
+
+      allow read: if true; 
+      allow write: if isAdmin() && isValidCategory(incoming());
+    }
+
+    // 3. Albums Collection
+    match /albums/{albumId} {
+      function isValidAlbum(data) {
+        return data.id == albumId &&
+               data.title is string && data.title.size() <= 200 &&
+               data.audioUrl is string && data.audioUrl.size() <= 500;
+               // Relation check omitted here if categories might not exist yet during batch, 
+               // but usually we check: exists(/databases/$(database)/documents/categories/$(data.categoryId))
+      }
+
+      allow read: if true; 
+      allow write: if isAdmin() && isValidAlbum(incoming());
+    }
+
+    // 4. Favorites Collection
+    match /favorites/{favoriteId} {
+      function isValidFavorite(data) {
+        return data.userId == request.auth.uid &&
+               data.albumId is string;
+      }
+
+      // Secure list queries: must filter by userId
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() && isValidFavorite(incoming()) && isValidId(favoriteId);
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

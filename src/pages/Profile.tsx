@@ -6,6 +6,7 @@ import { LogOut, ShieldCheck, Mail, User, Crown, Settings } from 'lucide-react';
 import { motion } from 'motion/react';
 import { UserProfile } from '../types';
 import { cn } from '../lib/utils';
+import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 
 export default function Profile() {
   const { user, setUser } = useAuthStore();
@@ -26,7 +27,7 @@ export default function Profile() {
       await setDoc(doc(db, 'users', result.user.uid), userProfile, { merge: true });
       setUser(userProfile);
     } catch (error) {
-      console.error('Login error:', error);
+      handleFirestoreError(error, OperationType.WRITE, `users/${user?.uid || 'new_user'}`);
     }
   };
 

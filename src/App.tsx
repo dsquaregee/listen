@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { auth, db } from './lib/firebase';
 import { useAuthStore } from './store/useAuthStore';
 import { UserProfile } from './types';
+import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
 
 // Layout & Components
 import Navbar from './components/Navbar';
@@ -27,24 +28,30 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        const adminEmail = 'dsquaregee@gmail.com';
-        const isAdmin = firebaseUser.email === adminEmail;
-
-        if (userDoc.exists()) {
-          const userData = userDoc.data() as UserProfile;
-          setUser({ ...userData, isAdmin });
-        } else {
-          // New user profile
-          const initialProfile: UserProfile = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            displayName: firebaseUser.displayName || 'Listener',
-            photoURL: firebaseUser.photoURL || '',
-            tier: 'free',
-            isAdmin,
-          };
-          setUser(initialProfile);
+        try {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          const adminEmail = 'dsquaregee@gmail.com';
+          const isAdmin = firebaseUser.email === adminEmail;
+  
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as UserProfile;
+            setUser({ ...userData, isAdmin });
+          } else {
+            // New user profile - Sync to Firestore
+            const initialProfile: UserProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              displayName: firebaseUser.displayName || 'Listener',
+              photoURL: firebaseUser.photoURL || '',
+              tier: 'free',
+              isAdmin,
+            };
+            await setDoc(userDocRef, initialProfile);
+            setUser(initialProfile);
+          }
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
         }
       } else {
         setUser(null);
