@@ -1,0 +1,83 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and premium status",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "isPremium": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Category": {
+      "title": "Music Category",
+      "description": "Categories for grouping albums (e.g., Fusion Fast, Ragas)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "visualIdentity": { "type": "string" },
+        "slug": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["id", "name", "slug"]
+    },
+    "Album": {
+      "title": "Album/Experience",
+      "description": "The primary 1-hour immersive audio content",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "artist": { "type": "string" },
+        "duration": { "type": "number" },
+        "coverUrl": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "shortVideoUrl": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "description": { "type": "string" },
+        "instruments": { "type": "array", "items": { "type": "string" } },
+        "moodTags": { "type": "array", "items": { "type": "string" } },
+        "bpm": { "type": "number" },
+        "featured": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "audioUrl", "categoryId"]
+    },
+    "Favorite": {
+      "title": "User Favorite",
+      "description": "Albums favorited by a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "albumId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "albumId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Stores user profile data"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Stores category metadata"
+    },
+    "/albums/{albumId}": {
+      "schema": "Album",
+      "description": "Stores album information"
+    },
+    "/favorites/{favoriteId}": {
+      "schema": "Favorite",
+      "description": "Stores user favorites"
+    }
+  }
+}

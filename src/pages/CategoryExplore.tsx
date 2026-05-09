@@ -1,0 +1,53 @@
+import { useParams, Link } from 'react-router-dom';
+import { MOCK_CATEGORIES, MOCK_ALBUMS } from '../data/mockData';
+import { Play, ChevronLeft } from 'lucide-react';
+import { usePlayerStore } from '../store/usePlayerStore';
+import { motion } from 'motion/react';
+import { cn } from '../lib/utils';
+
+export default function CategoryExplore() {
+  const { slug } = useParams();
+  const category = MOCK_CATEGORIES.find(c => c.slug === slug) || MOCK_CATEGORIES[0];
+  const albums = MOCK_ALBUMS.filter(a => a.categoryId === category.id);
+  const { setAlbum } = usePlayerStore();
+
+  return (
+    <div className="pt-24 px-6 min-h-screen">
+      <div className="flex items-center gap-4 mb-8">
+        <Link to="/" className="p-2 rounded-full bg-white/5 hover:bg-white/10">
+          <ChevronLeft className="w-6 h-6 text-white" />
+        </Link>
+        <div>
+          <h1 className="text-3xl font-serif font-bold text-white">{category.name}</h1>
+          <p className="text-slate-400 text-sm">{category.description}</p>
+        </div>
+      </div>
+
+      <div className={cn("inline-block px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-white mb-8", category.visualIdentity)}>
+        Universe Active
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {albums.map((album) => (
+          <motion.div 
+            key={album.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="group cursor-pointer"
+            onClick={() => setAlbum(album)}
+          >
+            <div className="relative aspect-video rounded-2xl overflow-hidden mb-4 shadow-2xl">
+              <img src={album.coverUrl} alt={album.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Play className="w-12 h-12 text-white fill-current" />
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-white group-hover:text-primary transition-colors">{album.title}</h3>
+            <p className="text-slate-400 text-sm">{album.artist}</p>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
