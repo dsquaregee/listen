@@ -14,6 +14,7 @@ interface PlayerState {
   userTier: SubscriptionTier;
   offlineAlbums: string[];
   preferredQuality: number; // -1 for auto, index for levels
+  autoPlayNext: boolean;
   
   // Actions
   setAlbum: (album: Album) => void;
@@ -34,6 +35,7 @@ interface PlayerState {
   setUserTier: (tier: SubscriptionTier) => void;
   refreshOfflineStatus: (albumIds: string[]) => void;
   setPreferredQuality: (level: number) => void;
+  setAutoPlayNext: (enabled: boolean) => void;
 }
 
 export const usePlayerStore = create<PlayerState>()(
@@ -50,6 +52,7 @@ export const usePlayerStore = create<PlayerState>()(
       userTier: 'free',
       offlineAlbums: [],
       preferredQuality: -1,
+      autoPlayNext: true,
 
       setAlbum: (album) => {
         // Subscription check
@@ -115,6 +118,7 @@ export const usePlayerStore = create<PlayerState>()(
       setUserTier: (tier) => set({ userTier: tier }),
       refreshOfflineStatus: (albumIds) => set({ offlineAlbums: albumIds }),
       setPreferredQuality: (level) => set({ preferredQuality: level }),
+      setAutoPlayNext: (enabled) => set({ autoPlayNext: enabled }),
     }),
     {
       name: 'dsquaregee-player-storage',
@@ -129,6 +133,7 @@ export const usePlayerStore = create<PlayerState>()(
         userTier: state.userTier,
         offlineAlbums: state.offlineAlbums,
         preferredQuality: state.preferredQuality,
+        autoPlayNext: state.autoPlayNext,
       }),
     }
   )

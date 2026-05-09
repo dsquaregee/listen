@@ -28,8 +28,12 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        const adminEmail = 'dsquaregee@gmail.com';
+        const isAdmin = firebaseUser.email === adminEmail;
+
         if (userDoc.exists()) {
-          setUser(userDoc.data() as UserProfile);
+          const userData = userDoc.data() as UserProfile;
+          setUser({ ...userData, isAdmin });
         } else {
           // New user profile
           const initialProfile: UserProfile = {
@@ -38,6 +42,7 @@ export default function App() {
             displayName: firebaseUser.displayName || 'Listener',
             photoURL: firebaseUser.photoURL || '',
             tier: 'free',
+            isAdmin,
           };
           setUser(initialProfile);
         }

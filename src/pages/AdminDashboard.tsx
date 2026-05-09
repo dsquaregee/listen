@@ -1,11 +1,18 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { Navigate } from 'react-router-dom';
+import { useAuthStore } from '../store/useAuthStore';
 import { 
   BarChart3, Users, Clock, Activity, 
   TrendingUp, Wallet, ShieldCheck, ChevronRight 
 } from 'lucide-react';
 
 export default function AdminDashboard() {
+  const { user, isLoading } = useAuthStore();
+
+  if (isLoading) return null;
+  if (!user?.isAdmin) return <Navigate to="/" replace />;
+
   const stats = [
     { label: 'Active Seekers', value: '412', icon: Users, diff: '+12%', color: 'text-blue-400' },
     { label: 'Streaming Time', value: '48.2k hrs', icon: Clock, diff: '+5%', color: 'text-green-400' },

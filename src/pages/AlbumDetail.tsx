@@ -21,11 +21,15 @@ export default function AlbumDetail() {
     <div className="min-h-screen pt-16">
       {/* Cinematic Header Cover */}
       <div className="relative h-[50vh] sm:h-[60vh] overflow-hidden">
-        <img src={album.coverUrl} alt={album.title} className="w-full h-full object-cover" />
+        {/* Background Blur Layer */}
+        <div className="absolute inset-0 blur-3xl scale-110 opacity-50">
+          <img src={album.coverUrl} alt="" className="w-full h-full object-cover" />
+        </div>
+        <img src={album.coverUrl} alt={album.title} className="relative w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         
         <Link to="/" className="absolute top-6 left-6 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-black/60 transition-colors">
-          <ChevronLeft className="w-6 h-6" />
+          <ChevronLeft className="w-6 h-6 text-white" />
         </Link>
       </div>
 
@@ -35,9 +39,15 @@ export default function AlbumDetail() {
           <motion.div 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="w-64 h-64 rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 shrink-0"
+            className="relative w-64 h-64 shrink-0"
           >
-            <img src={album.coverUrl} alt={album.title} className="w-full h-full object-cover" />
+            {/* Cinematic Shadow/Blur */}
+            <div className="absolute inset-2 blur-xl opacity-30 bg-primary/20 rounded-3xl" />
+            <div className="absolute -inset-4 blur-3xl opacity-20 bg-primary/10 rounded-full" />
+            
+            <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+              <img src={album.coverUrl} alt={album.title} className="w-full h-full object-cover" />
+            </div>
           </motion.div>
           
           <div className="flex-1 pb-4">

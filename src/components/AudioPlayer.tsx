@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, Pause, SkipBack, SkipForward, 
   Volume2, VolumeX, Maximize2, Minimize2,
   ChevronDown, Heart, Clock, ListMusic,
   GripVertical, X, Trash2, CheckCircle2,
-  Zap
+  Zap, Share2, Twitter, Facebook, Link
 } from 'lucide-react';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { MOCK_ALBUMS } from '../data/mockData';
 import { formatTime, cn } from '../lib/utils';
 import { streamingService } from '../services/streamingService';
 import { offlineService } from '../services/offlineService';
@@ -135,6 +137,9 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
           <h4 className={cn("text-xs font-bold truncate tracking-tight transition-colors", isActive ? "text-primary" : "text-white group-hover:text-primary")}>
             {album.title}
           </h4>
+          <p className="text-[9px] text-white/40 line-clamp-1 mb-1 italic opacity-80">
+            {album.description}
+          </p>
           <div className="flex items-center gap-1.5">
             {album.isDownloaded && (
               <CheckCircle2 className="w-2.5 h-2.5 text-primary/60" />
@@ -402,23 +407,155 @@ function QualitySelector({ onQualityChange, currentLevel }: QualitySelectorProps
 
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const location = useLocation();
   const { 
     currentAlbum, isPlaying, progress, currentTime, duration, 
     volume, isMinimized, queue, togglePlay, setProgress, setCurrentTime, 
     setDuration, setMinimized, setVolume, next, previous, reorderQueue, removeFromQueue, setAlbum, clearQueue,
-    userTier, offlineAlbums, refreshOfflineStatus, preferredQuality, setPreferredQuality
+    userTier, offlineAlbums, refreshOfflineStatus, preferredQuality, setPreferredQuality,
+    autoPlayNext, setAutoPlayNext
   } = usePlayerStore();
 
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [isInfoExpanded, setIsInfoExpanded] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isDownloadsOpen, setIsDownloadsOpen] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  
+  const handleDeleteDownload = async (albumId: string) => {
+    await offlineService.deleteAlbum(albumId);
+    const updatedIds = await offlineService.getOfflineAlbumIds();
+    refreshOfflineStatus(updatedIds);
+  };
+  
+  const shareLinks = {
+    twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Listening to ${currentAlbum?.title} by ${currentAlbum?.artist} on DsquareGee | Carnatic Revolution`)}&url=${encodeURIComponent(window.location.origin + '/album/' + currentAlbum?.id)}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin + '/album/' + currentAlbum?.id)}`,
+  };
+
+  const copyLink = () => {
+    if (!currentAlbum) return;
+    const link = `${window.location.origin}/album/${currentAlbum.id}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setIsShareOpen(false);
+    });
+  };
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadEta, setDownloadEta] = useState<number | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const lastOfflineUrlRef = useRef<string | null>(null);
+  
+  // Sleep Timer state
+  const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
+  const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Handle Hydration
+  // Handle sleep timer countdown
+  useEffect(() => {
+    if (sleepTimerRemaining !== null && sleepTimerRemaining > 0 && isPlaying) {
+      timerIntervalRef.current = setInterval(() => {
+        setSleepTimerRemaining(prev => {
+          if (prev !== null && prev <= 1) {
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            togglePlay(); // Pause playback
+            return null;
+          }
+          return prev !== null ? prev - 1 : null;
+        });
+      }, 1000);
+    } else {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    }
+
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, [sleepTimerRemaining, isPlaying, togglePlay]);
+
+  const setSleepTimer = (minutes: number) => {
+    setSleepTimerRemaining(minutes * 60);
+    setIsSleepTimerOpen(false);
+  };
+
+  const cancelSleepTimer = () => {
+    setSleepTimerRemaining(null);
+    setIsSleepTimerOpen(false);
+  };
+
+  const [frequencyValue, setFrequencyValue] = useState(0);
+  const analyzerRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+
+  // Audio Analysis for Parallax Effect
+  useEffect(() => {
+    if (!audioRef.current || !isHydrated) return;
+
+    let audioCtx: AudioContext | null = null;
+
+    const setupAnalyzer = () => {
+      try {
+        if (!analyzerRef.current) {
+          audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          
+          if (!sourceNodeRef.current) {
+            sourceNodeRef.current = audioCtx.createMediaElementSource(audioRef.current!);
+          }
+          
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 32;
+          sourceNodeRef.current.connect(analyser);
+          analyser.connect(audioCtx.destination);
+          analyzerRef.current = analyser;
+        }
+
+        const dataArray = new Uint8Array(analyzerRef.current.frequencyBinCount);
+        const update = () => {
+          if (analyzerRef.current && isPlaying) {
+            analyzerRef.current.getByteFrequencyData(dataArray);
+            // Get average of mid-low frequencies for a "pulse" feel
+            const avg = (dataArray[1] + dataArray[2] + dataArray[3]) / 3;
+            setFrequencyValue(avg / 255);
+          } else {
+            setFrequencyValue(0);
+          }
+          animationFrameRef.current = requestAnimationFrame(update);
+        };
+        update();
+      } catch (e) {
+        console.warn('Audio analyzer could not be initialized (likely due to user gesture requirements)', e);
+      }
+    };
+
+    if (isPlaying) {
+      setupAnalyzer();
+    }
+
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [isHydrated, isPlaying]);
+
+  // Handle Hydration and Refresh Offline Status
   useEffect(() => {
     setIsHydrated(true);
-  }, []);
+    const syncOfflineStatus = async () => {
+      // Explicitly check availability for current viewable universe to ensure synchronization
+      const offlineChecks = await Promise.all(
+        MOCK_ALBUMS.map(async (album) => {
+          const isOffline = await offlineService.isAlbumOffline(album.id);
+          return isOffline ? album.id : null;
+        })
+      );
+      
+      const activeOfflineIds = offlineChecks.filter((id): id is string => id !== null);
+      refreshOfflineStatus(activeOfflineIds);
+    };
+    syncOfflineStatus();
+  }, [location.pathname]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -439,29 +576,62 @@ export default function AudioPlayer() {
     if (audioRef.current) {
       streamingService.initialize(audioRef.current);
     }
-    return () => streamingService.destroy();
+    return () => {
+      streamingService.destroy();
+      if (lastOfflineUrlRef.current) {
+        URL.revokeObjectURL(lastOfflineUrlRef.current);
+      }
+    };
   }, []);
 
   // Handle source changes with HLS and Resume from state
   useEffect(() => {
-    if (isHydrated && currentAlbum && audioRef.current) {
-      streamingService.loadSource(currentAlbum.hlsUrl);
-      
-      // Resume playback position
-      if (currentTime > 0) {
-        audioRef.current.currentTime = currentTime;
-      }
+    const initializeSource = async () => {
+      if (isHydrated && currentAlbum && audioRef.current) {
+        let sourceUrl = currentAlbum.hlsUrl;
+        let isUsingOffline = false;
+        
+        // Revoke previous blob URL if exists
+        if (lastOfflineUrlRef.current) {
+          URL.revokeObjectURL(lastOfflineUrlRef.current);
+          lastOfflineUrlRef.current = null;
+        }
 
-      // Resume quality preference
-      if (preferredQuality !== -1) {
-        streamingService.switchQuality(preferredQuality);
-      }
+        // Check if album is available offline
+        if (offlineAlbums.includes(currentAlbum.id)) {
+          try {
+            const offlineUrl = await offlineService.getOfflineUrl(currentAlbum.id);
+            if (offlineUrl) {
+              sourceUrl = offlineUrl;
+              lastOfflineUrlRef.current = offlineUrl;
+              isUsingOffline = true;
+            }
+          } catch (err) {
+            console.error('Failed to load offline source', err);
+          }
+        }
 
-      if (isPlaying) {
-        audioRef.current.play().catch(console.error);
+        setIsOfflineMode(isUsingOffline);
+        streamingService.loadSource(sourceUrl);
+        
+        // Resume playback position
+        if (currentTime > 0) {
+          audioRef.current.currentTime = currentTime;
+        }
+
+        // Resume quality preference
+        if (preferredQuality !== -1 && !isUsingOffline) {
+          streamingService.switchQuality(preferredQuality);
+        }
+
+        if (isPlaying) {
+          audioRef.current.play().catch(console.error);
+        }
       }
-    }
-  }, [currentAlbum?.id, isHydrated]); // Depends on id to handle album change or initial hydrate
+    };
+
+    initializeSource();
+  }, [currentAlbum?.id, isHydrated, offlineAlbums.length]); // Use length to avoid re-triggering on every array change unless a download happened
 
   // Premium event listener
   useEffect(() => {
@@ -492,13 +662,24 @@ export default function AudioPlayer() {
       return;
     }
     setIsDownloading(true);
+    setDownloadProgress(0);
+    setDownloadEta(null);
     try {
-      await offlineService.downloadAlbum(currentAlbum.id, currentAlbum.hlsUrl);
+      await offlineService.downloadAlbum(
+        currentAlbum.id, 
+        currentAlbum.hlsUrl, 
+        (progress, eta) => {
+          setDownloadProgress(progress);
+          if (eta !== undefined) setDownloadEta(eta);
+        }
+      );
       refreshOfflineStatus([...offlineAlbums, currentAlbum.id]);
     } catch (error) {
       console.error('Download failed', error);
     } finally {
       setIsDownloading(false);
+      setDownloadProgress(0);
+      setDownloadEta(null);
     }
   };
 
@@ -556,7 +737,7 @@ export default function AudioPlayer() {
       <audio
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
-        onEnded={next}
+        onEnded={() => autoPlayNext && next()}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
       />
 
@@ -692,11 +873,45 @@ export default function AudioPlayer() {
                {/* Full Player View */}
                <div className="flex flex-col items-center">
                 <motion.div 
-                  animate={{ scale: isPlaying ? [1, 1.02, 1] : 1 }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="w-72 h-72 sm:w-96 sm:h-96 rounded-3xl overflow-hidden shadow-2xl mb-12 ring-1 ring-white/20 cinematic-glow"
+                  animate={isPlaying ? { 
+                    scale: 1 + (frequencyValue * 0.05),
+                    rotate: (frequencyValue * 2) - 1,
+                    y: [0, -8, 0],
+                    x: (frequencyValue * 10) - 5,
+                  } : { scale: 1, rotate: 0, y: 0, x: 0 }}
+                  transition={isPlaying ? { 
+                    y: { duration: 8, repeat: Infinity, ease: "easeInOut" },
+                    scale: { type: "spring", damping: 10, stiffness: 100 },
+                    rotate: { type: "spring", damping: 10, stiffness: 100 },
+                    x: { type: "spring", damping: 10, stiffness: 100 }
+                  } : { duration: 0.5 }}
+                  className="w-72 h-72 sm:w-96 sm:h-96 rounded-3xl relative mb-12"
                 >
-                  <img src={currentAlbum.coverUrl} className="w-full h-full object-cover" alt="" />
+                  {/* Cinematic Blur Background Glow */}
+                  <motion.div 
+                    animate={isPlaying ? {
+                      scale: 1.1 + (frequencyValue * 0.15),
+                      opacity: 0.3 + (frequencyValue * 0.4),
+                      rotate: [0, -2, 2, 0]
+                    } : { scale: 1.1, opacity: 0.4, rotate: 0 }}
+                    transition={isPlaying ? {
+                      rotate: { duration: 10, repeat: Infinity, ease: "easeInOut" },
+                      scale: { type: "spring", damping: 15, stiffness: 50 },
+                      opacity: { duration: 0.2 }
+                    } : { duration: 0.5 }}
+                    className="absolute inset-4 blur-2xl pointer-events-none"
+                  >
+                    <img src={currentAlbum.coverUrl} className="w-full h-full object-cover rounded-3xl" alt="" />
+                  </motion.div>
+                  
+                  <motion.div 
+                    animate={isPlaying ? {
+                      boxShadow: `0 0 ${20 + (frequencyValue * 40)}px rgba(244, 196, 48, ${0.1 + (frequencyValue * 0.2)})`
+                    } : { boxShadow: '0 0 20px rgba(0,0,0,0.4)' }}
+                    className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/20 cinematic-glow"
+                  >
+                    <img src={currentAlbum.coverUrl} className="w-full h-full object-cover" alt="" />
+                  </motion.div>
                 </motion.div>
 
                 <div className="max-w-md w-full">
@@ -714,6 +929,72 @@ export default function AudioPlayer() {
                         {tag}
                       </span>
                     ))}
+                  </div>
+
+                  {/* Collapsible Album Insight */}
+                  <div className="w-full">
+                    <button 
+                      onClick={() => setIsInfoExpanded(!isInfoExpanded)}
+                      className="flex items-center gap-2 mx-auto text-white/40 hover:text-[#F4C430] transition-all group"
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{isInfoExpanded ? 'Retract Insight' : 'Album Insight'}</span>
+                      <motion.div
+                        animate={{ rotate: isInfoExpanded ? 180 : 0 }}
+                        transition={{ type: 'spring', damping: 15, stiffness: 200 }}
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                      </motion.div>
+                    </button>
+
+                    <AnimatePresence>
+                      {isInfoExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0, scale: 0.95 }}
+                          animate={{ height: 'auto', opacity: 1, scale: 1 }}
+                          exit={{ height: 0, opacity: 0, scale: 0.95 }}
+                          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                          className="overflow-hidden mt-6"
+                        >
+                          <div className="px-8 py-10 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-md text-left space-y-8 max-w-sm mx-auto shadow-2xl relative">
+                            {/* Decorative background pulse */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-[#F4C430]/5 rounded-full blur-3xl -z-10" />
+                            
+                            <div>
+                              <h4 className="text-[10px] font-bold text-[#F4C430] uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                                <span className="w-4 h-px bg-[#F4C430]/30" />
+                                Manifesto
+                              </h4>
+                              <p className="text-xs text-white/70 leading-relaxed italic font-light">{currentAlbum.description}</p>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-10">
+                              <div>
+                                <h4 className="text-[10px] font-bold text-[#F4C430] uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                                  <span className="w-4 h-px bg-[#F4C430]/30" />
+                                  Ensemble
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {currentAlbum.instruments.map(inst => (
+                                    <span key={inst} className="text-[10px] text-white/50 lowercase tracking-wide bg-white/5 px-2 py-0.5 rounded-sm">{inst}</span>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <h4 className="text-[10px] font-bold text-[#F4C430] uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                                  <span className="w-4 h-px bg-[#F4C430]/30" />
+                                  Atmosphere
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {currentAlbum.moodTags.map(tag => (
+                                    <span key={tag} className="text-[10px] text-white/50 lowercase tracking-wide italic">#{tag}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
                </div>
@@ -762,8 +1043,86 @@ export default function AudioPlayer() {
                 >
                   <SkipForward className="w-10 h-10 fill-current" />
                 </button>
-                <button className="text-white/40 hover:text-white transition-colors">
-                  <Clock className="w-6 h-6" />
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsSleepTimerOpen(!isSleepTimerOpen)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 transition-all group",
+                      sleepTimerRemaining !== null ? "text-[#F4C430]" : "text-white/40 hover:text-white"
+                    )}
+                  >
+                    <div className={cn(
+                      "p-1 rounded-md transition-colors",
+                      isSleepTimerOpen ? "bg-white/10" : "group-hover:bg-white/5"
+                    )}>
+                      <Clock className="w-6 h-6" />
+                    </div>
+                    <span className="text-[8px] font-bold uppercase tracking-widest whitespace-nowrap">
+                      {sleepTimerRemaining !== null ? formatTime(sleepTimerRemaining) : 'Timer'}
+                    </span>
+                  </button>
+
+                  <AnimatePresence>
+                    {isSleepTimerOpen && (
+                      <>
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          onClick={() => setIsSleepTimerOpen(false)}
+                          className="fixed inset-0 z-[100]"
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 w-48 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[110] backdrop-blur-xl"
+                        >
+                          <div className="p-4 border-b border-white/5">
+                            <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] text-center">Sleep Timer</h3>
+                          </div>
+                          <div className="p-2 grid grid-cols-2 gap-1">
+                            {[5, 10, 15, 30, 45, 60].map((min) => (
+                              <button
+                                key={min}
+                                onClick={() => setSleepTimer(min)}
+                                className="p-3 rounded-xl hover:bg-white/5 text-xs font-bold text-white transition-all text-center"
+                              >
+                                {min}m
+                              </button>
+                            ))}
+                          </div>
+                          {sleepTimerRemaining !== null && (
+                            <button
+                              onClick={cancelSleepTimer}
+                              className="w-full p-4 text-[10px] font-bold text-red-400 bg-red-400/5 hover:bg-red-400/10 transition-all border-t border-white/5 uppercase tracking-widest"
+                            >
+                              Cancel Timer
+                            </button>
+                          )}
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Auto-play Next Toggle */}
+                <button 
+                  onClick={() => setAutoPlayNext(!autoPlayNext)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 transition-all group",
+                    autoPlayNext ? "text-[#F4C430]" : "text-white/40 hover:text-white"
+                  )}
+                >
+                  <div className={cn(
+                    "p-1 rounded-md transition-colors",
+                    autoPlayNext ? "bg-[#F4C430]/10" : "group-hover:bg-white/5"
+                  )}>
+                    <ListMusic className="w-6 h-6" />
+                  </div>
+                  <span className="text-[8px] font-bold uppercase tracking-widest whitespace-nowrap">
+                    {autoPlayNext ? 'Auto-play ON' : 'Auto-play OFF'}
+                  </span>
                 </button>
               </div>
 
@@ -792,20 +1151,122 @@ export default function AudioPlayer() {
                     )}
                   >
                     <motion.div
-                      animate={isDownloading ? { rotate: 360 } : {}}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      animate={isDownloading ? { 
+                        rotate: 360,
+                        scale: [1, 1.1, 1]
+                      } : {}}
+                      transition={isDownloading ? { 
+                        rotate: { duration: 2, repeat: Infinity, ease: "linear" },
+                        scale: { duration: 1, repeat: Infinity, ease: "easeInOut" }
+                      } : {}}
                     >
                       <Clock className="w-5 h-5" />
                     </motion.div>
-                    <span className="text-[8px] font-bold uppercase tracking-tighter">
-                      {isDownloading ? 'Downloading' : offlineAlbums.includes(currentAlbum.id) ? 'Offline' : 'Pre-cache'}
-                    </span>
+                    <div className="flex flex-col items-center">
+                      <span className="text-[8px] font-bold uppercase tracking-tighter">
+                        {isDownloading 
+                          ? `Caching ${Math.round(downloadProgress * 100)}%` 
+                          : offlineAlbums.includes(currentAlbum.id) ? 'Offline' : 'Pre-cache'}
+                      </span>
+                      {isDownloading && downloadEta !== null && (
+                        <span className="text-[6px] font-mono opacity-40 uppercase tracking-widest mt-0.5">
+                          ~{downloadEta}s remaining
+                        </span>
+                      )}
+                    </div>
                   </button>
 
-                  <QualitySelector 
-                    currentLevel={preferredQuality}
-                    onQualityChange={handleQualityChange}
-                  />
+                  {isOfflineMode ? (
+                    <div className="flex flex-col items-center gap-1 text-[#F4C430]">
+                      <div className="p-1 rounded-md bg-[#F4C430]/10">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <span className="text-[8px] font-bold uppercase tracking-widest">Offline Mode</span>
+                    </div>
+                  ) : (
+                    <QualitySelector 
+                      currentLevel={preferredQuality}
+                      onQualityChange={handleQualityChange}
+                    />
+                  )}
+
+                  <button 
+                    onClick={() => setIsDownloadsOpen(true)}
+                    className="flex flex-col items-center gap-1 text-white/40 hover:text-white transition-all group"
+                  >
+                    <div className="p-1 rounded-md group-hover:bg-white/5 transition-colors">
+                      <Trash2 className="w-5 h-5" />
+                    </div>
+                    <span className="text-[8px] font-bold uppercase tracking-widest">Downloads</span>
+                  </button>
+
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsShareOpen(!isShareOpen)}
+                      className="flex flex-col items-center gap-1 text-white/40 hover:text-white transition-all group"
+                    >
+                      <div className={cn(
+                        "p-1 rounded-md transition-colors",
+                        isShareOpen ? "bg-white/10 text-[#F4C430]" : "group-hover:bg-white/5"
+                      )}>
+                        <Share2 className="w-5 h-5" />
+                      </div>
+                      <span className="text-[8px] font-bold uppercase tracking-widest">Share</span>
+                    </button>
+
+                    <AnimatePresence>
+                      {isShareOpen && (
+                        <>
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsShareOpen(false)}
+                            className="fixed inset-0 z-[100]"
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className="absolute bottom-full mb-4 right-0 w-48 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[110] backdrop-blur-xl"
+                          >
+                            <div className="p-4 border-b border-white/5">
+                              <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Transmit frequency</h3>
+                            </div>
+                            <div className="p-2 space-y-1">
+                              <a 
+                                href={shareLinks.twitter} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                onClick={() => setIsShareOpen(false)}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
+                              >
+                                <Twitter className="w-4 h-4 text-[#1DA1F2]" />
+                                <span className="text-xs font-bold text-white uppercase tracking-widest">X / Twitter</span>
+                              </a>
+                              <a 
+                                href={shareLinks.facebook} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                onClick={() => setIsShareOpen(false)}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
+                              >
+                                <Facebook className="w-4 h-4 text-[#1877F2]" />
+                                <span className="text-xs font-bold text-white uppercase tracking-widest">Facebook</span>
+                              </a>
+                              <button 
+                                onClick={copyLink}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
+                              >
+                                <Link className="w-4 h-4 text-[#F4C430]" />
+                                <span className="text-xs font-bold text-white uppercase tracking-widest">Copy Connection</span>
+                              </button>
+                            </div>
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
             </div>
@@ -880,6 +1341,9 @@ export default function AudioPlayer() {
                      </div>
                      <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-bold text-white truncate italic tracking-tight">{currentAlbum.title}</h4>
+                        <p className="text-[10px] text-[#F4C430]/70 line-clamp-1 italic mt-0.5">
+                           {currentAlbum.description}
+                        </p>
                         <div className="flex items-center gap-1.5 mt-1">
                            {currentAlbum.isDownloaded && (
                               <CheckCircle2 className="w-2.5 h-2.5 text-[#F4C430]/60" />
@@ -1014,6 +1478,9 @@ export default function AudioPlayer() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="text-xs font-bold text-white truncate italic tracking-tight">{activeDraggingAlbum.title}</h4>
+                              <p className="text-[9px] text-[#F4C430]/60 line-clamp-1 italic mb-0.5">
+                                {activeDraggingAlbum.description}
+                              </p>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 {activeDraggingAlbum.isDownloaded && (
                                   <CheckCircle2 className="w-2.5 h-2.5 text-[#F4C430]/80" />
@@ -1046,6 +1513,89 @@ export default function AudioPlayer() {
       </AnimatePresence>
       
       {/* Premium Required Modal */}
+      {/* Downloads Manager Overlay */}
+      <AnimatePresence>
+        {isDownloadsOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDownloadsOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80]"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed top-0 right-0 h-full w-full max-w-md bg-[#080808] border-l border-white/10 z-[90] flex flex-col"
+            >
+              <div className="p-6 flex items-center justify-between border-b border-white/10">
+                <div>
+                  <h2 className="text-xl font-serif font-bold text-white italic">Offline Archives</h2>
+                  <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">
+                    {offlineAlbums.length} Frequencies Synchronized
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setIsDownloadsOpen(false)}
+                  className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
+                {offlineAlbums.length === 0 ? (
+                  <div className="py-24 text-center flex flex-col items-center justify-center gap-6 px-4">
+                    <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                      <Clock className="w-10 h-10 text-white/20" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-white/40 font-bold uppercase tracking-widest">No Offline Discoveries</p>
+                      <p className="text-[9px] text-white/20 uppercase tracking-[0.2em] mt-2">Download universes to experience them without connectivity.</p>
+                    </div>
+                  </div>
+                ) : (
+                  MOCK_ALBUMS.filter(a => offlineAlbums.includes(a.id)).map((album) => (
+                    <div 
+                      key={album.id}
+                      className="flex items-center gap-4 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/5 transition-all group"
+                    >
+                      <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/5">
+                        <img src={album.coverUrl} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-bold text-white truncate italic">{album.title}</h4>
+                        <p className="text-[9px] text-[#F4C430] truncate uppercase tracking-tighter mt-0.5">{album.artist}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => {
+                            setAlbum(album);
+                            setIsDownloadsOpen(false);
+                          }}
+                          className="p-2 rounded-full bg-[#F4C430]/10 text-[#F4C430] hover:bg-[#F4C430]/20 transition-colors"
+                        >
+                          <Play className="w-4 h-4 fill-current" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteDownload(album.id)}
+                          className="p-2 rounded-full bg-red-400/5 text-red-400/40 hover:bg-red-400/10 hover:text-red-400 transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showPremiumModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

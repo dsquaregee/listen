@@ -22,11 +22,27 @@ class StreamingService {
   }
 
   loadSource(url: string) {
-    if (this.hls) {
-      this.hls.loadSource(url);
-    } else if (this.audio && this.audio.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native support (Safari)
-      this.audio.src = url;
+    const isLocal = url.startsWith('blob:');
+    
+    if (isLocal) {
+      // Detach HLS for local playback
+      if (this.hls) {
+        this.hls.detachMedia();
+      }
+      if (this.audio) {
+        this.audio.src = url;
+      }
+    } else {
+      // HLS playback
+      if (this.hls) {
+        if (!this.hls.media && this.audio) {
+          this.hls.attachMedia(this.audio);
+        }
+        this.hls.loadSource(url);
+      } else if (this.audio && this.audio.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native support (Safari)
+        this.audio.src = url;
+      }
     }
   }
 

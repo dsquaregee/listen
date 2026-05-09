@@ -15,11 +15,27 @@ class OfflineService {
     storeName: 'metadata'
   });
 
-  async downloadAlbum(albumId: string, manifestUrl: string) {
+  async downloadAlbum(albumId: string, manifestUrl: string, onProgress?: (progress: number, eta?: number) => void) {
     // In a real app, we would fetch segments and store them
-    // For now, we simulate the "download" process
+    // For now, we simulate the "download" process with progress reporting
     console.log(`Downloading segments for ${albumId}...`);
     
+    // Simulate a slow download with progress steps
+    const totalSteps = 20;
+    const startTime = Date.now();
+
+    for (let i = 1; i <= totalSteps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
+      const progress = i / totalSteps;
+      
+      if (onProgress) {
+        const elapsed = Date.now() - startTime;
+        const estimatedTotal = elapsed / progress;
+        const eta = Math.round((estimatedTotal - elapsed) / 1000);
+        onProgress(progress, eta);
+      }
+    }
+
     // Simulate encryption and storage
     const dummyBlob = new Blob(['encrypted-media-segments'], { type: 'audio/mpeg' });
     const encrypted = await this.encryptBlob(dummyBlob);
@@ -45,6 +61,16 @@ class OfflineService {
   async isAlbumOffline(albumId: string): Promise<boolean> {
     const item = await this.metadataStore.getItem(albumId);
     return !!item;
+  }
+
+  async getOfflineAlbumIds(): Promise<string[]> {
+    return await this.metadataStore.keys();
+  }
+
+  async deleteAlbum(albumId: string) {
+    await this.store.removeItem(albumId);
+    await this.metadataStore.removeItem(albumId);
+    return true;
   }
 
   private async encryptBlob(blob: Blob): Promise<string> {

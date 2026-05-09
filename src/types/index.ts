@@ -34,6 +34,7 @@ export interface UserProfile {
   displayName: string;
   photoURL: string;
   tier: SubscriptionTier;
+  isAdmin?: boolean;
   subscriptionId?: string; // Stripe subscription link
   expiresAt?: string;
 }
