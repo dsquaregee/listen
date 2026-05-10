@@ -11,6 +11,7 @@ import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler
 // Layout & Components
 import Navbar from './components/Navbar';
 import AudioPlayer from './components/AudioPlayer';
+import { InstallPrompt } from './components/InstallPrompt';
 
 // Pages
 import Home from './pages/Home';
@@ -80,6 +81,7 @@ export default function App() {
           </main>
 
           <AudioPlayer />
+          <InstallPrompt />
         </div>
       </Router>
     </QueryClientProvider>

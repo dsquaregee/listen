@@ -1,3 +1,4 @@
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Play, TrendingUp, Star, Clock, ChevronRight, Crown } from 'lucide-react';
 import { MOCK_CATEGORIES, MOCK_ALBUMS } from '../data/mockData';
@@ -5,10 +6,33 @@ import { usePlayerStore } from '../store/usePlayerStore';
 import { Link } from 'react-router-dom';
 import { cn, formatTime } from '../lib/utils';
 import { OptimizedImage } from '../components/OptimizedImage';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { Category } from '../types';
 
 export default function Home() {
-  const { setAlbum } = usePlayerStore();
+  const { setAlbum, recentlyPlayed } = usePlayerStore();
+  const [categories, setCategories] = useState<Category[]>([]);
   const featured = MOCK_ALBUMS[0];
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const q = query(collection(db, 'categories'), orderBy('order', 'asc'));
+        const sn = await getDocs(q);
+        if (!sn.empty) {
+          const cats = sn.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+          setCategories(cats);
+        } else {
+          setCategories(MOCK_CATEGORIES);
+        }
+      } catch (e) {
+        console.error('Failed to fetch categories:', e);
+        setCategories(MOCK_CATEGORIES);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   return (
     <div className="pt-16 px-4 pb-12 overflow-x-hidden">
@@ -66,6 +90,40 @@ export default function Home() {
         </div>
       </motion.section>
 
+      {/* Recently Played */}
+      {recentlyPlayed.length > 0 && (
+        <section className="mb-12 px-4">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">Recently Played</h2>
+            <Link to="/profile" className="text-[10px] text-[#D4AF37] uppercase font-bold cursor-pointer hover:underline">Full History</Link>
+          </div>
+          <div className="flex overflow-x-auto gap-6 pb-4 no-scrollbar">
+            {recentlyPlayed.map((album) => (
+              <motion.div 
+                key={album.id + '-recent'}
+                whileHover={{ y: -5 }}
+                className="flex-shrink-0 w-64 group cursor-pointer"
+                onClick={() => setAlbum(album)}
+              >
+                <div className="relative aspect-square bg-[#1a1a1a] rounded-xl overflow-hidden mb-3 border border-white/5 ring-1 ring-white/5 shadow-xl">
+                  <OptimizedImage src={album.coverUrl} alt={album.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
+                  {album.tier === 'premium' && (
+                    <div className="absolute top-2 right-2 p-1.5 bg-black/40 backdrop-blur-md rounded-full text-white">
+                      <Crown className="w-3 h-3" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Play className="w-10 h-10 text-white fill-current" />
+                  </div>
+                </div>
+                <h3 className="text-sm font-medium text-white group-hover:text-primary transition-colors truncate">{album.title}</h3>
+                <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1 truncate">{album.artist} • {album.moodTags[0]}</p>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Continue Listening */}
       <section className="mb-12 px-4">
          <div className="flex justify-between items-center mb-6">
@@ -103,7 +161,7 @@ export default function Home() {
       <section className="mb-12 px-4">
         <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mb-6">Immersive Worlds</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {MOCK_CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <Link 
               key={cat.id} 
               to={`/category/${cat.slug}`}

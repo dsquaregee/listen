@@ -1,25 +1,73 @@
+import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MOCK_CATEGORIES, MOCK_ALBUMS } from '../data/mockData';
-import { Play, ChevronLeft } from 'lucide-react';
+import { Play, ChevronLeft, Loader2 } from 'lucide-react';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { Category, Album } from '../types';
 
 export default function CategoryExplore() {
   const { slug } = useParams();
-  const category = MOCK_CATEGORIES.find(c => c.slug === slug) || MOCK_CATEGORIES[0];
-  const albums = MOCK_ALBUMS.filter(a => a.categoryId === category.id);
+  const [category, setCategory] = useState<Category | null>(null);
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { setAlbum } = usePlayerStore();
 
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Try Firestore first
+        const q = query(collection(db, 'categories'), where('slug', '==', slug));
+        const sn = await getDocs(q);
+        
+        let activeCat: Category | undefined;
+        if (!sn.empty) {
+          activeCat = { id: sn.docs[0].id, ...sn.docs[0].data() } as Category;
+        } else {
+          // Fallback to mock
+          activeCat = MOCK_CATEGORIES.find(c => c.slug === slug);
+        }
+
+        if (activeCat) {
+          setCategory(activeCat);
+          // For now, albums stay mock as this request only focused on categories
+          // but we filter them correctly
+          setAlbums(MOCK_ALBUMS.filter(a => a.categoryId === activeCat?.id));
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [slug]);
+
+  if (isLoading) return (
+    <div className="pt-32 flex justify-center h-screen bg-black">
+      <Loader2 className="w-8 h-8 text-[#F4C430] animate-spin" />
+    </div>
+  );
+
+  if (!category) return (
+    <div className="pt-32 text-center h-screen bg-black text-white/40">
+      Category not found
+    </div>
+  );
+
   return (
-    <div className="pt-24 px-6 min-h-screen">
+    <div className="pt-24 px-6 min-h-screen bg-black text-white">
       <div className="flex items-center gap-4 mb-8">
-        <Link to="/" className="p-2 rounded-full bg-white/5 hover:bg-white/10">
-          <ChevronLeft className="w-6 h-6 text-white" />
+        <Link to="/" className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors">
+          <ChevronLeft className="w-6 h-6" />
         </Link>
         <div>
-          <h1 className="text-3xl font-serif font-bold text-white">{category.name}</h1>
-          <p className="text-slate-400 text-sm">{category.description}</p>
+          <h1 className="text-3xl font-serif font-bold italic">{category.name}</h1>
+          <p className="text-white/40 text-xs uppercase tracking-widest mt-1">{category.description}</p>
         </div>
       </div>
 

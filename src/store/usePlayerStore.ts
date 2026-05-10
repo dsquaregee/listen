@@ -15,6 +15,7 @@ interface PlayerState {
   offlineAlbums: string[];
   preferredQuality: number; // -1 for auto, index for levels
   autoPlayNext: boolean;
+  recentlyPlayed: Album[];
   
   // Actions
   setAlbum: (album: Album) => void;
@@ -53,6 +54,7 @@ export const usePlayerStore = create<PlayerState>()(
       offlineAlbums: [],
       preferredQuality: -1,
       autoPlayNext: true,
+      recentlyPlayed: [],
 
       setAlbum: (album) => {
         // Subscription check
@@ -61,7 +63,20 @@ export const usePlayerStore = create<PlayerState>()(
           return;
         }
 
-        set({ currentAlbum: album, isPlaying: true, currentTime: 0, progress: 0 });
+        const { recentlyPlayed } = get();
+        // Add to history, removing any existing entry for the same album to push it to the front
+        const newRecentlyPlayed = [
+          album,
+          ...recentlyPlayed.filter(a => a.id !== album.id)
+        ].slice(0, 5);
+
+        set({ 
+          currentAlbum: album, 
+          isPlaying: true, 
+          currentTime: 0, 
+          progress: 0,
+          recentlyPlayed: newRecentlyPlayed 
+        });
         // Media Session API for background controls
         if ('mediaSession' in navigator) {
           navigator.mediaSession.metadata = new MediaMetadata({
@@ -134,6 +149,7 @@ export const usePlayerStore = create<PlayerState>()(
         offlineAlbums: state.offlineAlbums,
         preferredQuality: state.preferredQuality,
         autoPlayNext: state.autoPlayNext,
+        recentlyPlayed: state.recentlyPlayed,
       }),
     }
   )

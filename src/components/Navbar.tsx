@@ -6,33 +6,65 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect, useRef } from 'react';
 import { MOCK_ALBUMS } from '../data/mockData';
 import { Album } from '../types';
-import logo from '../logo.png';
 import { OptimizedImage } from './OptimizedImage';
+
+const logoUrl = '/pwa-512x512.png';
 
 export default function Navbar() {
   const { user } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [results, setResults] = useState<Album[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (searchQuery.trim() === '') {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (debouncedSearchQuery.trim() === '') {
       setResults([]);
       return;
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = MOCK_ALBUMS.filter(album => 
-      album.title.toLowerCase().includes(query) ||
-      album.artist.toLowerCase().includes(query) ||
-      album.moodTags.some(tag => tag.toLowerCase().includes(query)) ||
-      album.instruments.some(inst => inst.toLowerCase().includes(query))
-    );
-    setResults(filtered);
-  }, [searchQuery]);
+    const query = debouncedSearchQuery.toLowerCase().trim();
+    
+    // Prioritized filtering and sorting
+    const scoredResults = MOCK_ALBUMS.map(album => {
+      let score = 0;
+      const title = album.title.toLowerCase();
+      const artist = album.artist.toLowerCase();
+
+      // 1. Exact Match (Highest Priority)
+      if (title === query) score += 1000;
+      if (artist === query) score += 800;
+
+      // 2. Starts With Match
+      if (title.startsWith(query)) score += 500;
+      if (artist.startsWith(query)) score += 400;
+
+      // 3. Includes Match (Standard)
+      if (title.includes(query)) score += 100;
+      if (artist.includes(query)) score += 80;
+
+      // 4. Tag/Instrument Match (Lower Priority)
+      if (album.moodTags.some(tag => tag.toLowerCase().includes(query))) score += 20;
+      if (album.instruments.some(inst => inst.toLowerCase().includes(query))) score += 10;
+
+      return { album, score };
+    })
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(item => item.album);
+
+    setResults(scoredResults);
+  }, [debouncedSearchQuery]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -57,32 +89,32 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="h-16 flex items-center justify-between px-8 z-20 sticky top-0 bg-[#080808]/80 backdrop-blur-md border-b border-white/5">
-    <div className="flex items-center gap-4">
-      <Link to="/" className="flex items-center gap-3">
+    <nav className="h-16 flex items-center justify-between px-4 md:px-8 z-20 sticky top-0 bg-[#080808]/80 backdrop-blur-md border-b border-white/5">
+    <div className="flex items-center gap-2 md:gap-4 shrink-0">
+      <Link to="/" className="flex items-center gap-2 md:gap-3">
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-[#D4AF37] to-[#F4C430] rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
-          <div className="relative w-12 h-12 bg-[#111] rounded-full flex items-center justify-center border border-[#D4AF37]/20 overflow-hidden shadow-2xl">
+          <div className="relative w-10 h-10 md:w-12 md:h-12 bg-[#111] rounded-full flex items-center justify-center border border-[#D4AF37]/20 overflow-hidden shadow-2xl">
             <img 
-              src={logo}
+              src={logoUrl}
               alt="DsquareGee Logo" 
               className="w-full h-full object-cover scale-110"
             />
           </div>
         </div>
         <div className="flex flex-col">
-          <span className="text-xl font-serif font-bold italic tracking-tighter text-white leading-none">DsquareGee</span>
-          <span className="text-[7px] font-bold uppercase tracking-[0.4em] text-[#F4C430] leading-none mt-1 opacity-60">Seeker of Sounds</span>
+          <span className="text-lg md:text-xl font-serif font-bold italic tracking-tighter text-white leading-none">DsquareGee</span>
+          <span className="text-[6px] md:text-[7px] font-bold uppercase tracking-[0.4em] text-[#F4C430] leading-none mt-1 opacity-60">Seeker of Sounds</span>
         </div>
       </Link>
     </div>
-    <div className="flex items-center gap-8">
+    <div className="flex items-center gap-3 md:gap-8 flex-1 justify-end">
       {/* Search Universe Input */}
-      <div ref={searchRef} className="relative">
+      <div ref={searchRef} className="relative flex-1 max-w-[256px]">
         <div 
           className={cn(
-            "flex items-center gap-2 bg-white/5 px-4 py-1.5 rounded-full border border-white/10 transition-all duration-300 group",
-            isFocused ? "w-64 bg-white/10 border-[#D4AF37]/40 ring-1 ring-[#D4AF37]/20" : "w-48"
+            "flex items-center gap-2 bg-white/5 px-3 md:px-4 py-1.5 rounded-full border border-white/10 transition-all duration-300 group",
+            isFocused ? "w-full bg-white/10 border-[#D4AF37]/40 ring-1 ring-[#D4AF37]/20" : "w-full md:w-48 ml-auto"
           )}
         >
           <Search className={cn("w-4 h-4 transition-colors", isFocused ? "text-[#F4C430]" : "text-[#D4AF37]")} />
@@ -113,8 +145,41 @@ export default function Navbar() {
               <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                 {results.length > 0 ? (
                   <div className="p-2 space-y-1">
-                    <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] px-3 py-2">Discoveries</p>
-                    {results.map((album) => (
+                    {/* Top Result Highlight */}
+                    {results.length > 0 && searchQuery.length > 2 && (
+                      <div className="mb-2 px-1">
+                        <p className="text-[9px] font-bold text-[#F4C430] uppercase tracking-[0.2em] px-2 mb-2">Top Discovery</p>
+                        <button
+                          onClick={() => handleResultClick(results[0].id)}
+                          className="w-full flex flex-col gap-3 p-3 rounded-2xl bg-gradient-to-br from-white/10 to-transparent border border-white/10 hover:border-primary/40 transition-all group relative overflow-hidden"
+                        >
+                          <div className="flex items-center gap-4 relative z-10">
+                            <OptimizedImage 
+                              src={results[0].coverUrl} 
+                              alt={results[0].title}
+                              className="w-16 h-16 rounded-xl shrink-0 shadow-2xl group-hover:scale-105 transition-transform duration-500"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-bold text-white truncate group-hover:text-primary transition-colors">{results[0].title}</h4>
+                              <p className="text-xs text-white/40 truncate">{results[0].artist}</p>
+                              <p className="text-[10px] text-white/30 line-clamp-2 italic mt-1 leading-relaxed">{results[0].description}</p>
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-[8px] font-bold uppercase tracking-widest">
+                                  Best Match
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          {/* Decorative Background Element */}
+                          <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-32 h-32 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors" />
+                        </button>
+                      </div>
+                    )}
+
+                    <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] px-3 py-2">
+                      {searchQuery.length > 2 && results.length > 1 ? 'Other Matches' : 'Discoveries'}
+                    </p>
+                    {results.slice(searchQuery.length > 2 ? 1 : 0).map((album) => (
                       <button
                         key={album.id}
                         onClick={() => handleResultClick(album.id)}
@@ -127,12 +192,16 @@ export default function Navbar() {
                         />
                         <div className="flex-1 min-w-0">
                           <h4 className="text-xs font-bold text-white truncate group-hover:text-[#F4C430] transition-colors">{album.title}</h4>
-                          <p className="text-[10px] text-white/40 truncate">{album.artist}</p>
-                          <div className="flex gap-1 mt-1">
-                            {album.moodTags.slice(0, 2).map(tag => (
-                              <span key={tag} className="text-[8px] text-white/20 italic">#{tag}</span>
-                            ))}
+                          <div className="flex items-center gap-2">
+                            <p className="text-[10px] text-white/40 truncate">{album.artist}</p>
+                            <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
+                            <div className="flex gap-1 overflow-hidden">
+                              {album.moodTags.slice(0, 1).map(tag => (
+                                <span key={tag} className="text-[8px] text-white/20 italic">#{tag}</span>
+                              ))}
+                            </div>
                           </div>
+                          <p className="text-[9px] text-white/30 line-clamp-1 italic mt-0.5">{album.description}</p>
                         </div>
                       </button>
                     ))}
@@ -171,7 +240,7 @@ export default function Navbar() {
         </AnimatePresence>
       </div>
       
-      <div className="hidden md:flex items-center gap-6 mr-4">
+      <div className="hidden md:flex items-center gap-6">
         {navItems.map((item) => (
           <Link 
             key={item.path} 
@@ -197,7 +266,7 @@ export default function Navbar() {
         )}
       </div>
 
-      <div className="w-10 h-10 rounded-full border-2 border-[#D4AF37]/30 p-0.5 overflow-hidden active:scale-95 transition-transform">
+      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-[#D4AF37]/30 p-0.5 shrink-0 overflow-hidden active:scale-95 transition-transform">
         <Link to="/profile" className="w-full h-full bg-[#222] rounded-full flex items-center justify-center overflow-hidden">
           {user?.photoURL ? (
             <img src={user.photoURL} alt="" className="w-full h-full object-cover" />

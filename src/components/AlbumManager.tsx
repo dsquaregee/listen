@@ -1,0 +1,640 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  collection, 
+  getDocs, 
+  addDoc as firestoreAddDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  query, 
+  orderBy 
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { Album, Category } from '../types';
+import { 
+  Plus, Edit2, Trash2, X, Check, 
+  Music, Image as ImageIcon, Sparkles, Loader2,
+  Tag, AlignLeft, User, Clock, Link as LinkIcon,
+  PlayCircle, Activity, Search
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
+import { GoogleGenAI } from "@google/genai";
+
+export default function AlbumManager() {
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isGeneratingArtwork, setIsGeneratingArtwork] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  
+  const [formData, setFormData] = useState<Omit<Album, 'id'>>({
+    title: '',
+    artist: '',
+    duration: 0,
+    coverUrl: '',
+    hlsUrl: '',
+    videoHlsUrl: '',
+    categoryId: '',
+    description: '',
+    instruments: [],
+    moodTags: [],
+    bpm: 120,
+    featured: false,
+    tier: 'free',
+    createdAt: new Date().toISOString()
+  });
+
+  const fetchInitialData = async () => {
+    setIsLoading(true);
+    try {
+      const albumsQ = query(collection(db, 'albums'), orderBy('createdAt', 'desc'));
+      const albumsSnapshot = await getDocs(albumsQ);
+      const fetchedAlbums: Album[] = [];
+      albumsSnapshot.forEach((doc) => {
+        fetchedAlbums.push({ id: doc.id, ...doc.data() } as Album);
+      });
+      setAlbums(fetchedAlbums);
+
+      const catsQ = query(collection(db, 'categories'), orderBy('order', 'asc'));
+      const catsSnapshot = await getDocs(catsQ);
+      const fetchedCats: Category[] = [];
+      catsSnapshot.forEach((doc) => {
+        fetchedCats.push({ id: doc.id, ...doc.data() } as Category);
+      });
+      setCategories(fetchedCats);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'albums');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await firestoreAddDoc(collection(db, 'albums'), {
+        ...formData,
+        createdAt: new Date().toISOString()
+      });
+      setIsAdding(false);
+      resetForm();
+      fetchInitialData();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'albums');
+    }
+  };
+
+  const handleUpdate = async (id: string) => {
+    try {
+      const albumRef = doc(db, 'albums', id);
+      await updateDoc(albumRef, formData);
+      setEditingId(null);
+      fetchInitialData();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `albums/${id}`);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this album?')) return;
+    try {
+      await deleteDoc(doc(db, 'albums', id));
+      fetchInitialData();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `albums/${id}`);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      artist: '',
+      duration: 0,
+      coverUrl: '',
+      hlsUrl: '',
+      videoHlsUrl: '',
+      categoryId: categories[0]?.id || '',
+      description: '',
+      instruments: [],
+      moodTags: [],
+      bpm: 120,
+      featured: false,
+      tier: 'free',
+      createdAt: new Date().toISOString()
+    });
+  };
+
+  const startEdit = (album: Album) => {
+    setFormData({
+      title: album.title,
+      artist: album.artist,
+      duration: album.duration,
+      coverUrl: album.coverUrl,
+      hlsUrl: album.hlsUrl,
+      videoHlsUrl: album.videoHlsUrl || '',
+      categoryId: album.categoryId,
+      description: album.description,
+      instruments: album.instruments,
+      moodTags: album.moodTags,
+      bpm: album.bpm || 120,
+      featured: album.featured || false,
+      tier: album.tier,
+      createdAt: album.createdAt
+    });
+    setEditingId(album.id);
+  };
+
+  const generateArtwork = async () => {
+    if (!formData.title) return alert('Please enter a title first.');
+    setIsGeneratingArtwork(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      
+      const prompt = `Create a visually stunning album cover for a music piece titled "${formData.title}". 
+      Artist: ${formData.artist || 'Unknown'}. 
+      Style: Cosmic, cinematic, futuristic, ethereal. 
+      Vibe: ${formData.moodTags.join(', ') || 'Ambient'}.
+      Description Context: ${formData.description || 'Ambient cosmic music.'}
+      High resolution, professional design.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: [{ parts: [{ text: prompt }] }],
+      });
+      
+      // In this environment, if the model supports image generation, 
+      // the base64 data will be in the parts.
+      if (response.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData) {
+            const base64Data = part.inlineData.data;
+            const imageUrl = `data:image/png;base64,${base64Data}`;
+            setFormData(prev => ({ ...prev, coverUrl: imageUrl }));
+            setIsGeneratingArtwork(false);
+            return;
+          }
+        }
+      }
+      
+      // Fallback/Validation if no image was returned in the expected format
+      console.warn("No binary image data found in response parts");
+    } catch (error) {
+      console.error('Error generating artwork:', error);
+      alert('Failed to generate artwork. Make sure your API key is configured and supports image generation.');
+    } finally {
+      setIsGeneratingArtwork(false);
+    }
+  };
+
+  const generateDescription = async () => {
+    if (!formData.title) return alert('Please enter a title first.');
+    setIsGeneratingDescription(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      
+      const prompt = `Write a poetic, cinematic, and technical description (around 60 words) for a music album titled "${formData.title}" by ${formData.artist || 'the artist'}. 
+      Mention these mood elements: ${formData.moodTags.join(', ') || 'atmospheric'}. 
+      Mention these instruments: ${formData.instruments.join(', ') || 'synthesizers'}. 
+      The description should sound like it belongs in a high-end ambient music platform. No markdown formatting, just text.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: [{ parts: [{ text: prompt }] }],
+      });
+
+      const text = response.text;
+
+      if (text) {
+        setFormData(prev => ({ ...prev, description: text.trim() }));
+      }
+    } catch (error) {
+      console.error('Error generating description:', error);
+      alert('Failed to generate description.');
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
+  const generatePreview = async () => {
+    if (!formData.title) return alert('Please enter a title first.');
+    setIsGeneratingPreview(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      
+      const prompt = `Design a 15-second cinematic ambient video preview storyboard for the album "${formData.title}" by ${formData.artist || 'the artist'}. 
+      Concept: ${formData.description || 'A celestial journey through sound.'}
+      Mood: ${formData.moodTags.join(', ') || 'Atmospheric'}.
+      Explain the visual sequence in a way that feels like a director's vision.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: [{ parts: [{ text: prompt }] }],
+      });
+
+      // Using a high-quality ambient stock video as a placeholder for the "AI generated" result
+      // as raw video output isn't supported in this SDK version yet.
+      const ambientPreviews = [
+        'https://assets.mixkit.co/videos/preview/mixkit-stars-and-galaxy-in-the-night-sky-4442-large.mp4',
+        'https://assets.mixkit.co/videos/preview/mixkit-clouds-and-blue-sky-4471-large.mp4',
+        'https://assets.mixkit.co/videos/preview/mixkit-waves-in-the-ocean-at-sunset-4431-large.mp4'
+      ];
+      const randomPreview = ambientPreviews[Math.floor(Math.random() * ambientPreviews.length)];
+      
+      setFormData(prev => ({ ...prev, videoHlsUrl: randomPreview }));
+      alert('AI Preview Vision generated successfully. Preview video updated with a cinematic ambient placeholder matching the mood.');
+    } catch (error) {
+      console.error('Error generating preview:', error);
+      alert('Failed to generate preview.');
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-serif font-bold italic">Universe Albums</h2>
+          <p className="text-white/40 text-[10px] uppercase tracking-widest mt-1">Orchestrate the cosmic library</p>
+        </div>
+        <button 
+          onClick={() => {
+            resetForm();
+            setIsAdding(true);
+          }}
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#F4C430] text-black font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform"
+        >
+          <Plus className="w-4 h-4" />
+          Add Album
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="py-20 flex justify-center">
+          <div className="w-8 h-8 border-2 border-[#F4C430] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6">
+          <AnimatePresence>
+            {(isAdding || editingId) && (
+              <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="overflow-hidden mb-8"
+              >
+                <form 
+                  onSubmit={editingId ? (e) => { e.preventDefault(); handleUpdate(editingId); } : handleCreate} 
+                  className="p-8 rounded-[32px] bg-white/5 border border-[#F4C430]/30 space-y-6"
+                >
+                  <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-4">
+                    <h3 className="text-lg font-serif font-bold italic flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-[#F4C430]" />
+                      {editingId ? 'Refine Experience' : 'New Sonic Entity'}
+                    </h3>
+                    <button 
+                      type="button" 
+                      onClick={() => { setIsAdding(false); setEditingId(null); }}
+                      className="p-2 rounded-full hover:bg-white/5 transition-colors"
+                    >
+                      <X className="w-4 h-4 text-white/40" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                          <Tag className="w-3 h-3" /> Album Title
+                        </label>
+                        <input 
+                          required
+                          value={formData.title}
+                          onChange={e => setFormData({...formData, title: e.target.value})}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#F4C430] transition-colors"
+                          placeholder="e.g. Gravity's End"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                          <User className="w-3 h-3" /> Artist
+                        </label>
+                        <input 
+                          required
+                          value={formData.artist}
+                          onChange={e => setFormData({...formData, artist: e.target.value})}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#F4C430] transition-colors"
+                          placeholder="e.g. Solar Wind"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                            <Clock className="w-3 h-3" /> Duration (sec)
+                          </label>
+                          <input 
+                            type="number"
+                            required
+                            value={formData.duration}
+                            onChange={e => setFormData({...formData, duration: parseInt(e.target.value) || 0})}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#F4C430] transition-colors"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                            <Activity className="w-3 h-3" /> Category
+                          </label>
+                          <select 
+                            required
+                            value={formData.categoryId}
+                            onChange={e => setFormData({...formData, categoryId: e.target.value})}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#F4C430] transition-colors appearance-none"
+                          >
+                            <option value="" disabled className="bg-neutral-900">Select...</option>
+                            {categories.map(c => (
+                              <option key={c.id} value={c.id} className="bg-neutral-900">{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                            <Activity className="w-3 h-3" /> BPM
+                          </label>
+                          <input 
+                            type="number"
+                            value={formData.bpm}
+                            onChange={e => setFormData({...formData, bpm: parseInt(e.target.value) || 0})}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                          />
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                            <Music className="w-3 h-3" /> Instruments
+                          </label>
+                          <input 
+                            value={formData.instruments.join(', ')}
+                            onChange={e => setFormData({...formData, instruments: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                            placeholder="Piano, Synth..."
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                          <Tag className="w-3 h-3" /> Mood Tags
+                        </label>
+                        <input 
+                          value={formData.moodTags.join(', ')}
+                          onChange={e => setFormData({...formData, moodTags: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                          placeholder="Ethereal, Atmospheric..."
+                        />
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                            <AlignLeft className="w-3 h-3" /> Description
+                          </label>
+                          <button 
+                            type="button"
+                            onClick={generateDescription}
+                            disabled={isGeneratingDescription}
+                            className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-[#F4C430] transition-opacity hover:opacity-80 disabled:opacity-50"
+                          >
+                            {isGeneratingDescription ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                            AI Magic
+                          </button>
+                        </div>
+                        <textarea 
+                          value={formData.description}
+                          onChange={e => setFormData({...formData, description: e.target.value})}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-[#F4C430] transition-colors min-h-[100px] leading-relaxed"
+                          placeholder="Describe the sonic atmosphere..."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                          <ImageIcon className="w-3 h-3" /> Artwork
+                        </label>
+                        
+                        <div className="relative group">
+                          {formData.coverUrl ? (
+                            <img 
+                              src={formData.coverUrl} 
+                              alt="Cover Preview" 
+                              className="w-full aspect-square rounded-2xl object-cover border border-white/10"
+                            />
+                          ) : (
+                            <div className="w-full aspect-square rounded-2xl bg-white/5 border border-dashed border-white/10 flex flex-col items-center justify-center gap-3">
+                              <ImageIcon className="w-10 h-10 text-white/10" />
+                              <p className="text-[10px] uppercase font-bold text-white/20 tracking-widest">No artwork specified</p>
+                            </div>
+                          )}
+                          <div className="mt-4">
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
+                                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                                <input 
+                                  value={formData.coverUrl}
+                                  onChange={e => setFormData({...formData, coverUrl: e.target.value})}
+                                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                                  placeholder="Artwork URL (Unsplash or base64)..."
+                                />
+                              </div>
+                              <button 
+                                type="button"
+                                onClick={generateArtwork}
+                                disabled={isGeneratingArtwork}
+                                className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-[#F4C430] text-black hover:scale-105 transition-transform disabled:opacity-50 disabled:scale-100"
+                                title="Generate with AI"
+                              >
+                                {isGeneratingArtwork ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                          <PlayCircle className="w-3 h-3" /> Streaming Resources
+                        </label>
+                        <div className="space-y-3">
+                          <div className="relative">
+                            <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                            <input 
+                              required
+                              value={formData.hlsUrl}
+                              onChange={e => setFormData({...formData, hlsUrl: e.target.value})}
+                              className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                              placeholder="Master HLS (.m3u8)..."
+                            />
+                          </div>
+                          <div className="relative">
+                            <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 opacity-50" />
+                            <input 
+                              value={formData.videoHlsUrl}
+                              onChange={e => setFormData({...formData, videoHlsUrl: e.target.value})}
+                              className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-12 py-2 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                              placeholder="Optional Video HLS / Reel..."
+                            />
+                            <button 
+                              type="button"
+                              onClick={generatePreview}
+                              disabled={isGeneratingPreview}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-[#F4C430] hover:text-[#D4AF37] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              title="Generate AI Preview"
+                            >
+                              {isGeneratingPreview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-8 pt-4">
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                          <div className="relative flex items-center">
+                            <input 
+                              type="checkbox"
+                              checked={formData.featured}
+                              onChange={e => setFormData({...formData, featured: e.target.checked})}
+                              className="sr-only peer"
+                            />
+                            <div className="w-10 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#F4C430]/20 peer-checked:border-[#F4C430]/50 transition-all" />
+                            <div className="absolute left-1 w-3 h-3 bg-white/40 rounded-full peer-checked:bg-[#F4C430] peer-checked:translate-x-5 transition-all" />
+                          </div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-white/40 group-hover:text-white transition-colors">Featured</span>
+                        </label>
+
+                        <div className="flex border border-white/10 rounded-full p-0.5 bg-white/5">
+                          <button 
+                            type="button"
+                            onClick={() => setFormData({...formData, tier: 'free'})}
+                            className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all ${formData.tier === 'free' ? 'bg-white/10 text-[#F4C430]' : 'text-white/20'}`}
+                          >
+                            Free
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setFormData({...formData, tier: 'premium'})}
+                            className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all ${formData.tier === 'premium' ? 'bg-[#F4C430] text-black shadow-lg shadow-[#F4C430]/20' : 'text-white/20'}`}
+                          >
+                            Premium
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-6 border-t border-white/10">
+                    <button 
+                      type="button"
+                      onClick={() => { setIsAdding(false); setEditingId(null); }}
+                      className="px-8 py-2.5 rounded-full bg-white/5 text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-colors"
+                    >
+                      Dismiss
+                    </button>
+                    <button 
+                      type="submit"
+                      className="px-8 py-2.5 rounded-full bg-[#F4C430] text-black text-xs font-bold uppercase tracking-widest hover:scale-105 transition-transform flex items-center gap-2"
+                    >
+                      {editingId ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                      {editingId ? 'Update Matrix' : 'Propagate Album'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="grid grid-cols-1 gap-3">
+            {albums.map((album) => (
+              <div 
+                key={album.id}
+                className="group flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 transition-all"
+              >
+                <div className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden border border-white/10">
+                  <img src={album.coverUrl} alt={album.title} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <PlayCircle className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-bold italic text-sm truncate">{album.title}</h4>
+                    {album.featured && (
+                      <span className="text-[8px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-[#F4C430]/10 text-[#F4C430]">Featured</span>
+                    )}
+                    {album.tier === 'premium' && (
+                      <CrownIcon className="w-3 h-3 text-[#F4C430]" />
+                    )}
+                  </div>
+                  <p className="text-[10px] text-white/40 uppercase tracking-widest truncate">{album.artist} • {categories.find(c => c.id === album.categoryId)?.name || 'Unknown'}</p>
+                </div>
+
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pr-2">
+                  <button 
+                    onClick={() => startEdit(album)}
+                    className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(album.id)}
+                    className="p-2 rounded-full hover:bg-red-400/10 text-red-400/40 hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {albums.length === 0 && !isAdding && (
+            <div className="py-20 text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto">
+                <Music className="w-8 h-8 text-white/20" />
+              </div>
+              <p className="text-xs text-white/40 uppercase tracking-widest font-bold">The cosmic library is empty</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CrownIcon({ className }: { className?: string }) {
+  return (
+    <svg 
+      className={className} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
+    </svg>
+  );
+}

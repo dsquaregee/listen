@@ -100,16 +100,16 @@ export default function Profile() {
 function SettingsItem({ icon: Icon, label, value, highlight }: { icon: any, label: string, value: string, highlight?: boolean }) {
   return (
     <div className={cn(
-      "flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/5",
+      "flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/5 gap-4",
       highlight && "border-primary/20 bg-primary/5"
     )}>
       <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
           <Icon className={cn("w-5 h-5", highlight ? "text-primary" : "text-slate-400")} />
         </div>
         <div>
-          <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
-          <p className="text-white font-medium">{value}</p>
+          <p className="text-[10px] md:text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
+          <p className="text-white font-medium text-sm md:text-base">{value}</p>
         </div>
       </div>
     </div>
