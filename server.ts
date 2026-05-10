@@ -4,7 +4,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import ffmpeg from 'fluent-ffmpeg';
+import ffmpegInstaller from 'ffmpeg-static';
 import { Storage } from '@google-cloud/storage';
+
+if (ffmpegInstaller) {
+  ffmpeg.setFfmpegPath(ffmpegInstaller);
+}
 import dotenv from 'dotenv';
 
 dotenv.config();
