@@ -6,16 +6,25 @@ import fs from 'fs';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from 'ffmpeg-static';
 import { Storage } from '@google-cloud/storage';
-
-if (ffmpegInstaller) {
-  ffmpeg.setFfmpegPath(ffmpegInstaller);
-}
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Logging helper
+const logFile = path.join(process.cwd(), 'server.log');
+function logToFile(message: string) {
+  const timestamp = new Date().toISOString();
+  const formattedMessage = `[${timestamp}] ${message}\n`;
+  console.log(formattedMessage.trim());
+  fs.appendFileSync(logFile, formattedMessage);
+}
+
+if (ffmpegInstaller) {
+  ffmpeg.setFfmpegPath(ffmpegInstaller);
+}
 
 const app = express();
 const PORT = 3000;
@@ -35,8 +44,8 @@ const storage = new Storage({
 
 const bucketName = process.env.GCS_BUCKET_NAME || '';
 
-if (!process.env.GCS_PRIVATE_KEY) console.warn('WARNING: GCS_PRIVATE_KEY is not defined in environment');
-if (!privateKey?.includes('BEGIN PRIVATE KEY')) console.warn('WARNING: GCS_PRIVATE_KEY does not appear to be a valid PEM key');
+if (!process.env.GCS_PRIVATE_KEY) logToFile('WARNING: GCS_PRIVATE_KEY is not defined in environment');
+if (!privateKey?.includes('BEGIN PRIVATE KEY')) logToFile('WARNING: GCS_PRIVATE_KEY does not appear to be a valid PEM key');
 
 // Ensure uploads directory exists
 if (!fs.existsSync('uploads')) {
@@ -49,11 +58,14 @@ app.use(express.json());
 app.post('/api/get-upload-url', async (req, res) => {
   try {
     const { fileName, contentType } = req.body;
+    logToFile(`Generating signed URL for: ${fileName}`);
     
     if (!bucketName) {
+      logToFile('ERORR: GCS_BUCKET_NAME missing');
       return res.status(500).json({ error: 'GCS_BUCKET_NAME is not configured' });
     }
     if (!process.env.GCS_PRIVATE_KEY || !process.env.GCS_CLIENT_EMAIL) {
+      logToFile('ERROR: GCS credentials missing');
       return res.status(500).json({ error: 'GCS credentials missing' });
     }
 
@@ -71,19 +83,22 @@ app.post('/api/get-upload-url', async (req, res) => {
       contentType,
     });
 
+    logToFile(`Signed URL generated successfully for ${destination}`);
     res.json({ uploadUrl: url, gcsPath: destination });
   } catch (error) {
-    console.error('Signed URL Error:', error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logToFile(`Signed URL Error: ${errMsg}`);
     res.status(500).json({ 
       error: 'Failed to generate upload URL', 
-      details: error instanceof Error ? error.message : String(error) 
+      details: errMsg 
     });
   }
 });
 
-// Audio Processing Route (Improved to process from GCS)
+// Audio Processing Route
 app.post('/api/process-audio', async (req, res) => {
   const { albumId, gcsPath } = req.body;
+  logToFile(`Received processing request for album: ${albumId}, path: ${gcsPath}`);
   
   if (!albumId || !gcsPath) {
     return res.status(400).json({ error: 'Album ID and GCS Path are required' });
@@ -99,15 +114,15 @@ app.post('/api/process-audio', async (req, res) => {
   const outputPlaylist = path.join(outputDir, 'playlist.m3u8');
 
   try {
-    // 1. Download from GCS to local disk for processing
-    console.log(`Downloading ${gcsPath} for processing...`);
+    // 1. Download from GCS
+    logToFile(`Downloading ${gcsPath} from bucket ${bucketName}...`);
     await storage.bucket(bucketName).file(gcsPath).download({
       destination: inputFile,
     });
+    logToFile(`Download complete: ${inputFile}`);
 
-    // 2. Process with FFmpeg to HLS
-    console.log(`Starting HLS processing for ${albumId}...`);
-    
+    // 2. Process with FFmpeg
+    logToFile(`Starting HLS conversion for ${albumId}...`);
     await new Promise((resolve, reject) => {
       ffmpeg(inputFile)
         .outputOptions([
@@ -117,14 +132,21 @@ app.post('/api/process-audio', async (req, res) => {
           '-f hls'
         ])
         .output(outputPlaylist)
-        .on('end', resolve)
-        .on('error', reject)
+        .on('start', (cmd) => logToFile(`FFmpeg command: ${cmd}`))
+        .on('progress', (progress) => logToFile(`FFmpeg progress: ${progress.percent}%`))
+        .on('end', () => {
+          logToFile('FFmpeg finished successfully');
+          resolve(true);
+        })
+        .on('error', (err) => {
+          logToFile(`FFmpeg error: ${err.message}`);
+          reject(err);
+        })
         .run();
     });
 
-    console.log('FFmpeg processing complete. Starting GCS upload...');
-
-    // 3. Upload segments/playlist to GCS
+    // 3. Upload to GCS
+    logToFile('Uploading results to GCS...');
     const files = fs.readdirSync(outputDir);
     const uploadPromises = files.map(async (file) => {
       const filePath = path.join(outputDir, file);
@@ -142,46 +164,48 @@ app.post('/api/process-audio', async (req, res) => {
 
     const urls = await Promise.all(uploadPromises);
     const m3u8Url = urls.find(url => url.endsWith('.m3u8'));
+    logToFile(`Upload complete. M3U8 URL: ${m3u8Url}`);
 
     // 4. Cleanup
+    logToFile('Cleaning up temporary local and cloud files...');
     fs.rmSync(outputDir, { recursive: true, force: true });
     fs.unlinkSync(inputFile);
-    // Delete the temp upload in GCS
-    await storage.bucket(bucketName).file(gcsPath).delete().catch(e => console.warn('Failed to delete temp file:', e));
+    await storage.bucket(bucketName).file(gcsPath).delete().catch(e => logToFile(`Warning: Failed to delete temp GCS file: ${e.message}`));
 
-    res.json({ 
-      success: true, 
-      m3u8Url,
-      message: 'Processing and upload successful'
-    });
+    res.json({ success: true, m3u8Url });
 
   } catch (error) {
-    console.error('Processing error:', error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logToFile(`Processing Failure: ${errMsg}`);
     if (fs.existsSync(outputDir)) fs.rmSync(outputDir, { recursive: true, force: true });
     if (fs.existsSync(inputFile)) fs.unlinkSync(inputFile);
     
-    res.status(500).json({ error: 'Failed to process audio', details: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ error: 'Failed to process audio', details: errMsg });
   }
 });
 
 async function startServer() {
+  logToFile('Starting server initialization...');
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
+    logToFile('Vite middleware integrated');
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
+    logToFile('Production static serving active');
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running at http://0.0.0.0:${PORT}`);
+    logToFile(`Server actually listening on http://0.0.0.0:${PORT}`);
   });
 }
 
-startServer();
+startServer().catch(err => logToFile(`Startup Crash: ${err.message}`));
+
