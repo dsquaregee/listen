@@ -16,8 +16,11 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
-// Setup Multer for temp storage
-const upload = multer({ dest: 'uploads/' });
+// Setup Multer for temp storage with larger limits (900MB)
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: { fileSize: 900 * 1024 * 1024 } // 900MB
+});
 
 // Setup GCS
 const storage = new Storage({
@@ -35,7 +38,9 @@ if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
 
-app.use(express.json());
+// Increase Express body parser limits
+app.use(express.json({ limit: '900mb' }));
+app.use(express.urlencoded({ limit: '900mb', extended: true }));
 
 // Audio Processing Route
 app.post('/api/process-audio', upload.single('audio'), async (req, res) => {
