@@ -88,6 +88,7 @@ export default function AlbumManager() {
       resetForm();
       fetchInitialData();
     } catch (error) {
+      alert('Failed to propagate album. Check console for details.');
       handleFirestoreError(error, OperationType.CREATE, 'albums');
     }
   };
@@ -99,6 +100,7 @@ export default function AlbumManager() {
       setEditingId(null);
       fetchInitialData();
     } catch (error) {
+      alert('Failed to update matrix.');
       handleFirestoreError(error, OperationType.UPDATE, `albums/${id}`);
     }
   };

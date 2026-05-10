@@ -1,6 +1,6 @@
 import Hls from 'hls.js';
 
-class StreamingService {
+export class StreamingService {
   private hls: Hls | null = null;
   private audio: HTMLAudioElement | null = null;
 

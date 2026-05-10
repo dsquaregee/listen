@@ -8,14 +8,15 @@ import {
   GripVertical, X, Trash2, CheckCircle2,
   Zap, Share2, Twitter, Facebook, Link,
   PlusCircle, FolderPlus, ListPlus, Download,
-  Shuffle, Repeat, Repeat1
+  Shuffle, Repeat, Repeat1, Search
 } from 'lucide-react';
 import AudioVisualizer from './AudioVisualizer';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { hapticFeedback } from '../lib/haptics';
 import { useUserStore } from '../store/useUserStore';
 import { MOCK_ALBUMS } from '../data/mockData';
 import { formatTime, cn } from '../lib/utils';
-import { streamingService } from '../services/streamingService';
+import { streamingService, StreamingService } from '../services/streamingService';
 import { offlineService } from '../services/offlineService';
 import {
   DndContext, 
@@ -351,11 +352,11 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId }: WaveformSeekb
 interface QualitySelectorProps {
   onQualityChange: (level: number) => void;
   currentLevel: number;
+  levels: any[];
 }
 
-function QualitySelector({ onQualityChange, currentLevel }: QualitySelectorProps) {
+function QualitySelector({ onQualityChange, currentLevel, levels }: QualitySelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const levels = streamingService.getAvailableLevels();
 
   const getLabel = (index: number) => {
     if (index === -1) return "Auto";
@@ -606,7 +607,15 @@ function PlaylistModal({ isOpen, onClose, album }: PlaylistModalProps) {
 }
 
 export default function AudioPlayer() {
+  const audioRef1 = useRef<HTMLAudioElement | null>(null);
+  const audioRef2 = useRef<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [activePlayer, setActivePlayer] = useState<1 | 2>(1);
+  const service1Ref = useRef(new StreamingService());
+  const service2Ref = useRef(new StreamingService());
+  const isTransitioningRef = useRef(false);
+  const previousAlbumIdRef = useRef<string | null>(null);
+  
   const location = useLocation();
   const { 
     currentAlbum, isPlaying, progress, currentTime, duration, 
@@ -617,6 +626,7 @@ export default function AudioPlayer() {
   } = usePlayerStore();
 
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [queueSearch, setQueueSearch] = useState('');
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isInfoExpanded, setIsInfoExpanded] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -704,7 +714,7 @@ export default function AudioPlayer() {
 
   // Audio Analysis for Parallax Effect
   useEffect(() => {
-    if (!audioRef.current || !isHydrated) return;
+    if (!audioRef1.current || !audioRef2.current || !isHydrated) return;
 
     let audioCtx: AudioContext | null = null;
 
@@ -715,16 +725,21 @@ export default function AudioPlayer() {
           audioCtx = new AudioContextClass();
           
           if (!sourceNodeRef.current) {
-            sourceNodeRef.current = audioCtx.createMediaElementSource(audioRef.current!);
+            // Setup dual source nodes for crossfade
+            const source1 = audioCtx.createMediaElementSource(audioRef1.current!);
+            const source2 = audioCtx.createMediaElementSource(audioRef2.current!);
+            
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.8;
+            
+            source1.connect(analyser);
+            source2.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            
+            analyzerRef.current = analyser;
+            sourceNodeRef.current = source1; // Just to satisfy ref type, but both are connected
           }
-          
-          const analyser = audioCtx.createAnalyser();
-          analyser.fftSize = 256;
-          analyser.smoothingTimeConstant = 0.8;
-          
-          sourceNodeRef.current.connect(analyser);
-          analyser.connect(audioCtx.destination);
-          analyzerRef.current = analyser;
         }
 
         if (audioCtx && audioCtx.state === 'suspended') {
@@ -790,67 +805,125 @@ export default function AudioPlayer() {
     })
   );
 
-  // Initialize HLS
+  // Initialize Streaming Services
   useEffect(() => {
-    if (audioRef.current) {
-      streamingService.initialize(audioRef.current);
+    if (audioRef1.current && audioRef2.current) {
+      service1Ref.current.initialize(audioRef1.current);
+      service2Ref.current.initialize(audioRef2.current);
+      // Default audioRef points to active player
+      audioRef.current = activePlayer === 1 ? audioRef1.current : audioRef2.current;
     }
     return () => {
-      streamingService.destroy();
+      service1Ref.current.destroy();
+      service2Ref.current.destroy();
       if (lastOfflineUrlRef.current) {
         URL.revokeObjectURL(lastOfflineUrlRef.current);
       }
     };
   }, []);
 
+  // Sync active audioRef
+  useEffect(() => {
+    audioRef.current = activePlayer === 1 ? audioRef1.current : audioRef2.current;
+  }, [activePlayer]);
+
+  const crossfadeDuration = 1500; // ms
+
+  const performCrossfade = async (nextPlayer: 1 | 2, url: string, isOffline: boolean) => {
+    const nextAudio = nextPlayer === 1 ? audioRef1.current : audioRef2.current;
+    const currentAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
+    const nextService = nextPlayer === 1 ? service1Ref.current : service2Ref.current;
+
+    if (!nextAudio || !currentAudio) return;
+
+    console.log('Starting crossfade to player', nextPlayer);
+
+    // Load and start next track at 0 volume
+    nextAudio.volume = 0;
+    nextService.loadSource(url);
+    if (preferredQuality !== -1 && !isOffline) {
+      nextService.switchQuality(preferredQuality);
+    }
+    
+    try {
+      await nextAudio.play();
+      
+      const startTime = Date.now();
+      const startVolume = volume;
+
+      const fadeInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const fadeProgress = Math.min(elapsed / crossfadeDuration, 1);
+
+        // Fade current down
+        currentAudio.volume = startVolume * (1 - fadeProgress);
+        // Fade next up
+        nextAudio.volume = startVolume * fadeProgress;
+
+        if (fadeProgress >= 1) {
+          clearInterval(fadeInterval);
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+          setActivePlayer(nextPlayer);
+          isTransitioningRef.current = false;
+        }
+      }, 50);
+    } catch (err) {
+      console.error('Crossfade failed', err);
+      // Fallback: immediate switch
+      nextAudio.volume = volume;
+      currentAudio.pause();
+      setActivePlayer(nextPlayer);
+      isTransitioningRef.current = false;
+    }
+  };
+
   // Handle source changes with HLS and Resume from state
   useEffect(() => {
     const initializeSource = async () => {
-      if (isHydrated && currentAlbum && audioRef.current) {
+      if (isHydrated && currentAlbum && audioRef1.current && audioRef2.current) {
         let sourceUrl = currentAlbum.hlsUrl;
         let isUsingOffline = false;
         
-        // Revoke previous blob URL if exists
-        if (lastOfflineUrlRef.current) {
-          URL.revokeObjectURL(lastOfflineUrlRef.current);
-          lastOfflineUrlRef.current = null;
-        }
-
-        // Check if album is available offline
         if (offlineAlbums.includes(currentAlbum.id)) {
           try {
             const offlineUrl = await offlineService.getOfflineUrl(currentAlbum.id);
             if (offlineUrl) {
               sourceUrl = offlineUrl;
-              lastOfflineUrlRef.current = offlineUrl;
               isUsingOffline = true;
             }
           } catch (err) {
-            console.error('Failed to load offline source', err);
+            console.error('Offline load failure', err);
           }
         }
 
         setIsOfflineMode(isUsingOffline);
-        streamingService.loadSource(sourceUrl);
+
+        // If it's a new album and we're not currently in the middle of a triggered transition
+        if (previousAlbumIdRef.current && previousAlbumIdRef.current !== currentAlbum.id && isPlaying) {
+          const nextPlayer = activePlayer === 1 ? 2 : 1;
+          isTransitioningRef.current = true;
+          performCrossfade(nextPlayer, sourceUrl, isUsingOffline);
+        } else {
+          // Standard initialization for first run or manual play
+          const currentService = activePlayer === 1 ? service1Ref.current : service2Ref.current;
+          const currentAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
+          
+          if (currentAudio) {
+            currentAudio.volume = volume;
+            currentService.loadSource(sourceUrl);
+            if (currentTime > 0) currentAudio.currentTime = currentTime;
+            if (preferredQuality !== -1 && !isUsingOffline) currentService.switchQuality(preferredQuality);
+            if (isPlaying) currentAudio.play().catch(console.error);
+          }
+        }
         
-        // Resume playback position
-        if (currentTime > 0) {
-          audioRef.current.currentTime = currentTime;
-        }
-
-        // Resume quality preference
-        if (preferredQuality !== -1 && !isUsingOffline) {
-          streamingService.switchQuality(preferredQuality);
-        }
-
-        if (isPlaying) {
-          audioRef.current.play().catch(console.error);
-        }
+        previousAlbumIdRef.current = currentAlbum.id;
       }
     };
 
     initializeSource();
-  }, [currentAlbum?.id, isHydrated, offlineAlbums.length]); // Use length to avoid re-triggering on every array change unless a download happened
+  }, [currentAlbum?.id, isHydrated]);
 
   // Premium event listener
   useEffect(() => {
@@ -923,13 +996,24 @@ export default function AudioPlayer() {
 
   // Handle progress updates
   const handleTimeUpdate = () => {
-    if (!audioRef.current) return;
-    const time = audioRef.current.currentTime;
-    const dur = audioRef.current.duration;
-    setCurrentTime(time);
+    const activeAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
+    if (!activeAudio) return;
+
+    const time = activeAudio.currentTime;
+    const dur = activeAudio.duration;
+    
+    if (time > 0) {
+      setCurrentTime(time);
+    }
+    
     if (dur) {
       setDuration(dur);
       setProgress(time / dur);
+
+      // Trigger crossfade 2 seconds before end
+      if (dur - time < 2 && !isTransitioningRef.current && autoPlayNext && queue.length > 0) {
+        next();
+      }
     }
   };
 
@@ -947,7 +1031,8 @@ export default function AudioPlayer() {
   };
 
   const handleQualityChange = (level: number) => {
-    streamingService.switchQuality(level);
+    const actService = activePlayer === 1 ? service1Ref.current : service2Ref.current;
+    actService.switchQuality(level);
     setPreferredQuality(level);
   };
 
@@ -956,10 +1041,16 @@ export default function AudioPlayer() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[60] h-24 px-8 pb-4">
       <audio
-        ref={audioRef}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={() => autoPlayNext && next()}
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        ref={audioRef1}
+        onTimeUpdate={activePlayer === 1 ? handleTimeUpdate : undefined}
+        onEnded={activePlayer === 1 ? (() => autoPlayNext && next()) : undefined}
+        onLoadedMetadata={activePlayer === 1 ? ((e) => setDuration(e.currentTarget.duration)) : undefined}
+      />
+      <audio
+        ref={audioRef2}
+        onTimeUpdate={activePlayer === 2 ? handleTimeUpdate : undefined}
+        onEnded={activePlayer === 2 ? (() => autoPlayNext && next()) : undefined}
+        onLoadedMetadata={activePlayer === 2 ? ((e) => setDuration(e.currentTarget.duration)) : undefined}
       />
 
       <AnimatePresence mode="wait">
@@ -1274,6 +1365,10 @@ export default function AudioPlayer() {
               {/* Playback Buttons */}
               <div className="flex items-center gap-4 sm:gap-10">
                 <button 
+                  onClick={() => {
+                    hapticFeedback.light();
+                    // toggleFavorite mechanism here if implemented
+                  }}
                   className="text-white/40 hover:text-white transition-colors p-2"
                   aria-label="Favorite"
                   title="Mark as Favorite"
@@ -1281,7 +1376,10 @@ export default function AudioPlayer() {
                   <Heart className="w-6 h-6" />
                 </button>
                 <button 
-                  onClick={toggleShuffle}
+                  onClick={() => {
+                    hapticFeedback.light();
+                    toggleShuffle();
+                  }}
                   className={cn(
                     "transition-all p-2 transform hover:scale-110 active:scale-95",
                     isShuffled ? "text-[#F4C430]" : "text-white/40 hover:text-white"
@@ -1292,7 +1390,10 @@ export default function AudioPlayer() {
                   <Shuffle className="w-5 h-5" />
                 </button>
                 <button 
-                  onClick={previous}
+                  onClick={() => {
+                    hapticFeedback.light();
+                    previous();
+                  }}
                   className="text-white/60 hover:text-white transition-colors transform hover:scale-110 active:scale-90 p-2"
                   aria-label="Previous Track"
                   title="Previous Track"
@@ -1300,7 +1401,10 @@ export default function AudioPlayer() {
                   <SkipBack className="w-10 h-10 fill-current" />
                 </button>
                 <button 
-                  onClick={togglePlay}
+                  onClick={() => {
+                    hapticFeedback.medium();
+                    togglePlay();
+                  }}
                   className="w-24 h-24 rounded-full bg-[#F4C430] text-black flex items-center justify-center shadow-2xl transform hover:scale-110 active:scale-95 transition-all ring-1 ring-white/20"
                   aria-label={isPlaying ? "Pause" : "Play"}
                   title={isPlaying ? "Pause" : "Play"}
@@ -1312,7 +1416,10 @@ export default function AudioPlayer() {
                   )}
                 </button>
                 <button 
-                  onClick={next}
+                  onClick={() => {
+                    hapticFeedback.light();
+                    next();
+                  }}
                   className="text-white/60 hover:text-white transition-colors transform hover:scale-110 active:scale-90 p-2"
                   aria-label="Next Track"
                   title="Next Track"
@@ -1320,7 +1427,10 @@ export default function AudioPlayer() {
                   <SkipForward className="w-10 h-10 fill-current" />
                 </button>
                 <button 
-                  onClick={toggleRepeat}
+                  onClick={() => {
+                    hapticFeedback.light();
+                    toggleRepeat();
+                  }}
                   className={cn(
                     "transition-all p-2 transform hover:scale-110 active:scale-95 relative",
                     repeatMode !== 'none' ? "text-[#F4C430]" : "text-white/40 hover:text-white"
@@ -1335,7 +1445,10 @@ export default function AudioPlayer() {
                 </button>
                 <div className="relative">
                   <button 
-                    onClick={() => setIsSleepTimerOpen(!isSleepTimerOpen)}
+                    onClick={() => {
+                      hapticFeedback.light();
+                      setIsSleepTimerOpen(!isSleepTimerOpen);
+                    }}
                     className={cn(
                       "flex flex-col items-center gap-1 transition-all group",
                       sleepTimerRemaining !== null ? "text-[#F4C430]" : "text-white/40 hover:text-white"
@@ -1375,7 +1488,10 @@ export default function AudioPlayer() {
                             {[5, 10, 15, 30, 45, 60].map((min) => (
                               <button
                                 key={min}
-                                onClick={() => setSleepTimer(min)}
+                                onClick={() => {
+                                  hapticFeedback.selection();
+                                  setSleepTimer(min);
+                                }}
                                 className="p-3 rounded-xl hover:bg-white/5 text-xs font-bold text-white transition-all text-center"
                               >
                                 {min}m
@@ -1426,7 +1542,13 @@ export default function AudioPlayer() {
                     max="1"
                     step="0.01"
                     value={volume}
-                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    onChange={(e) => {
+                      const newVolume = parseFloat(e.target.value);
+                      if (Math.abs(newVolume - volume) > 0.05) {
+                        hapticFeedback.selection();
+                      }
+                      setVolume(newVolume);
+                    }}
                     className="flex-1 h-1 bg-white/10 rounded-full appearance-none accent-white/40 cursor-pointer"
                   />
                 </div>
@@ -1513,6 +1635,7 @@ export default function AudioPlayer() {
                     <QualitySelector 
                       currentLevel={preferredQuality}
                       onQualityChange={handleQualityChange}
+                      levels={(activePlayer === 1 ? service1Ref : service2Ref).current.getAvailableLevels()}
                     />
                   )}
 
@@ -1629,19 +1752,44 @@ export default function AudioPlayer() {
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed top-0 right-0 h-full w-full max-w-md bg-[#080808] border-l border-white/10 z-[90] flex flex-col"
             >
-              <div className="p-6 flex items-center justify-between border-b border-white/10">
-                <div>
-                  <h2 className="text-xl font-serif font-bold text-white italic">Playback Queue</h2>
-                  <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">
-                    {queue.length} Experiences Staged
-                  </p>
+              <div className="p-6 flex flex-col gap-4 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-serif font-bold text-white italic">Playback Queue</h2>
+                    <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">
+                      {queue.length} Experiences Staged
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setIsQueueOpen(false)}
+                    className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setIsQueueOpen(false)}
-                  className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+
+                {/* Queue Search Interface */}
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-[#F4C430]/5 rounded-xl blur-lg group-focus-within:bg-[#F4C430]/10 transition-all opacity-0 group-focus-within:opacity-100" />
+                  <div className="relative flex items-center gap-3 px-4 py-3 bg-white/[0.03] border border-white/10 rounded-xl group-focus-within:border-[#F4C430]/30 group-focus-within:bg-white/[0.05] transition-all">
+                    <Search className="w-4 h-4 text-white/20 group-focus-within:text-[#F4C430] transition-colors" />
+                    <input 
+                      type="text"
+                      placeholder="Filter staged frequencies..."
+                      value={queueSearch}
+                      onChange={(e) => setQueueSearch(e.target.value)}
+                      className="flex-1 bg-transparent border-none outline-none text-xs text-white placeholder:text-white/20 font-medium"
+                    />
+                    {queueSearch && (
+                      <button 
+                        onClick={() => setQueueSearch('')}
+                        className="p-1 hover:bg-white/10 rounded-full transition-colors"
+                      >
+                        <X className="w-3 h-3 text-white/40" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
@@ -1844,6 +1992,13 @@ export default function AudioPlayer() {
                         Explore Universes
                       </motion.button>
                     </motion.div>
+                  ) : queue.filter(a => 
+                      a.title.toLowerCase().includes(queueSearch.toLowerCase()) || 
+                      a.artist.toLowerCase().includes(queueSearch.toLowerCase())
+                    ).length === 0 ? (
+                    <div className="py-20 text-center">
+                      <p className="text-xs text-white/20 italic uppercase tracking-[0.2em]">No matching frequencies</p>
+                    </div>
                   ) : (
                     <DndContext
                       sensors={sensors}
@@ -1852,20 +2007,28 @@ export default function AudioPlayer() {
                       onDragEnd={handleDragEnd}
                     >
                       <SortableContext
-                        items={queue.map(a => a.id)}
+                        items={queue.filter(a => 
+                          a.title.toLowerCase().includes(queueSearch.toLowerCase()) || 
+                          a.artist.toLowerCase().includes(queueSearch.toLowerCase())
+                        ).map(a => a.id)}
                         strategy={verticalListSortingStrategy}
                       >
                         <div className="space-y-2">
-                          {queue.map((album, index) => (
-                            <SortableQueueItem 
-                              key={album.id}
-                              album={album}
-                              isActive={currentAlbum.id === album.id}
-                              onPlay={setAlbum}
-                              onRemove={removeFromQueue}
-                              index={index}
-                            />
-                          ))}
+                          {queue
+                            .filter(a => 
+                              a.title.toLowerCase().includes(queueSearch.toLowerCase()) || 
+                              a.artist.toLowerCase().includes(queueSearch.toLowerCase())
+                            )
+                            .map((album, index) => (
+                              <SortableQueueItem 
+                                key={album.id}
+                                album={album}
+                                isActive={currentAlbum.id === album.id}
+                                onPlay={setAlbum}
+                                onRemove={removeFromQueue}
+                                index={index}
+                              />
+                            ))}
                         </div>
                       </SortableContext>
                       

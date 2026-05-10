@@ -3,14 +3,16 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, Heart, Share2, Info, Music, Wind, 
-  Clock, ChevronLeft, ListMusic, X, Maximize2
+  Clock, ChevronLeft, ListMusic, X, Maximize2, PlayCircle
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Album } from '../types';
 import { MOCK_ALBUMS } from '../data/mockData';
 import { usePlayerStore } from '../store/usePlayerStore';
-import { formatTime } from '../lib/utils';
+import { formatTime, cn } from '../lib/utils';
+import { hapticFeedback } from '../lib/haptics';
+import { HlsVideoPlayer } from '../components/HlsVideoPlayer';
 
 export default function AlbumDetail() {
   const { id } = useParams();
@@ -63,7 +65,18 @@ export default function AlbumDetail() {
   return (
     <div className="min-h-screen pt-16">
       {/* Cinematic Header Cover */}
-      <div className="relative h-[50vh] sm:h-[60vh] overflow-hidden group">
+      <div 
+        className={cn(
+          "relative h-[50vh] sm:h-[60vh] overflow-hidden group",
+          album.videoHlsUrl && "cursor-pointer"
+        )}
+        onClick={() => {
+          if (album.videoHlsUrl) {
+            hapticFeedback.light();
+            setShowPreview(true);
+          }
+        }}
+      >
         <div className="absolute inset-0 blur-3xl scale-110 opacity-50">
           <img src={album.coverUrl} alt="" className="w-full h-full object-cover" />
         </div>
@@ -72,7 +85,10 @@ export default function AlbumDetail() {
         
         {album.videoHlsUrl && (
           <button 
-            onClick={() => setShowPreview(true)}
+            onClick={() => {
+              hapticFeedback.light();
+              setShowPreview(true);
+            }}
             className="absolute bottom-32 right-8 z-20 flex items-center gap-3 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 text-white text-xs font-bold uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
           >
             <Maximize2 className="w-4 h-4 text-primary" />
@@ -92,12 +108,19 @@ export default function AlbumDetail() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             className="relative w-48 h-48 md:w-64 md:h-64 shrink-0 transition-transform hover:scale-105"
-            onClick={() => album.videoHlsUrl && setShowPreview(true)}
           >
             <div className="absolute inset-2 blur-xl opacity-30 bg-primary/20 rounded-3xl" />
             <div className="absolute -inset-4 blur-3xl opacity-20 bg-primary/10 rounded-full" />
             
-            <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 cursor-pointer group">
+            <div 
+              className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 cursor-pointer group"
+              onClick={() => {
+                if (album.videoHlsUrl) {
+                  hapticFeedback.light();
+                  setShowPreview(true);
+                }
+              }}
+            >
               <img src={album.coverUrl} alt={album.title} className="w-full h-full object-cover" />
               {album.videoHlsUrl && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -124,24 +147,36 @@ export default function AlbumDetail() {
               
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 md:gap-4">
                 <button 
-                  onClick={() => setAlbum(album)}
+                  onClick={() => {
+                    hapticFeedback.medium();
+                    setAlbum(album);
+                  }}
                   className="flex items-center justify-center gap-3 px-6 md:px-8 py-3 bg-primary text-black font-bold rounded-full hover:scale-105 transition-transform uppercase text-[10px] md:text-xs tracking-widest shadow-lg shadow-primary/20"
                 >
                   <Play className="w-4 h-4 fill-current" />
                   {isCurrent ? 'Now Playing' : 'Start Journey'}
                 </button>
                 <button 
-                  onClick={handleQueue}
+                  onClick={() => {
+                    hapticFeedback.light();
+                    handleQueue();
+                  }}
                   className="flex items-center justify-center gap-3 px-6 md:px-8 py-3 bg-white/5 text-white font-bold rounded-full hover:bg-white/10 transition-all border border-white/10 uppercase text-[10px] md:text-xs tracking-widest"
                 >
                   <ListMusic className="w-4 h-4" />
                   Queue Next
                 </button>
                 <div className="flex gap-2">
-                  <button className="p-3 rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/10">
+                  <button 
+                    onClick={() => hapticFeedback.light()}
+                    className="p-3 rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/10"
+                  >
                     <Heart className="w-5 h-5" />
                   </button>
-                  <button className="p-3 rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/10">
+                  <button 
+                    onClick={() => hapticFeedback.light()}
+                    className="p-3 rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/10"
+                  >
                     <Share2 className="w-5 h-5" />
                   </button>
                 </div>
@@ -214,14 +249,17 @@ export default function AlbumDetail() {
             {album.videoHlsUrl ? (
               <div 
                 className="aspect-[9/16] rounded-2xl bg-slate-900 overflow-hidden relative group cursor-pointer border border-white/5 ring-1 ring-white/5 shadow-2xl"
-                onClick={() => setShowPreview(true)}
+                onClick={() => {
+                  hapticFeedback.light();
+                  setShowPreview(true);
+                }}
               >
-                <video 
+                <HlsVideoPlayer 
                   src={album.videoHlsUrl}
-                  autoPlay
+                  autoplay
                   loop
                   muted
-                  playsInline
+                  controls={false}
                   className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
@@ -275,12 +313,11 @@ export default function AlbumDetail() {
                 className="relative w-full max-w-lg aspect-[9/16] rounded-[32px] overflow-hidden shadow-[0_0_100px_rgba(244,196,48,0.2)] border border-white/10"
                 onClick={e => e.stopPropagation()}
               >
-                <video 
-                  src={album.videoHlsUrl}
-                  controls
-                  autoPlay
-                  className="w-full h-full object-cover"
-                />
+              <HlsVideoPlayer 
+                src={album.videoHlsUrl}
+                autoplay
+                className="w-full h-full object-cover"
+              />
                 <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black via-black/60 to-transparent pointer-events-none">
                   <h3 className="text-2xl font-serif font-bold italic text-white mb-2">{album.title}</h3>
                   <p className="text-primary text-sm uppercase tracking-widest mb-4 font-bold">{album.artist} • Preview</p>

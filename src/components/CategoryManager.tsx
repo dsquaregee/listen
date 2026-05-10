@@ -75,6 +75,7 @@ export default function CategoryManager() {
       });
       fetchCategories();
     } catch (error) {
+      alert('Failed to initialize category. Check console for details.');
       handleFirestoreError(error, OperationType.CREATE, 'categories');
     }
   };
@@ -86,6 +87,7 @@ export default function CategoryManager() {
       setEditingId(null);
       fetchCategories();
     } catch (error) {
+      alert('Failed to update category.');
       handleFirestoreError(error, OperationType.UPDATE, `categories/${id}`);
     }
   };

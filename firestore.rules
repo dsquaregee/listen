@@ -73,9 +73,11 @@ service cloud.firestore {
     // 2. Categories Collection
     match /categories/{categoryId} {
       function isValidCategory(data) {
-        return data.id == categoryId &&
-               data.name is string && data.name.size() <= 100 &&
-               data.slug is string && data.slug.size() <= 100;
+        return data.name is string && data.name.size() <= 100 &&
+               data.slug is string && data.slug.size() <= 100 &&
+               (data.get('description', '') is string) &&
+               (data.get('visualIdentity', '') is string) &&
+               (data.get('order', 0) is number);
       }
 
       allow read: if true; 
@@ -85,11 +87,20 @@ service cloud.firestore {
     // 3. Albums Collection
     match /albums/{albumId} {
       function isValidAlbum(data) {
-        return data.id == albumId &&
-               data.title is string && data.title.size() <= 200 &&
-               data.audioUrl is string && data.audioUrl.size() <= 500;
-               // Relation check omitted here if categories might not exist yet during batch, 
-               // but usually we check: exists(/databases/$(database)/documents/categories/$(data.categoryId))
+        return data.title is string && data.title.size() <= 200 &&
+               data.artist is string &&
+               data.duration is number &&
+               data.coverUrl is string &&
+               data.hlsUrl is string &&
+               data.categoryId is string &&
+               data.tier in ['free', 'premium'] &&
+               (data.get('videoHlsUrl', '') is string) &&
+               (data.get('description', '') is string) &&
+               (data.get('instruments', []) is list) &&
+               (data.get('moodTags', []) is list) &&
+               (data.get('bpm', 0) is number) &&
+               (data.get('featured', false) is bool) &&
+               (data.get('createdAt', '') is string);
       }
 
       allow read: if true; 
