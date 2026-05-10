@@ -280,6 +280,11 @@ export default function AlbumManager() {
         }),
       });
       
+      if (!urlResponse.ok) {
+        const errorText = await urlResponse.text();
+        throw new Error(`Server Signature Error (${urlResponse.status}): ${errorText}`);
+      }
+
       const { uploadUrl, gcsPath } = await urlResponse.json();
       if (!uploadUrl) throw new Error('Failed to get upload authorization');
 
@@ -293,7 +298,8 @@ export default function AlbumManager() {
 
       if (!gcsResponse.ok) {
         const errorText = await gcsResponse.text();
-        throw new Error(`Cloud Storage Upload Failed: ${errorText}`);
+        // If this says "Payload Too Large", it means GCS is rejecting it or CORS is wrong
+        throw new Error(`Cloud Storage Upload Failed (${gcsResponse.status}): ${errorText}`);
       }
 
       // 3. Trigger processing on our server
@@ -308,8 +314,13 @@ export default function AlbumManager() {
         }),
       });
       
+      if (!processResponse.ok) {
+        const errorText = await processResponse.text();
+        throw new Error(`Processing Trigger Failed (${processResponse.status}): ${errorText}`);
+      }
+
       const data = await processResponse.json();
-      if (processResponse.ok && data.m3u8Url) {
+      if (data.m3u8Url) {
         setFormData(prev => ({ ...prev, hlsUrl: data.m3u8Url }));
         alert('Audio processed successfully! Large file handled via Direct-to-Cloud orchestration.');
         setAudioFile(null);
