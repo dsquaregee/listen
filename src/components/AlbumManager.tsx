@@ -267,28 +267,57 @@ export default function AlbumManager() {
     if (!formData.title) return alert('Please enter a title first (used for organizing files).');
 
     setIsProcessingAudio(true);
-    const uploadData = new FormData();
-    uploadData.append('audio', audioFile);
-    // Create a safe ID from title
-    const safeId = formData.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    uploadData.append('albumId', safeId);
-
+    
     try {
-      const response = await fetch('/api/process-audio', {
+      // 1. Get Signed URL from our server
+      console.log('Requesting signed URL...');
+      const urlResponse = await fetch('/api/get-upload-url', {
         method: 'POST',
-        body: uploadData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: audioFile.name,
+          contentType: audioFile.type || 'audio/wav',
+        }),
       });
       
-      const data = await response.json();
-      if (response.ok && data.m3u8Url) {
+      const { uploadUrl, gcsPath } = await urlResponse.json();
+      if (!uploadUrl) throw new Error('Failed to get upload authorization');
+
+      // 2. Upload directly to GCS using the Signed URL
+      console.log('Uploading directly to GCS...');
+      const gcsResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': audioFile.type || 'audio/wav' },
+        body: audioFile,
+      });
+
+      if (!gcsResponse.ok) {
+        const errorText = await gcsResponse.text();
+        throw new Error(`Cloud Storage Upload Failed: ${errorText}`);
+      }
+
+      // 3. Trigger processing on our server
+      console.log('Triggering audio processing...');
+      const safeId = formData.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const processResponse = await fetch('/api/process-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          albumId: safeId,
+          gcsPath: gcsPath,
+        }),
+      });
+      
+      const data = await processResponse.json();
+      if (processResponse.ok && data.m3u8Url) {
         setFormData(prev => ({ ...prev, hlsUrl: data.m3u8Url }));
-        alert('Audio processed to HLS and shifted to Google Cloud Storage successfully!');
+        alert('Audio processed successfully! Large file handled via Direct-to-Cloud orchestration.');
         setAudioFile(null);
       } else {
-        throw new Error(data.error || 'Matrix processing failure');
+        throw new Error(data.error || 'Processing orchestration failure');
       }
     } catch (error) {
-      console.error('GCS Upload/Processing failed:', error);
+      console.error('Advanced Orchestration failed:', error);
       alert('Orchestration failed: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsProcessingAudio(false);

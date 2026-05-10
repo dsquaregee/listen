@@ -3,7 +3,6 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
-import multer from 'multer';
 import ffmpeg from 'fluent-ffmpeg';
 import { Storage } from '@google-cloud/storage';
 import dotenv from 'dotenv';
@@ -15,12 +14,6 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
-
-// Setup Multer for temp storage with larger limits (900MB)
-const upload = multer({ 
-  dest: 'uploads/',
-  limits: { fileSize: 900 * 1024 * 1024 } // 900MB
-});
 
 // Setup GCS
 const storage = new Storage({
@@ -38,22 +31,42 @@ if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
 
-// Increase Express body parser limits
-app.use(express.json({ limit: '900mb' }));
-app.use(express.urlencoded({ limit: '900mb', extended: true }));
+app.use(express.json());
 
-// Audio Processing Route
-app.post('/api/process-audio', upload.single('audio'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
+// Signed URL Route for Direct GCS Upload
+app.post('/api/get-upload-url', async (req, res) => {
+  try {
+    const { fileName, contentType } = req.body;
+    if (!fileName || !contentType) {
+      return res.status(400).json({ error: 'fileName and contentType are required' });
+    }
+
+    const destination = `temp-uploads/${Date.now()}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const file = storage.bucket(bucketName).file(destination);
+
+    const [url] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'write',
+      expires: Date.now() + 30 * 60 * 1000, // 30 minutes
+      contentType,
+    });
+
+    res.json({ uploadUrl: url, gcsPath: destination });
+  } catch (error) {
+    console.error('Signed URL Error:', error);
+    res.status(500).json({ error: 'Failed to generate upload URL' });
+  }
+});
+
+// Audio Processing Route (Improved to process from GCS)
+app.post('/api/process-audio', async (req, res) => {
+  const { albumId, gcsPath } = req.body;
+  
+  if (!albumId || !gcsPath) {
+    return res.status(400).json({ error: 'Album ID and GCS Path are required' });
   }
 
-  const { albumId, quality = 'high' } = req.body;
-  if (!albumId) {
-    return res.status(400).json({ error: 'Album ID is required' });
-  }
-
-  const inputFile = req.file.path;
+  const inputFile = path.join('uploads', `input-${Date.now()}.wav`);
   const outputDir = path.join('uploads', albumId);
   
   if (!fs.existsSync(outputDir)) {
@@ -63,7 +76,13 @@ app.post('/api/process-audio', upload.single('audio'), async (req, res) => {
   const outputPlaylist = path.join(outputDir, 'playlist.m3u8');
 
   try {
-    // 1. Process with FFmpeg to HLS
+    // 1. Download from GCS to local disk for processing
+    console.log(`Downloading ${gcsPath} for processing...`);
+    await storage.bucket(bucketName).file(gcsPath).download({
+      destination: inputFile,
+    });
+
+    // 2. Process with FFmpeg to HLS
     console.log(`Starting HLS processing for ${albumId}...`);
     
     await new Promise((resolve, reject) => {
@@ -82,7 +101,7 @@ app.post('/api/process-audio', upload.single('audio'), async (req, res) => {
 
     console.log('FFmpeg processing complete. Starting GCS upload...');
 
-    // 2. Upload to GCS
+    // 3. Upload segments/playlist to GCS
     const files = fs.readdirSync(outputDir);
     const uploadPromises = files.map(async (file) => {
       const filePath = path.join(outputDir, file);
@@ -101,9 +120,11 @@ app.post('/api/process-audio', upload.single('audio'), async (req, res) => {
     const urls = await Promise.all(uploadPromises);
     const m3u8Url = urls.find(url => url.endsWith('.m3u8'));
 
-    // 3. Cleanup
+    // 4. Cleanup
     fs.rmSync(outputDir, { recursive: true, force: true });
     fs.unlinkSync(inputFile);
+    // Delete the temp upload in GCS
+    await storage.bucket(bucketName).file(gcsPath).delete().catch(e => console.warn('Failed to delete temp file:', e));
 
     res.json({ 
       success: true, 
@@ -113,7 +134,6 @@ app.post('/api/process-audio', upload.single('audio'), async (req, res) => {
 
   } catch (error) {
     console.error('Processing error:', error);
-    // Cleanup on error
     if (fs.existsSync(outputDir)) fs.rmSync(outputDir, { recursive: true, force: true });
     if (fs.existsSync(inputFile)) fs.unlinkSync(inputFile);
     
