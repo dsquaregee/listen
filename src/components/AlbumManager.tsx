@@ -30,6 +30,8 @@ export default function AlbumManager() {
   const [isGeneratingArtwork, setIsGeneratingArtwork] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
   
   const [formData, setFormData] = useState<Omit<Album, 'id'>>({
     title: '',
@@ -260,6 +262,39 @@ export default function AlbumManager() {
     }
   };
 
+  const handleProcessAudio = async () => {
+    if (!audioFile) return alert('Please select a .wav file first.');
+    if (!formData.title) return alert('Please enter a title first (used for organizing files).');
+
+    setIsProcessingAudio(true);
+    const uploadData = new FormData();
+    uploadData.append('audio', audioFile);
+    // Create a safe ID from title
+    const safeId = formData.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    uploadData.append('albumId', safeId);
+
+    try {
+      const response = await fetch('/api/process-audio', {
+        method: 'POST',
+        body: uploadData,
+      });
+      
+      const data = await response.json();
+      if (response.ok && data.m3u8Url) {
+        setFormData(prev => ({ ...prev, hlsUrl: data.m3u8Url }));
+        alert('Audio processed to HLS and shifted to Google Cloud Storage successfully!');
+        setAudioFile(null);
+      } else {
+        throw new Error(data.error || 'Matrix processing failure');
+      }
+    } catch (error) {
+      console.error('GCS Upload/Processing failed:', error);
+      alert('Orchestration failed: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setIsProcessingAudio(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
@@ -476,9 +511,38 @@ export default function AlbumManager() {
                       </div>
 
                       <div className="space-y-4">
-                        <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
-                          <PlayCircle className="w-3 h-3" /> Streaming Resources
-                        </label>
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                            <PlayCircle className="w-3 h-3" /> Streaming Resources
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="file" 
+                              accept=".wav"
+                              id="wav-upload"
+                              className="hidden"
+                              onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                            />
+                            <label 
+                              htmlFor="wav-upload"
+                              className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-[#F4C430] cursor-pointer hover:opacity-80 transition-opacity"
+                            >
+                              <Music className="w-3 h-3" />
+                              {audioFile ? audioFile.name : 'Select .wav'}
+                            </label>
+                            {audioFile && (
+                              <button 
+                                type="button"
+                                onClick={handleProcessAudio}
+                                disabled={isProcessingAudio}
+                                className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-green-400 disabled:opacity-50"
+                              >
+                                {isProcessingAudio ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+                                Process & Upload
+                              </button>
+                            )}
+                          </div>
+                        </div>
                         <div className="space-y-3">
                           <div className="relative">
                             <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
