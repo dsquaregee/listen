@@ -16,15 +16,22 @@ const app = express();
 const PORT = 3000;
 
 // Setup GCS
+const privateKey = process.env.GCS_PRIVATE_KEY
+  ? process.env.GCS_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/^"(.*)"$/, '$1')
+  : undefined;
+
 const storage = new Storage({
   projectId: process.env.GCS_PROJECT_ID,
   credentials: {
     client_email: process.env.GCS_CLIENT_EMAIL,
-    private_key: process.env.GCS_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    private_key: privateKey,
   },
 });
 
 const bucketName = process.env.GCS_BUCKET_NAME || '';
+
+if (!process.env.GCS_PRIVATE_KEY) console.warn('WARNING: GCS_PRIVATE_KEY is not defined in environment');
+if (!privateKey?.includes('BEGIN PRIVATE KEY')) console.warn('WARNING: GCS_PRIVATE_KEY does not appear to be a valid PEM key');
 
 // Ensure uploads directory exists
 if (!fs.existsSync('uploads')) {
@@ -37,6 +44,14 @@ app.use(express.json());
 app.post('/api/get-upload-url', async (req, res) => {
   try {
     const { fileName, contentType } = req.body;
+    
+    if (!bucketName) {
+      return res.status(500).json({ error: 'GCS_BUCKET_NAME is not configured' });
+    }
+    if (!process.env.GCS_PRIVATE_KEY || !process.env.GCS_CLIENT_EMAIL) {
+      return res.status(500).json({ error: 'GCS credentials missing' });
+    }
+
     if (!fileName || !contentType) {
       return res.status(400).json({ error: 'fileName and contentType are required' });
     }
@@ -54,7 +69,10 @@ app.post('/api/get-upload-url', async (req, res) => {
     res.json({ uploadUrl: url, gcsPath: destination });
   } catch (error) {
     console.error('Signed URL Error:', error);
-    res.status(500).json({ error: 'Failed to generate upload URL' });
+    res.status(500).json({ 
+      error: 'Failed to generate upload URL', 
+      details: error instanceof Error ? error.message : String(error) 
+    });
   }
 });
 
