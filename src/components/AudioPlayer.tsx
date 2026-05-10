@@ -7,7 +7,8 @@ import {
   ChevronDown, Heart, Clock, ListMusic,
   GripVertical, X, Trash2, CheckCircle2,
   Zap, Share2, Twitter, Facebook, Link,
-  PlusCircle, FolderPlus, ListPlus, Download
+  PlusCircle, FolderPlus, ListPlus, Download,
+  Shuffle, Repeat, Repeat1
 } from 'lucide-react';
 import AudioVisualizer from './AudioVisualizer';
 import { usePlayerStore } from '../store/usePlayerStore';
@@ -612,7 +613,7 @@ export default function AudioPlayer() {
     volume, isMinimized, queue, togglePlay, setProgress, setCurrentTime, 
     setDuration, setMinimized, setVolume, next, previous, reorderQueue, removeFromQueue, setAlbum, clearQueue,
     userTier, offlineAlbums, refreshOfflineStatus, preferredQuality, setPreferredQuality,
-    autoPlayNext, setAutoPlayNext
+    autoPlayNext, setAutoPlayNext, isShuffled, repeatMode, toggleShuffle, toggleRepeat
   } = usePlayerStore();
 
   const [isQueueOpen, setIsQueueOpen] = useState(false);
@@ -1280,6 +1281,17 @@ export default function AudioPlayer() {
                   <Heart className="w-6 h-6" />
                 </button>
                 <button 
+                  onClick={toggleShuffle}
+                  className={cn(
+                    "transition-all p-2 transform hover:scale-110 active:scale-95",
+                    isShuffled ? "text-[#F4C430]" : "text-white/40 hover:text-white"
+                  )}
+                  aria-label="Shuffle"
+                  title="Shuffle"
+                >
+                  <Shuffle className="w-5 h-5" />
+                </button>
+                <button 
                   onClick={previous}
                   className="text-white/60 hover:text-white transition-colors transform hover:scale-110 active:scale-90 p-2"
                   aria-label="Previous Track"
@@ -1306,6 +1318,20 @@ export default function AudioPlayer() {
                   title="Next Track"
                 >
                   <SkipForward className="w-10 h-10 fill-current" />
+                </button>
+                <button 
+                  onClick={toggleRepeat}
+                  className={cn(
+                    "transition-all p-2 transform hover:scale-110 active:scale-95 relative",
+                    repeatMode !== 'none' ? "text-[#F4C430]" : "text-white/40 hover:text-white"
+                  )}
+                  aria-label="Repeat"
+                  title="Repeat"
+                >
+                  {repeatMode === 'one' ? <Repeat1 className="w-5 h-5" /> : <Repeat className="w-5 h-5" />}
+                  {repeatMode === 'all' && (
+                    <span className="absolute -top-0 -right-0 w-1 h-1 bg-[#F4C430] rounded-full" />
+                  )}
                 </button>
                 <div className="relative">
                   <button 

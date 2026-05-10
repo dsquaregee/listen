@@ -16,12 +16,16 @@ interface PlayerState {
   preferredQuality: number; // -1 for auto, index for levels
   autoPlayNext: boolean;
   recentlyPlayed: Album[];
+  isShuffled: boolean;
+  repeatMode: 'none' | 'one' | 'all';
   
   // Actions
   setAlbum: (album: Album) => void;
   play: () => void;
   pause: () => void;
   togglePlay: () => void;
+  toggleShuffle: () => void;
+  toggleRepeat: () => void;
   next: () => void;
   previous: () => void;
   setProgress: (progress: number) => void;
@@ -55,6 +59,8 @@ export const usePlayerStore = create<PlayerState>()(
       preferredQuality: -1,
       autoPlayNext: true,
       recentlyPlayed: [],
+      isShuffled: false,
+      repeatMode: 'none',
 
       setAlbum: (album) => {
         // Subscription check
@@ -93,23 +99,54 @@ export const usePlayerStore = create<PlayerState>()(
       play: () => set({ isPlaying: true }),
       pause: () => set({ isPlaying: false }),
       togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
+      toggleShuffle: () => set((state) => ({ isShuffled: !state.isShuffled })),
+      toggleRepeat: () => set((state) => {
+        const modes: ('none' | 'one' | 'all')[] = ['none', 'all', 'one'];
+        const currentIndex = modes.indexOf(state.repeatMode);
+        const nextMode = modes[(currentIndex + 1) % modes.length];
+        return { repeatMode: nextMode };
+      }),
       
       next: () => {
-        const { queue } = get();
+        const { queue, repeatMode, currentAlbum, isShuffled } = get();
+
+        if (repeatMode === 'one' && currentAlbum) {
+          set({ currentTime: 0, progress: 0, isPlaying: true });
+          return;
+        }
+
         if (queue.length > 0) {
-          const nextAlbum = queue[0];
-          // Reuse setAlbum logic or handle internal
+          let nextAlbum: Album;
+          let newQueue: Album[];
+
+          if (isShuffled) {
+            const randomIndex = Math.floor(Math.random() * queue.length);
+            nextAlbum = queue[randomIndex];
+            newQueue = [...queue.slice(0, randomIndex), ...queue.slice(randomIndex + 1)];
+          } else {
+            nextAlbum = queue[0];
+            newQueue = queue.slice(1);
+          }
+
+          // Subscription check
           if (nextAlbum.tier === 'premium' && get().userTier !== 'premium') {
             window.dispatchEvent(new CustomEvent('premium-required', { detail: nextAlbum }));
             return;
           }
+
+          // If repeat all is on, add the current album back to the end of the queue
+          const finalQueue = (repeatMode === 'all' && currentAlbum) ? [...newQueue, currentAlbum] : newQueue;
+
           set({ 
             currentAlbum: nextAlbum, 
-            queue: queue.slice(1), 
+            queue: finalQueue, 
             isPlaying: true, 
             currentTime: 0,
             progress: 0
           });
+        } else if (repeatMode === 'all' && currentAlbum) {
+          // If queue is empty but repeat all is on, just keep playing the current album (or restart it)
+          set({ currentTime: 0, progress: 0, isPlaying: true });
         }
       },
       
@@ -150,6 +187,8 @@ export const usePlayerStore = create<PlayerState>()(
         preferredQuality: state.preferredQuality,
         autoPlayNext: state.autoPlayNext,
         recentlyPlayed: state.recentlyPlayed,
+        isShuffled: state.isShuffled,
+        repeatMode: state.repeatMode,
       }),
     }
   )
