@@ -3,6 +3,11 @@ import Hls from 'hls.js';
 export class StreamingService {
   private hls: Hls | null = null;
   private audio: HTMLAudioElement | null = null;
+  private onErrorCallback?: (error: string) => void;
+
+  setOnError(callback: (error: string) => void) {
+    this.onErrorCallback = callback;
+  }
 
   initialize(audioElement: HTMLAudioElement) {
     if (this.audio === audioElement && this.hls) return;
@@ -20,13 +25,24 @@ export class StreamingService {
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         fragLoadingMaxRetry: 3,
+        manifestLoadingMaxRetry: 3,
+        xhrSetup: (xhr, _url) => {
+          xhr.withCredentials = false;
+        }
       });
       
       this.hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
           console.error('Fatal HLS Error:', data.type, data.details);
+          if (data.response) {
+            console.error('HTTP Status:', data.response.code, 'at', data.response.url);
+          }
+          
+          this.onErrorCallback?.(`${data.type}: ${data.details}`);
+          
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
+              console.error('Network error encountered. This is likely a CORS configuration issue on your bucket.');
               this.hls?.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:

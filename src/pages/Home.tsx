@@ -8,7 +8,7 @@ import { cn, formatTime } from '../lib/utils';
 import { OptimizedImage } from '../components/OptimizedImage';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Category } from '../types';
+import { Category, Album } from '../types';
 
 export default function Home() {
   const { setAlbum, recentlyPlayed } = usePlayerStore();

@@ -619,7 +619,7 @@ export default function AudioPlayer() {
   const location = useLocation();
   const { 
     currentAlbum, isPlaying, progress, currentTime, duration, 
-    volume, isMinimized, queue, togglePlay, setProgress, setCurrentTime, 
+    volume, isMinimized, queue, togglePlay, play, pause, setProgress, setCurrentTime, 
     setDuration, setMinimized, setVolume, next, previous, reorderQueue, removeFromQueue, setAlbum, clearQueue,
     userTier, offlineAlbums, refreshOfflineStatus, preferredQuality, setPreferredQuality,
     autoPlayNext, setAutoPlayNext, isShuffled, repeatMode, toggleShuffle, toggleRepeat
@@ -841,8 +841,19 @@ export default function AudioPlayer() {
   // Initialize Streaming Services
   useEffect(() => {
     if (audioRef1.current && audioRef2.current) {
+      console.log('Initializing services with audio elements');
+      
+      const handleError = (error: string) => {
+        console.error('Streaming Player Error:', error);
+        pause(); // Stop UI state
+      };
+
       service1Ref.current.initialize(audioRef1.current);
+      service1Ref.current.setOnError(handleError);
+      
       service2Ref.current.initialize(audioRef2.current);
+      service2Ref.current.setOnError(handleError);
+      
       // Default audioRef points to active player
       audioRef.current = activePlayer === 1 ? audioRef1.current : audioRef2.current;
     }
@@ -853,7 +864,7 @@ export default function AudioPlayer() {
         URL.revokeObjectURL(lastOfflineUrlRef.current);
       }
     };
-  }, []);
+  }, [isHydrated]); // Changed dependency to isHydrated to ensure it runs when components are ready
 
   // Sync active audioRef
   useEffect(() => {
@@ -868,6 +879,9 @@ export default function AudioPlayer() {
     const nextService = nextPlayer === 1 ? service1Ref.current : service2Ref.current;
 
     if (!nextAudio || !currentAudio) return;
+
+    // Ensure services are initialized
+    if (nextAudio) nextService.initialize(nextAudio);
 
     console.log('Starting crossfade to player', nextPlayer);
 
@@ -943,6 +957,9 @@ export default function AudioPlayer() {
           const currentAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
           
           if (currentAudio) {
+            // Guarantee initialization before loading source
+            currentService.initialize(currentAudio);
+            
             console.log('Initializing current player with source:', sourceUrl);
             currentAudio.volume = volume;
             currentService.loadSource(sourceUrl);
