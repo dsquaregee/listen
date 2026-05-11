@@ -15,7 +15,7 @@ import {
   Plus, Edit2, Trash2, X, Check, 
   Music, Image as ImageIcon, Sparkles, Loader2,
   Tag, AlignLeft, User, Clock, Link as LinkIcon,
-  PlayCircle, Activity, Search
+  PlayCircle, Activity, Search, FolderUp, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
@@ -32,6 +32,8 @@ export default function AlbumManager() {
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [debugLog, setDebugLog] = useState<string[]>([]);
+  const [isManualUpload, setIsManualUpload] = useState(false);
+  const [manualFiles, setManualFiles] = useState<File[]>([]);
 
   const addDebugLog = (msg: string) => {
     setDebugLog(prev => [...prev.slice(-4), msg]);
@@ -273,77 +275,80 @@ export default function AlbumManager() {
 
     setIsProcessingAudio(true);
     setDebugLog(['Starting...']);
+    // ... rest of the function remains similar
+  }
+
+  const handleManualUpload = async () => {
+    if (manualFiles.length === 0) return alert('Please select HLS files first.');
+    if (!formData.title) return alert('Please enter a title first to define the directory.');
+
+    setIsProcessingAudio(true);
+    setDebugLog(['Checking files...']);
     
+    const albumId = formData.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    let masterPlaylistUrl = '';
+    let detectedBucket = '';
+
     try {
-      addDebugLog('Requesting Signed URL...');
-      // 1. Get Signed URL from our server
-      const urlResponse = await fetch('/api/get-upload-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: audioFile.name,
-          contentType: audioFile.type || 'audio/wav',
-        }),
-      });
+      addDebugLog(`Uploading ${manualFiles.length} files...`);
       
-      if (!urlResponse.ok) {
-        const errorText = await urlResponse.text();
-        throw new Error(`Server Signature Error (${urlResponse.status}): ${errorText}`);
-      }
+      const uploadPromises = manualFiles.map(async (file) => {
+        // 1. Get signed URL for this file in the final album directory
+        const urlResponse = await fetch('/api/get-upload-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            contentType: file.type || 'application/octet-stream',
+            albumId: albumId
+          }),
+        });
 
-      const { uploadUrl, gcsPath } = await urlResponse.json();
-      if (!uploadUrl) throw new Error('Failed to get upload authorization');
+        if (!urlResponse.ok) throw new Error(`Failed to get URL for ${file.name}`);
+        const { uploadUrl, gcsPath, bucketName } = await urlResponse.json();
+        detectedBucket = bucketName;
 
-      addDebugLog('Authorised. Uploading to GCS...');
-      const startTime = Date.now();
-      // 2. Upload directly to GCS using the Signed URL
-      const gcsResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': audioFile.type || 'audio/wav' },
-        body: audioFile,
-      });
+        // 2. Upload to GCS
+        const gcsResponse = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+          body: file,
+        });
 
-      if (!gcsResponse.ok) {
-        const errorText = await gcsResponse.text();
-        console.error('GCS PUT Error:', gcsResponse.status, errorText);
-        if (gcsResponse.status === 0) {
-          throw new Error('Upload blocked (Network/CORS). Check browser console.');
+        if (!gcsResponse.ok) throw new Error(`Failed to upload ${file.name}`);
+
+        addDebugLog(`Uploaded: ${file.name}`);
+
+        // 3. Identify master playlist
+        if (file.name === 'index.m3u8' || file.name === 'playlist.m3u8') {
+          masterPlaylistUrl = `https://storage.googleapis.com/${bucketName}/${gcsPath}`;
         }
-        throw new Error(`Upload Failed (${gcsResponse.status}): ${errorText || 'Check bucket permissions'}`);
-      }
-      
-      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-      addDebugLog(`Uploaded in ${duration}s. Processing...`);
-      // 3. Trigger processing on our server
-      const safeId = formData.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
-      const processResponse = await fetch('/api/process-audio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          albumId: safeId,
-          gcsPath: gcsPath,
-        }),
       });
-      
-      if (!processResponse.ok) {
-        const errorText = await processResponse.text();
-        throw new Error(`Processing Trigger Failed (${processResponse.status}): ${errorText}`);
-      }
 
-      const data = await processResponse.json();
-      if (data.m3u8Url) {
-        setFormData(prev => ({ ...prev, hlsUrl: data.m3u8Url }));
-        addDebugLog('Success!');
-        alert('Audio processed successfully!');
-        setAudioFile(null);
+      await Promise.all(uploadPromises);
+
+      if (masterPlaylistUrl) {
+        setFormData(prev => ({ ...prev, hlsUrl: masterPlaylistUrl }));
+        addDebugLog('Success! Master playlist found.');
+        alert('Manual HLS upload successful!');
+        setManualFiles([]);
       } else {
-        throw new Error(data.error || 'Processing orchestration failure');
+        // Try to find ANY m3u8 if index or playlist wasn't found
+        const firstM3u8 = manualFiles.find(f => f.name.endsWith('.m3u8'));
+        if (firstM3u8 && detectedBucket) {
+           addDebugLog('Playlist found (non-standard name).');
+           const path = `audio/${albumId}/${firstM3u8.name}`;
+           setFormData(prev => ({ ...prev, hlsUrl: `https://storage.googleapis.com/${detectedBucket}/${path}` }));
+           alert('Manual HLS upload successful (used detected .m3u8)!');
+           setManualFiles([]);
+        } else {
+           addDebugLog('Warning: No .m3u8 file found in selection.');
+           alert('Files uploaded, but no .m3u8 playlist found to set as master.');
+        }
       }
     } catch (error) {
-      console.error('Advanced Orchestration failed:', error);
-      const msg = error instanceof Error ? error.message : String(error);
-      addDebugLog(`Error: ${msg}`);
-      alert('Orchestration failed: ' + msg);
+      console.error('Manual upload failure:', error);
+      addDebugLog(`Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsProcessingAudio(false);
     }
@@ -569,6 +574,17 @@ export default function AlbumManager() {
                           <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
                             <PlayCircle className="w-3 h-3" /> Streaming Resources
                           </label>
+                          <button
+                            type="button"
+                            onClick={() => setIsManualUpload(!isManualUpload)}
+                            className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-[#F4C430] hover:opacity-80 transition-opacity"
+                          >
+                            {isManualUpload ? <ToggleRight className="w-3 h-3" /> : <ToggleLeft className="w-3 h-3" />}
+                            Manual HLS Upload
+                          </button>
+                        </div>
+
+                        {!isManualUpload ? (
                           <div className="flex items-center gap-2">
                             <input 
                               type="file" 
@@ -603,7 +619,46 @@ export default function AlbumManager() {
                               </div>
                             )}
                           </div>
-                        </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="file" 
+                              multiple
+                              id="hls-upload"
+                              className="hidden"
+                              {...({ webkitdirectory: "" } as any)}
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                setManualFiles(files);
+                              }}
+                            />
+                            <label 
+                              htmlFor="hls-upload"
+                              className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-[#F4C430] cursor-pointer hover:opacity-80 transition-opacity"
+                            >
+                              <FolderUp className="w-3 h-3" />
+                              {manualFiles.length > 0 ? `${manualFiles.length} files selected` : 'Select HLS Folder'}
+                            </label>
+                            {manualFiles.length > 0 && (
+                              <div className="flex flex-col gap-1">
+                                <button 
+                                  type="button"
+                                  onClick={handleManualUpload}
+                                  disabled={isProcessingAudio}
+                                  className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-green-400 disabled:opacity-50"
+                                >
+                                  {isProcessingAudio ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+                                  Upload HLS Now
+                                </button>
+                                {debugLog.length > 0 && (
+                                  <div className="text-[7px] text-white/40 font-mono">
+                                    {debugLog.map((log, i) => <div key={i}>{log}</div>)}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <div className="space-y-3">
                           <div className="relative">
                             <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />

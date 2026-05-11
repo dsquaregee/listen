@@ -14,12 +14,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Logging helper
-const logFile = path.join(process.cwd(), 'server.log');
+const logFile = path.resolve(__dirname, 'server.log');
 function logToFile(message: string) {
   const timestamp = new Date().toISOString();
   const formattedMessage = `[${timestamp}] ${message}\n`;
   console.log(formattedMessage.trim());
-  fs.appendFileSync(logFile, formattedMessage);
+  try {
+    fs.appendFileSync(logFile, formattedMessage);
+  } catch (e) {
+    console.error('Failed to write to log file:', e);
+  }
+}
+
+// Ensure the log file exists
+if (!fs.existsSync(logFile)) {
+  fs.writeFileSync(logFile, `Starting server at ${new Date().toISOString()}\n`);
 }
 
 if (ffmpegInstaller) {
@@ -68,11 +77,19 @@ app.get('/api/debug-logs', (req, res) => {
 });
 
 // Ensure uploads directory exists
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
+const uploadsBaseDir = path.resolve(__dirname, 'uploads');
+if (!fs.existsSync(uploadsBaseDir)) {
+  fs.mkdirSync(uploadsBaseDir, { recursive: true });
 }
 
 app.use(express.json());
+
+app.use((req, res, next) => {
+  if (req.method === 'POST') {
+    logToFile(`POST ${req.url} body keys: ${Object.keys(req.body).join(', ')}`);
+  }
+  next();
+});
 
 // Signed URL Route for Direct GCS Upload
 app.post('/api/get-upload-url', async (req, res) => {
@@ -93,7 +110,15 @@ app.post('/api/get-upload-url', async (req, res) => {
       return res.status(400).json({ error: 'fileName and contentType are required' });
     }
 
-    const destination = `temp-uploads/${Date.now()}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const { albumId } = req.body;
+    let destination;
+    if (albumId) {
+      // Manual upload to final destination
+      destination = `audio/${albumId}/${fileName}`;
+    } else {
+      destination = `temp-uploads/${Date.now()}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    }
+
     const file = storage.bucket(bucketName).file(destination);
 
     const [url] = await file.getSignedUrl({
@@ -104,7 +129,7 @@ app.post('/api/get-upload-url', async (req, res) => {
     });
 
     logToFile(`Signed URL generated for: ${fileName}`);
-    res.json({ uploadUrl: url, gcsPath: destination });
+    res.json({ uploadUrl: url, gcsPath: destination, bucketName: bucketName });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     logToFile(`Signed URL Generation Failed: ${errMsg}`);
@@ -119,13 +144,19 @@ app.post('/api/get-upload-url', async (req, res) => {
 app.post('/api/process-audio', async (req, res) => {
   const { albumId, gcsPath } = req.body;
   logToFile(`Received processing request for album: ${albumId}, path: ${gcsPath}`);
+  console.log(`[PROCESS] ${albumId} - ${gcsPath}`);
   
   if (!albumId || !gcsPath) {
     return res.status(400).json({ error: 'Album ID and GCS Path are required' });
   }
 
-  const inputFile = path.join('uploads', `input-${Date.now()}.wav`);
-  const outputDir = path.join('uploads', albumId);
+  if (!bucketName) {
+    logToFile('ERROR: GCS_BUCKET_NAME missing in processing route');
+    return res.status(500).json({ error: 'GCS_BUCKET_NAME is not configured' });
+  }
+
+  const inputFile = path.join(uploadsBaseDir, `input-${Date.now()}.wav`);
+  const outputDir = path.join(uploadsBaseDir, albumId);
   
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -152,12 +183,17 @@ app.post('/api/process-audio', async (req, res) => {
 
     // 2. Process with FFmpeg
     logToFile(`Starting HLS conversion for ${albumId}...`);
+    logToFile(`Input exists: ${fs.existsSync(inputFile)}`);
+    logToFile(`Output dir exists: ${fs.existsSync(outputDir)}`);
+    
     await new Promise((resolve, reject) => {
       ffmpeg(inputFile)
         .outputOptions([
+          '-y',
           '-c:a aac',
           '-b:a 128k',
           '-ac 2',
+          '-ar 44100',
           '-hls_time 10',
           '-hls_list_size 0',
           '-f hls'
@@ -165,7 +201,7 @@ app.post('/api/process-audio', async (req, res) => {
         .output(outputPlaylist)
         .on('start', (cmd) => logToFile(`FFmpeg command: ${cmd}`))
         .on('progress', (progress) => {
-          if (progress.percent) logToFile(`FFmpeg progress: ${progress.percent.toFixed(1)}%`);
+          if (progress.percent !== undefined) logToFile(`FFmpeg progress: ${progress.percent.toFixed(1)}%`);
         })
         .on('end', () => {
           logToFile('FFmpeg finished successfully');
@@ -173,7 +209,8 @@ app.post('/api/process-audio', async (req, res) => {
         })
         .on('error', (err, stdout, stderr) => {
           logToFile(`FFmpeg error: ${err.message}`);
-          logToFile(`FFmpeg stderr: ${stderr}`);
+          logToFile(`FFmpeg stderr: ${stderr || 'no stderr'}`);
+          logToFile(`FFmpeg stdout: ${stdout || 'no stdout'}`);
           reject(new Error(`FFmpeg failed: ${err.message}. Details: ${stderr}`));
         })
         .run();
@@ -182,6 +219,7 @@ app.post('/api/process-audio', async (req, res) => {
     // 3. Upload to GCS
     logToFile('Uploading results to GCS...');
     const files = fs.readdirSync(outputDir);
+    logToFile(`Found ${files.length} files to upload in ${outputDir}`);
     const uploadPromises = files.map(async (file) => {
       const filePath = path.join(outputDir, file);
       const destination = `audio/${albumId}/${file}`;
@@ -203,7 +241,7 @@ app.post('/api/process-audio', async (req, res) => {
     // 4. Cleanup
     logToFile('Cleaning up temporary local and cloud files...');
     fs.rmSync(outputDir, { recursive: true, force: true });
-    fs.unlinkSync(inputFile);
+    if (fs.existsSync(inputFile)) fs.unlinkSync(inputFile);
     await storage.bucket(bucketName).file(gcsPath).delete().catch(e => logToFile(`Warning: Failed to delete temp GCS file: ${e.message}`));
 
     res.json({ success: true, m3u8Url });
@@ -211,8 +249,10 @@ app.post('/api/process-audio', async (req, res) => {
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     logToFile(`Processing Failure: ${errMsg}`);
-    if (fs.existsSync(outputDir)) fs.rmSync(outputDir, { recursive: true, force: true });
-    if (fs.existsSync(inputFile)) fs.unlinkSync(inputFile);
+    // Keep files on failure for debugging
+    logToFile(`Failure detected. Files preserved in ${outputDir} and ${inputFile} for now.`);
+    // if (fs.existsSync(outputDir)) fs.rmSync(outputDir, { recursive: true, force: true });
+    // if (fs.existsSync(inputFile)) fs.unlinkSync(inputFile);
     
     res.status(500).json({ error: 'Failed to process audio', details: errMsg });
   }
@@ -220,6 +260,17 @@ app.post('/api/process-audio', async (req, res) => {
 
 async function startServer() {
   logToFile('Starting server initialization...');
+  
+  if (ffmpegInstaller) {
+    try {
+      const { execSync } = await import('child_process');
+      const version = execSync(`${ffmpegInstaller} -version`).toString().split('\n')[0];
+      logToFile(`FFmpeg available: ${version}`);
+    } catch (e) {
+      logToFile(`Warning: Could not get FFmpeg version: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -236,9 +287,10 @@ async function startServer() {
     logToFile('Production static serving active');
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     logToFile(`Server actually listening on http://0.0.0.0:${PORT}`);
   });
+  server.timeout = 600000; // 10 minutes
 }
 
 startServer().catch(err => logToFile(`Startup Crash: ${err.message}`));
