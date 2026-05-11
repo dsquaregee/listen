@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect, useRef } from 'react';
 import { MOCK_ALBUMS } from '../data/mockData';
 import { Album } from '../types';
+import { collection, getDocs, query } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { OptimizedImage } from './OptimizedImage';
 
 const logoUrl = '/pwa-512x512.png';
@@ -18,7 +20,25 @@ export default function Navbar() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [results, setResults] = useState<Album[]>([]);
+  const [allAlbums, setAllAlbums] = useState<Album[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Fetch all albums for local search efficiency
+  useEffect(() => {
+    const fetchAlbums = async () => {
+      try {
+        const sn = await getDocs(collection(db, 'albums'));
+        const albums = sn.empty 
+          ? MOCK_ALBUMS 
+          : sn.docs.map(doc => ({ id: doc.id, ...doc.data() } as Album));
+        setAllAlbums(albums);
+      } catch (e) {
+        console.error('Failed to fetch albums for search:', e);
+        setAllAlbums(MOCK_ALBUMS);
+      }
+    };
+    fetchAlbums();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -33,29 +53,29 @@ export default function Navbar() {
       return;
     }
 
-    const query = debouncedSearchQuery.toLowerCase().trim();
+    const queryStr = debouncedSearchQuery.toLowerCase().trim();
     
     // Prioritized filtering and sorting
-    const scoredResults = MOCK_ALBUMS.map(album => {
+    const scoredResults = allAlbums.map(album => {
       let score = 0;
       const title = album.title.toLowerCase();
       const artist = album.artist.toLowerCase();
 
       // 1. Exact Match (Highest Priority)
-      if (title === query) score += 1000;
-      if (artist === query) score += 800;
+      if (title === queryStr) score += 1000;
+      if (artist === queryStr) score += 800;
 
       // 2. Starts With Match
-      if (title.startsWith(query)) score += 500;
-      if (artist.startsWith(query)) score += 400;
+      if (title.startsWith(queryStr)) score += 500;
+      if (artist.startsWith(queryStr)) score += 400;
 
       // 3. Includes Match (Standard)
-      if (title.includes(query)) score += 100;
-      if (artist.includes(query)) score += 80;
+      if (title.includes(queryStr)) score += 100;
+      if (artist.includes(queryStr)) score += 80;
 
       // 4. Tag/Instrument Match (Lower Priority)
-      if (album.moodTags.some(tag => tag.toLowerCase().includes(query))) score += 20;
-      if (album.instruments.some(inst => inst.toLowerCase().includes(query))) score += 10;
+      if (album.moodTags?.some(tag => tag.toLowerCase().includes(queryStr))) score += 20;
+      if (album.instruments?.some(inst => inst.toLowerCase().includes(queryStr))) score += 10;
 
       return { album, score };
     })
@@ -64,7 +84,7 @@ export default function Navbar() {
     .map(item => item.album);
 
     setResults(scoredResults);
-  }, [debouncedSearchQuery]);
+  }, [debouncedSearchQuery, allAlbums]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

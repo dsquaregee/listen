@@ -34,9 +34,18 @@ export default function CategoryExplore() {
 
         if (activeCat) {
           setCategory(activeCat);
-          // For now, albums stay mock as this request only focused on categories
-          // but we filter them correctly
-          setAlbums(MOCK_ALBUMS.filter(a => a.categoryId === activeCat?.id));
+          // Fetch albums for this category from Firestore
+          const albumsQ = query(
+            collection(db, 'albums'), 
+            where('categoryId', '==', activeCat.id)
+          );
+          const albumsSn = await getDocs(albumsQ);
+          if (!albumsSn.empty) {
+            setAlbums(albumsSn.docs.map(doc => ({ id: doc.id, ...doc.data() } as Album)));
+          } else {
+             // Fallback to mock filtering
+            setAlbums(MOCK_ALBUMS.filter(a => a.categoryId === activeCat?.id));
+          }
         }
       } catch (e) {
         console.error(e);

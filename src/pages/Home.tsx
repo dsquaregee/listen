@@ -13,26 +13,43 @@ import { Category } from '../types';
 export default function Home() {
   const { setAlbum, recentlyPlayed } = usePlayerStore();
   const [categories, setCategories] = useState<Category[]>([]);
-  const featured = MOCK_ALBUMS[0];
+  const [featured, setFeatured] = useState<Album | null>(null);
+  const [recentAlbums, setRecentAlbums] = useState<Album[]>([]);
+  const [trendingAlbums, setTrendingAlbums] = useState<Album[]>([]);
 
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchInitialData = async () => {
       try {
-        const q = query(collection(db, 'categories'), orderBy('order', 'asc'));
-        const sn = await getDocs(q);
-        if (!sn.empty) {
-          const cats = sn.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
-          setCategories(cats);
-        } else {
-          setCategories(MOCK_CATEGORIES);
-        }
+        // Fetch Categories
+        const catQ = query(collection(db, 'categories'), orderBy('order', 'asc'));
+        const catSn = await getDocs(catQ);
+        const cats = catSn.empty 
+          ? MOCK_CATEGORIES 
+          : catSn.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+        setCategories(cats);
+
+        // Fetch Albums
+        const albumQ = query(collection(db, 'albums'), orderBy('createdAt', 'desc'));
+        const albumSn = await getDocs(albumQ);
+        const albums = albumSn.empty 
+          ? MOCK_ALBUMS 
+          : albumSn.docs.map(doc => ({ id: doc.id, ...doc.data() } as Album));
+        
+        setFeatured(albums[0] || MOCK_ALBUMS[0]);
+        setRecentAlbums(albums.slice(1, 5));
+        setTrendingAlbums([...albums].sort(() => Math.random() - 0.5).slice(0, 6));
       } catch (e) {
-        console.error('Failed to fetch categories:', e);
+        console.error('Failed to fetch data:', e);
         setCategories(MOCK_CATEGORIES);
+        setFeatured(MOCK_ALBUMS[0]);
+        setRecentAlbums(MOCK_ALBUMS.slice(1, 5));
+        setTrendingAlbums(MOCK_ALBUMS.slice(5, 10));
       }
     };
-    fetchCategories();
+    fetchInitialData();
   }, []);
+
+  if (!featured) return null;
 
   return (
     <div className="pt-16 px-4 pb-12 overflow-x-hidden">
@@ -131,7 +148,7 @@ export default function Home() {
           <span className="text-[10px] text-[#D4AF37] uppercase font-bold cursor-pointer hover:underline">View All</span>
         </div>
         <div className="flex overflow-x-auto gap-6 pb-4 no-scrollbar">
-           {MOCK_ALBUMS.slice(1, 4).map((album) => (
+           {recentAlbums.map((album) => (
              <motion.div 
               key={album.id}
               whileHover={{ y: -5 }}
@@ -151,7 +168,7 @@ export default function Home() {
                   </div>
                 </div>
                 <h3 className="text-sm font-medium text-white group-hover:text-primary transition-colors">{album.title}</h3>
-                <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">42:15 Left • {album.moodTags[0]}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1 truncate">{formatTime(album.duration)} • {album.moodTags?.[0] || 'Atmospheric'}</p>
              </motion.div>
            ))}
         </div>
@@ -189,7 +206,7 @@ export default function Home() {
           </h2>
         </div>
         <div className="flex overflow-x-auto gap-6 px-4 pb-4 no-scrollbar">
-           {[...MOCK_ALBUMS].reverse().map((album) => (
+           {trendingAlbums.map((album) => (
              <Link 
               key={album.id + '-trending'} 
               to={`/album/${album.id}`}

@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { auth, db } from './lib/firebase';
 import { useAuthStore } from './store/useAuthStore';
+import { usePlayerStore } from './store/usePlayerStore';
 import { UserProfile } from './types';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
 
@@ -25,6 +26,7 @@ const queryClient = new QueryClient();
 
 export default function App() {
   const { setUser, setLoading } = useAuthStore();
+  const { setUserTier } = usePlayerStore();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -34,10 +36,13 @@ export default function App() {
           const userDoc = await getDoc(userDocRef);
           const adminEmail = 'dsquaregee@gmail.com';
           const isAdmin = firebaseUser.email === adminEmail;
+          const tier = isAdmin ? 'premium' : 'free';
   
           if (userDoc.exists()) {
             const userData = userDoc.data() as UserProfile;
-            setUser({ ...userData, isAdmin });
+            const finalTier = isAdmin ? 'premium' : userData.tier;
+            setUser({ ...userData, isAdmin, tier: finalTier });
+            setUserTier(finalTier);
           } else {
             // New user profile - Sync to Firestore
             const initialProfile: UserProfile = {
@@ -45,11 +50,12 @@ export default function App() {
               email: firebaseUser.email || '',
               displayName: firebaseUser.displayName || 'Listener',
               photoURL: firebaseUser.photoURL || '',
-              tier: 'free',
+              tier,
               isAdmin,
             };
             await setDoc(userDocRef, initialProfile);
             setUser(initialProfile);
+            setUserTier(tier);
           }
         } catch (error) {
           handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
