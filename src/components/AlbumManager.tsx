@@ -298,8 +298,12 @@ export default function AlbumManager() {
 
       if (!gcsResponse.ok) {
         const errorText = await gcsResponse.text();
-        // If this says "Payload Too Large", it means GCS is rejecting it or CORS is wrong
-        throw new Error(`Cloud Storage Upload Failed (${gcsResponse.status}): ${errorText}`);
+        console.error('GCS PUT Error:', gcsResponse.status, errorText);
+        // If status is 0 or 403, it's likely CORS or Permissions
+        if (gcsResponse.status === 0) {
+          throw new Error('Cloud Storage Upload blocked by CORS. Please ensure CORS is configured on your bucket.');
+        }
+        throw new Error(`Cloud Storage Upload Failed (${gcsResponse.status}): ${errorText || 'Unknown GCS error'}`);
       }
 
       // 3. Trigger processing on our server

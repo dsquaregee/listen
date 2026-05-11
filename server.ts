@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Logging helper
-const logFile = path.join(process.cwd(), 'server.log');
+const logFile = path.join(__dirname, 'server.log');
 function logToFile(message: string) {
   const timestamp = new Date().toISOString();
   const formattedMessage = `[${timestamp}] ${message}\n`;
@@ -46,6 +46,16 @@ const bucketName = process.env.GCS_BUCKET_NAME || '';
 
 if (!process.env.GCS_PRIVATE_KEY) logToFile('WARNING: GCS_PRIVATE_KEY is not defined in environment');
 if (!privateKey?.includes('BEGIN PRIVATE KEY')) logToFile('WARNING: GCS_PRIVATE_KEY does not appear to be a valid PEM key');
+
+// Log retrieval for debugging
+app.get('/api/debug-logs', (req, res) => {
+  if (fs.existsSync(logFile)) {
+    const logs = fs.readFileSync(logFile, 'utf8');
+    res.type('text/plain').send(logs);
+  } else {
+    res.status(404).send('Log file not found');
+  }
+});
 
 // Ensure uploads directory exists
 if (!fs.existsSync('uploads')) {
