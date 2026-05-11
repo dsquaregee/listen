@@ -708,49 +708,53 @@ export default function AudioPlayer() {
   }, [toast]);
 
   const [frequencyValue, setFrequencyValue] = useState(0);
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const analyzerRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const sourceNode1Ref = useRef<MediaElementAudioSourceNode | null>(null);
+  const sourceNode2Ref = useRef<MediaElementAudioSourceNode | null>(null);
 
   // Audio Analysis for Parallax Effect
   useEffect(() => {
     if (!audioRef1.current || !audioRef2.current || !isHydrated) return;
 
-    let audioCtx: AudioContext | null = null;
-
     const setupAnalyzer = () => {
       try {
-        if (!analyzerRef.current) {
+        if (!audioCtxRef.current) {
           const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
-          audioCtx = new AudioContextClass();
-          
-          if (!sourceNodeRef.current) {
-            // Setup dual source nodes for crossfade
-            const source1 = audioCtx.createMediaElementSource(audioRef1.current!);
-            const source2 = audioCtx.createMediaElementSource(audioRef2.current!);
-            
-            const analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 256;
-            analyser.smoothingTimeConstant = 0.8;
-            
-            source1.connect(analyser);
-            source2.connect(analyser);
-            analyser.connect(audioCtx.destination);
-            
-            analyzerRef.current = analyser;
-            sourceNodeRef.current = source1; // Just to satisfy ref type, but both are connected
-          }
+          audioCtxRef.current = new AudioContextClass();
         }
 
-        if (audioCtx && audioCtx.state === 'suspended') {
+        const audioCtx = audioCtxRef.current;
+
+        if (!analyzerRef.current) {
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.8;
+          analyzerRef.current = analyser;
+          analyser.connect(audioCtx.destination);
+        }
+
+        const analyser = analyzerRef.current;
+
+        // Connect sources if not already connected
+        if (!sourceNode1Ref.current && audioRef1.current) {
+          sourceNode1Ref.current = audioCtx.createMediaElementSource(audioRef1.current);
+          sourceNode1Ref.current.connect(analyser);
+        }
+        if (!sourceNode2Ref.current && audioRef2.current) {
+          sourceNode2Ref.current = audioCtx.createMediaElementSource(audioRef2.current);
+          sourceNode2Ref.current.connect(analyser);
+        }
+
+        if (audioCtx.state === 'suspended') {
           audioCtx.resume();
         }
 
-        const dataArray = new Uint8Array(analyzerRef.current.frequencyBinCount);
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
         const update = () => {
           if (analyzerRef.current && isPlaying) {
             analyzerRef.current.getByteFrequencyData(dataArray);
-            // Get average of mid-low frequencies for a "pulse" feel
             const avg = (dataArray[1] + dataArray[2] + dataArray[3]) / 3;
             setFrequencyValue(avg / 255);
           } else {
@@ -760,7 +764,7 @@ export default function AudioPlayer() {
         };
         update();
       } catch (e) {
-        console.warn('Audio analyzer could not be initialized (likely due to user gesture requirements)', e);
+        console.warn('Audio analyzer initialization issue:', e);
       }
     };
 
@@ -979,14 +983,21 @@ export default function AudioPlayer() {
 
   // Sync isPlaying state
   useEffect(() => {
-    if (!audioRef.current || !currentAlbum) return;
+    const currentAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
+    if (!currentAudio || !currentAlbum) return;
+
+    console.log('Player sync - isPlaying:', isPlaying, 'Active Player:', activePlayer);
 
     if (isPlaying) {
-      audioRef.current.play().catch(console.error);
+      currentAudio.play().catch(err => {
+        console.error('Playback failed:', err);
+        // If it failed because of user gesture, we can't do much here, 
+        // but it's good to know.
+      });
     } else {
-      audioRef.current.pause();
+      currentAudio.pause();
     }
-  }, [isPlaying]);
+  }, [isPlaying, activePlayer, currentAlbum?.id]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -1042,12 +1053,16 @@ export default function AudioPlayer() {
     <div className="fixed bottom-0 left-0 right-0 z-[60] h-24 px-8 pb-4">
       <audio
         ref={audioRef1}
+        crossOrigin="anonymous"
+        preload="auto"
         onTimeUpdate={activePlayer === 1 ? handleTimeUpdate : undefined}
         onEnded={activePlayer === 1 ? (() => autoPlayNext && next()) : undefined}
         onLoadedMetadata={activePlayer === 1 ? ((e) => setDuration(e.currentTarget.duration)) : undefined}
       />
       <audio
         ref={audioRef2}
+        crossOrigin="anonymous"
+        preload="auto"
         onTimeUpdate={activePlayer === 2 ? handleTimeUpdate : undefined}
         onEnded={activePlayer === 2 ? (() => autoPlayNext && next()) : undefined}
         onLoadedMetadata={activePlayer === 2 ? ((e) => setDuration(e.currentTarget.duration)) : undefined}

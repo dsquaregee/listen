@@ -17,6 +17,26 @@ export class StreamingService {
         maxMaxBufferLength: 60,
         fragLoadingMaxRetry: 3,
       });
+      
+      this.hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error('HLS Error Event:', data);
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.error('Fatal network error encountered, trying to recover');
+              this.hls?.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.error('Fatal media error encountered, trying to recover');
+              this.hls?.recoverMediaError();
+              break;
+            default:
+              this.destroy();
+              break;
+          }
+        }
+      });
+
       this.hls.attachMedia(this.audio);
     }
   }
