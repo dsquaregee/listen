@@ -94,7 +94,7 @@ export default function CategoryExplore() {
             onClick={() => setAlbum(album)}
           >
             <div className="relative aspect-video rounded-2xl overflow-hidden mb-4 shadow-2xl">
-              <img src={album.coverUrl} alt={album.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+              <img src={album.coverUrl || undefined} alt={album.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <Play className="w-12 h-12 text-white fill-current" />
               </div>

@@ -61,7 +61,7 @@ export default function Profile() {
     <div className="pt-24 px-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-6 mb-12">
         <div className="w-24 h-24 rounded-full bg-slate-800 border-2 border-primary overflow-hidden shadow-2xl">
-          <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" />
+          <img src={user.photoURL || undefined} alt={user.displayName} className="w-full h-full object-cover" />
         </div>
         <div>
           <h1 className="text-3xl font-serif font-bold text-white">{user.displayName}</h1>

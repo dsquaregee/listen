@@ -175,7 +175,7 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
           className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer shadow-lg group-hover:shadow-primary/10 transition-shadow"
           onClick={() => onPlay(album)}
         >
-          <img src={album.coverUrl} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+          <img src={album.coverUrl || undefined} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <Play className="w-4 h-4 text-white fill-current" />
           </div>
@@ -594,7 +594,7 @@ function PlaylistModal({ isOpen, onClose, album }: PlaylistModalProps) {
         
         <div className="p-4 bg-white/5 border-t border-white/5 flex items-center justify-center gap-3">
           <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 shadow-lg">
-             <img src={album.coverUrl} className="w-full h-full object-cover" alt="" />
+             <img src={album.coverUrl || undefined} className="w-full h-full object-cover" alt="" />
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-bold text-white truncate">{album.title}</p>
@@ -637,6 +637,33 @@ export default function AudioPlayer() {
     await offlineService.deleteAlbum(albumId);
     const updatedIds = await offlineService.getOfflineAlbumIds();
     refreshOfflineStatus(updatedIds);
+  };
+  
+  const handleTogglePlay = async () => {
+    if (audioCtxRef.current?.state === 'suspended') {
+      audioCtxRef.current.resume().catch(console.error);
+    }
+    hapticFeedback.medium();
+    const currentAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
+    if (!currentAudio) {
+      togglePlay();
+      return;
+    }
+
+    if (isPlaying) {
+      currentAudio.pause();
+      pause();
+    } else {
+      try {
+        console.log('Attempting manual play');
+        await currentAudio.play();
+        play();
+      } catch (err) {
+        console.error('Direct play failed:', err);
+        // Fallback for store state
+        play();
+      }
+    }
   };
   
   const shareLinks = {
@@ -739,10 +766,12 @@ export default function AudioPlayer() {
 
         // Connect sources if not already connected
         if (!sourceNode1Ref.current && audioRef1.current) {
+          console.log('Connecting AudioRef1 to analyzer');
           sourceNode1Ref.current = audioCtx.createMediaElementSource(audioRef1.current);
           sourceNode1Ref.current.connect(analyser);
         }
         if (!sourceNode2Ref.current && audioRef2.current) {
+          console.log('Connecting AudioRef2 to analyzer');
           sourceNode2Ref.current = audioCtx.createMediaElementSource(audioRef2.current);
           sourceNode2Ref.current.connect(analyser);
         }
@@ -909,16 +938,22 @@ export default function AudioPlayer() {
           isTransitioningRef.current = true;
           performCrossfade(nextPlayer, sourceUrl, isUsingOffline);
         } else {
-          // Standard initialization for first run or manual play
+  // Standard initialization for first run or manual play
           const currentService = activePlayer === 1 ? service1Ref.current : service2Ref.current;
           const currentAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
           
           if (currentAudio) {
+            console.log('Initializing current player with source:', sourceUrl);
             currentAudio.volume = volume;
             currentService.loadSource(sourceUrl);
             if (currentTime > 0) currentAudio.currentTime = currentTime;
             if (preferredQuality !== -1 && !isUsingOffline) currentService.switchQuality(preferredQuality);
-            if (isPlaying) currentAudio.play().catch(console.error);
+            
+            if (isPlaying) {
+              currentAudio.play().catch(err => {
+                console.warn('Auto-play blocked or failed:', err);
+              });
+            }
           }
         }
         
@@ -984,15 +1019,13 @@ export default function AudioPlayer() {
   // Sync isPlaying state
   useEffect(() => {
     const currentAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
-    if (!currentAudio || !currentAlbum) return;
-
-    console.log('Player sync - isPlaying:', isPlaying, 'Active Player:', activePlayer);
+    if (!currentAudio || !currentAlbum || isTransitioningRef.current) return;
 
     if (isPlaying) {
       currentAudio.play().catch(err => {
-        console.error('Playback failed:', err);
-        // If it failed because of user gesture, we can't do much here, 
-        // but it's good to know.
+        if (err.name !== 'AbortError') {
+          console.warn('Sync play failed:', err);
+        }
       });
     } else {
       currentAudio.pause();
@@ -1017,12 +1050,13 @@ export default function AudioPlayer() {
       setCurrentTime(time);
     }
     
-    if (dur) {
+    if (dur && !isNaN(dur)) {
       setDuration(dur);
       setProgress(time / dur);
 
       // Trigger crossfade 2 seconds before end
       if (dur - time < 2 && !isTransitioningRef.current && autoPlayNext && queue.length > 0) {
+        console.log('Triggering auto-advance crossfade');
         next();
       }
     }
@@ -1058,6 +1092,7 @@ export default function AudioPlayer() {
         onTimeUpdate={activePlayer === 1 ? handleTimeUpdate : undefined}
         onEnded={activePlayer === 1 ? (() => autoPlayNext && next()) : undefined}
         onLoadedMetadata={activePlayer === 1 ? ((e) => setDuration(e.currentTarget.duration)) : undefined}
+        onError={(e) => console.error('Audio 1 Error:', e.currentTarget.error)}
       />
       <audio
         ref={audioRef2}
@@ -1066,6 +1101,7 @@ export default function AudioPlayer() {
         onTimeUpdate={activePlayer === 2 ? handleTimeUpdate : undefined}
         onEnded={activePlayer === 2 ? (() => autoPlayNext && next()) : undefined}
         onLoadedMetadata={activePlayer === 2 ? ((e) => setDuration(e.currentTarget.duration)) : undefined}
+        onError={(e) => console.error('Audio 2 Error:', e.currentTarget.error)}
       />
 
       <AnimatePresence mode="wait">
@@ -1089,7 +1125,7 @@ export default function AudioPlayer() {
 
             <div className="flex items-center gap-2 md:gap-4 w-1/2 md:w-1/3">
               <div className="w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-lg flex-shrink-0 overflow-hidden border border-white/5">
-                <img src={currentAlbum.coverUrl} alt="" className="w-full h-full object-cover" />
+                <img src={currentAlbum.coverUrl || undefined} alt="" className="w-full h-full object-cover" />
               </div>
               <div className="flex flex-col overflow-hidden">
                 <span className="text-xs md:text-sm font-medium truncate text-white">{currentAlbum.title}</span>
@@ -1115,7 +1151,7 @@ export default function AudioPlayer() {
                   <SkipBack className="w-5 h-5 fill-current" />
                 </button>
                 <button 
-                  onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                  onClick={(e) => { e.stopPropagation(); handleTogglePlay(); }}
                   className="w-10 h-10 bg-[#F4C430] rounded-full flex items-center justify-center text-black shadow-lg shadow-[#F4C430]/20 hover:scale-110 active:scale-95 transition-all"
                   aria-label={isPlaying ? "Pause" : "Play"}
                   title={isPlaying ? "Pause" : "Play"}
@@ -1153,7 +1189,7 @@ export default function AudioPlayer() {
 
             <div className="flex items-center justify-end gap-3 md:gap-6 w-1/2 md:w-1/3">
               <button 
-                onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                onClick={(e) => { e.stopPropagation(); handleTogglePlay(); }}
                 className="sm:hidden w-10 h-10 bg-[#F4C430] rounded-full flex items-center justify-center text-black shadow-lg shadow-[#F4C430]/20"
               >
                 {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
@@ -1193,7 +1229,7 @@ export default function AudioPlayer() {
             {/* Background Atmosphere */}
             <div className="absolute inset-0 z-0 text-white">
               <img 
-                src={currentAlbum.coverUrl} 
+                src={currentAlbum.coverUrl || undefined} 
                 className="w-full h-full object-cover opacity-20 blur-3xl scale-110" 
                 alt="" 
               />
@@ -1260,7 +1296,7 @@ export default function AudioPlayer() {
                     } : { duration: 0.5 }}
                     className="absolute inset-4 blur-2xl pointer-events-none"
                   >
-                    <img src={currentAlbum.coverUrl} className="w-full h-full object-cover rounded-3xl" alt="" />
+                    <img src={currentAlbum.coverUrl || undefined} className="w-full h-full object-cover rounded-3xl" alt="" />
                   </motion.div>
                   
                   <motion.div 
@@ -1269,7 +1305,7 @@ export default function AudioPlayer() {
                     } : { boxShadow: '0 0 20px rgba(0,0,0,0.4)' }}
                     className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/20 cinematic-glow"
                   >
-                    <img src={currentAlbum.coverUrl} className="w-full h-full object-cover" alt="" />
+                    <img src={currentAlbum.coverUrl || undefined} className="w-full h-full object-cover" alt="" />
                   </motion.div>
                 </motion.div>
 
@@ -1416,10 +1452,7 @@ export default function AudioPlayer() {
                   <SkipBack className="w-10 h-10 fill-current" />
                 </button>
                 <button 
-                  onClick={() => {
-                    hapticFeedback.medium();
-                    togglePlay();
-                  }}
+                  onClick={handleTogglePlay}
                   className="w-24 h-24 rounded-full bg-[#F4C430] text-black flex items-center justify-center shadow-2xl transform hover:scale-110 active:scale-95 transition-all ring-1 ring-white/20"
                   aria-label={isPlaying ? "Pause" : "Play"}
                   title={isPlaying ? "Pause" : "Play"}
@@ -1879,7 +1912,7 @@ export default function AudioPlayer() {
                      )}
 
                      <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 shadow-lg group-hover:scale-105 transition-transform">
-                        <img src={currentAlbum.coverUrl} alt="" className="w-full h-full object-cover" />
+                        <img src={currentAlbum.coverUrl || undefined} alt="" className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/30 flex items-center justify-center backdrop-blur-[1px]">
                            <div className="flex gap-0.5 items-end h-7">
                               {[...Array(6)].map((_, i) => (
@@ -2067,7 +2100,7 @@ export default function AudioPlayer() {
                               <GripVertical className="w-4 h-4" />
                             </div>
                             <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 shadow-2xl ring-1 ring-white/20">
-                              <img src={activeDraggingAlbum.coverUrl} className="w-full h-full object-cover" alt="" />
+                              <img src={activeDraggingAlbum.coverUrl || undefined} className="w-full h-full object-cover" alt="" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="text-xs font-bold text-white truncate italic tracking-tight">{activeDraggingAlbum.title}</h4>
@@ -2157,7 +2190,7 @@ export default function AudioPlayer() {
                       className="flex items-center gap-4 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/5 transition-all group"
                     >
                       <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/5">
-                        <img src={album.coverUrl} alt="" className="w-full h-full object-cover" />
+                        <img src={album.coverUrl || undefined} alt="" className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-xs font-bold text-white truncate italic">{album.title}</h4>

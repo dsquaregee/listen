@@ -289,7 +289,7 @@ export default function Navbar() {
       <div className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-[#D4AF37]/30 p-0.5 shrink-0 overflow-hidden active:scale-95 transition-transform">
         <Link to="/profile" className="w-full h-full bg-[#222] rounded-full flex items-center justify-center overflow-hidden">
           {user?.photoURL ? (
-            <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+            <img src={user.photoURL || undefined} alt="" className="w-full h-full object-cover" />
           ) : (
             <span className="text-[10px] text-[#D4AF37]">
               {user?.displayName ? user.displayName.substring(0, 2).toUpperCase() : 'Guest'}

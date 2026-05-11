@@ -26,7 +26,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
 
     let hls: Hls | null = null;
 
-    if (src.endsWith('.m3u8')) {
+    if (src && src.endsWith('.m3u8')) {
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
@@ -44,7 +44,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
           if (autoplay) video.play().catch(console.error);
         });
       }
-    } else {
+    } else if (src) {
       // Direct video link (mp4, etc)
       video.src = src;
     }

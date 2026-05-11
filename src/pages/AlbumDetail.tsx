@@ -78,9 +78,9 @@ export default function AlbumDetail() {
         }}
       >
         <div className="absolute inset-0 blur-3xl scale-110 opacity-50">
-          <img src={album.coverUrl} alt="" className="w-full h-full object-cover" />
+          <img src={album.coverUrl || undefined} alt="" className="w-full h-full object-cover" />
         </div>
-        <img src={album.coverUrl} alt={album.title} className="relative w-full h-full object-cover" />
+        <img src={album.coverUrl || undefined} alt={album.title} className="relative w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         
         {album.videoHlsUrl && (
@@ -121,7 +121,7 @@ export default function AlbumDetail() {
                 }
               }}
             >
-              <img src={album.coverUrl} alt={album.title} className="w-full h-full object-cover" />
+              <img src={album.coverUrl || undefined} alt={album.title} className="w-full h-full object-cover" />
               {album.videoHlsUrl && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <Play className="w-12 h-12 text-primary fill-current" />
@@ -335,7 +335,7 @@ export default function AlbumDetail() {
             {MOCK_ALBUMS.filter(a => a.id !== id).slice(0, 2).map((a) => (
               <Link to={`/album/${a.id}`} key={a.id} className="group flex gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
                 <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0">
-                  <img src={a.coverUrl} alt={a.title} className="w-full h-full object-cover" />
+                  <img src={a.coverUrl || undefined} alt={a.title} className="w-full h-full object-cover" />
                 </div>
                 <div className="flex flex-col justify-center overflow-hidden">
                   <h4 className="text-white font-medium truncate">{a.title}</h4>

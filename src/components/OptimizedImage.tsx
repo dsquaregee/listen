@@ -26,7 +26,7 @@ export function OptimizedImage({ className, src, alt, ...props }: OptimizedImage
       </AnimatePresence>
       
       <img
-        src={error ? 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&q=80&w=400' : src}
+        src={error ? 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&q=80&w=400' : (src || undefined)}
         alt={alt}
         loading="lazy"
         onLoad={() => setIsLoaded(true)}

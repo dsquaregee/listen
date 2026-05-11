@@ -5,29 +5,31 @@ export class StreamingService {
   private audio: HTMLAudioElement | null = null;
 
   initialize(audioElement: HTMLAudioElement) {
+    if (this.audio === audioElement && this.hls) return;
+    
+    this.destroy();
     this.audio = audioElement;
+    
     if (Hls.isSupported()) {
+      console.log('Initializing HLS for audio element');
       this.hls = new Hls({
         debug: false,
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 60,
-        // Optimize for low cost / battery
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         fragLoadingMaxRetry: 3,
       });
       
-      this.hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('HLS Error Event:', data);
+      this.hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
+          console.error('Fatal HLS Error:', data.type, data.details);
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.error('Fatal network error encountered, trying to recover');
               this.hls?.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.error('Fatal media error encountered, trying to recover');
               this.hls?.recoverMediaError();
               break;
             default:
@@ -38,32 +40,45 @@ export class StreamingService {
       });
 
       this.hls.attachMedia(this.audio);
+    } else if (audioElement.canPlayType('application/vnd.apple.mpegurl')) {
+      console.log('Using native HLS support');
     }
   }
 
   loadSource(url: string) {
-    const isLocal = url.startsWith('blob:');
+    if (!this.audio) {
+      console.error('StreamingService: loadSource called before initialize');
+      return;
+    }
+
+    console.log('StreamingService loading source:', url);
+    const isLocal = url.startsWith('blob:') || url.startsWith('data:');
     
     if (isLocal) {
-      // Detach HLS for local playback
       if (this.hls) {
+        this.hls.stopLoad();
         this.hls.detachMedia();
       }
-      if (this.audio) {
-        this.audio.src = url;
-      }
+      this.audio.src = url;
     } else {
-      // HLS playback
       if (this.hls) {
-        if (!this.hls.media && this.audio) {
+        if (!this.hls.media) {
           this.hls.attachMedia(this.audio);
         }
         this.hls.loadSource(url);
-      } else if (this.audio && this.audio.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native support (Safari)
+      } else {
         this.audio.src = url;
       }
     }
+  }
+
+  play(): Promise<void> {
+    if (!this.audio) return Promise.reject('No audio element');
+    return this.audio.play();
+  }
+
+  pause() {
+    this.audio?.pause();
   }
 
   switchQuality(levelIndex: number) {

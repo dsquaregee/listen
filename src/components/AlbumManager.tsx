@@ -605,7 +605,7 @@ export default function AlbumManager() {
                         <div className="relative group">
                           {formData.coverUrl ? (
                             <img 
-                              src={formData.coverUrl} 
+                              src={formData.coverUrl || undefined} 
                               alt="Cover Preview" 
                               className="w-full aspect-square rounded-2xl object-cover border border-white/10"
                             />
@@ -825,7 +825,7 @@ export default function AlbumManager() {
                 className="group flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 transition-all"
               >
                 <div className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden border border-white/10">
-                  <img src={album.coverUrl} alt={album.title} className="w-full h-full object-cover" />
+                  <img src={album.coverUrl || undefined} alt={album.title} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <PlayCircle className="w-6 h-6 text-white" />
                   </div>
