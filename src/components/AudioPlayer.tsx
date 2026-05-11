@@ -845,6 +845,18 @@ export default function AudioPlayer() {
       
       const handleError = (error: string) => {
         console.error('Streaming Player Error:', error);
+        let message = 'Playback error occurred.';
+        
+        if (error.includes('HTTP 403')) {
+          message = 'Access Denied (403). Your storage bucket needs public access or CORS configuration.';
+        } else if (error.includes('networkError')) {
+          message = 'Connection issue. Please check your network or stream configuration.';
+        }
+
+        setToast({ 
+          message,
+          type: 'error' 
+        });
         pause(); // Stop UI state
       };
 

@@ -18,14 +18,14 @@ export class StreamingService {
     if (Hls.isSupported()) {
       console.log('Initializing HLS for audio element');
       this.hls = new Hls({
-        debug: false,
+        debug: true,
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 60,
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
-        fragLoadingMaxRetry: 3,
-        manifestLoadingMaxRetry: 3,
+        fragLoadingMaxRetry: 6,
+        manifestLoadingMaxRetry: 6,
         xhrSetup: (xhr, _url) => {
           xhr.withCredentials = false;
         }
@@ -36,9 +36,10 @@ export class StreamingService {
           console.error('Fatal HLS Error:', data.type, data.details);
           if (data.response) {
             console.error('HTTP Status:', data.response.code, 'at', data.response.url);
+            this.onErrorCallback?.(`${data.type}: ${data.details} (HTTP ${data.response.code})`);
+          } else {
+            this.onErrorCallback?.(`${data.type}: ${data.details}`);
           }
-          
-          this.onErrorCallback?.(`${data.type}: ${data.details}`);
           
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
