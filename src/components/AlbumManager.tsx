@@ -31,6 +31,11 @@ export default function AlbumManager() {
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+
+  const addDebugLog = (msg: string) => {
+    setDebugLog(prev => [...prev.slice(-4), msg]);
+  };
   const [audioFile, setAudioFile] = useState<File | null>(null);
   
   const [formData, setFormData] = useState<Omit<Album, 'id'>>({
@@ -267,10 +272,11 @@ export default function AlbumManager() {
     if (!formData.title) return alert('Please enter a title first (used for organizing files).');
 
     setIsProcessingAudio(true);
+    setDebugLog(['Starting...']);
     
     try {
+      addDebugLog('Requesting Signed URL...');
       // 1. Get Signed URL from our server
-      console.log('Requesting signed URL...');
       const urlResponse = await fetch('/api/get-upload-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -288,8 +294,9 @@ export default function AlbumManager() {
       const { uploadUrl, gcsPath } = await urlResponse.json();
       if (!uploadUrl) throw new Error('Failed to get upload authorization');
 
+      addDebugLog('Authorised. Uploading to GCS...');
+      const startTime = Date.now();
       // 2. Upload directly to GCS using the Signed URL
-      console.log('Uploading directly to GCS...');
       const gcsResponse = await fetch(uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': audioFile.type || 'audio/wav' },
@@ -299,15 +306,15 @@ export default function AlbumManager() {
       if (!gcsResponse.ok) {
         const errorText = await gcsResponse.text();
         console.error('GCS PUT Error:', gcsResponse.status, errorText);
-        // If status is 0 or 403, it's likely CORS or Permissions
         if (gcsResponse.status === 0) {
-          throw new Error('Cloud Storage Upload blocked by CORS. Please ensure CORS is configured on your bucket.');
+          throw new Error('Upload blocked (Network/CORS). Check browser console.');
         }
-        throw new Error(`Cloud Storage Upload Failed (${gcsResponse.status}): ${errorText || 'Unknown GCS error'}`);
+        throw new Error(`Upload Failed (${gcsResponse.status}): ${errorText || 'Check bucket permissions'}`);
       }
-
+      
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+      addDebugLog(`Uploaded in ${duration}s. Processing...`);
       // 3. Trigger processing on our server
-      console.log('Triggering audio processing...');
       const safeId = formData.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
       const processResponse = await fetch('/api/process-audio', {
         method: 'POST',
@@ -326,14 +333,17 @@ export default function AlbumManager() {
       const data = await processResponse.json();
       if (data.m3u8Url) {
         setFormData(prev => ({ ...prev, hlsUrl: data.m3u8Url }));
-        alert('Audio processed successfully! Large file handled via Direct-to-Cloud orchestration.');
+        addDebugLog('Success!');
+        alert('Audio processed successfully!');
         setAudioFile(null);
       } else {
         throw new Error(data.error || 'Processing orchestration failure');
       }
     } catch (error) {
       console.error('Advanced Orchestration failed:', error);
-      alert('Orchestration failed: ' + (error instanceof Error ? error.message : String(error)));
+      const msg = error instanceof Error ? error.message : String(error);
+      addDebugLog(`Error: ${msg}`);
+      alert('Orchestration failed: ' + msg);
     } finally {
       setIsProcessingAudio(false);
     }
@@ -575,15 +585,22 @@ export default function AlbumManager() {
                               {audioFile ? audioFile.name : 'Select .wav'}
                             </label>
                             {audioFile && (
-                              <button 
-                                type="button"
-                                onClick={handleProcessAudio}
-                                disabled={isProcessingAudio}
-                                className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-green-400 disabled:opacity-50"
-                              >
-                                {isProcessingAudio ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
-                                Process & Upload
-                              </button>
+                              <div className="flex flex-col gap-1">
+                                <button 
+                                  type="button"
+                                  onClick={handleProcessAudio}
+                                  disabled={isProcessingAudio}
+                                  className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-green-400 disabled:opacity-50"
+                                >
+                                  {isProcessingAudio ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+                                  Process & Upload
+                                </button>
+                                {debugLog.length > 0 && (
+                                  <div className="text-[7px] text-white/40 font-mono">
+                                    {debugLog.map((log, i) => <div key={i}>{log}</div>)}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>

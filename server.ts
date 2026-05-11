@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Logging helper
-const logFile = path.join(__dirname, 'server.log');
+const logFile = path.join(process.cwd(), 'server.log');
 function logToFile(message: string) {
   const timestamp = new Date().toISOString();
   const formattedMessage = `[${timestamp}] ${message}\n`;
@@ -28,6 +28,16 @@ if (ffmpegInstaller) {
 
 const app = express();
 const PORT = 3000;
+
+// Generic request logger (Errors only)
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    if (res.statusCode >= 400) {
+      logToFile(`${req.method} ${req.url} - Status: ${res.statusCode}`);
+    }
+  });
+  next();
+});
 
 // Setup GCS
 const privateKey = process.env.GCS_PRIVATE_KEY
@@ -93,11 +103,11 @@ app.post('/api/get-upload-url', async (req, res) => {
       contentType,
     });
 
-    logToFile(`Signed URL generated successfully for ${destination}`);
+    logToFile(`Signed URL generated for: ${fileName}`);
     res.json({ uploadUrl: url, gcsPath: destination });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    logToFile(`Signed URL Error: ${errMsg}`);
+    logToFile(`Signed URL Generation Failed: ${errMsg}`);
     res.status(500).json({ 
       error: 'Failed to generate upload URL', 
       details: errMsg 
@@ -129,28 +139,42 @@ app.post('/api/process-audio', async (req, res) => {
     await storage.bucket(bucketName).file(gcsPath).download({
       destination: inputFile,
     });
-    logToFile(`Download complete: ${inputFile}`);
+    
+    if (!fs.existsSync(inputFile)) {
+      throw new Error(`Failed to download file to ${inputFile}`);
+    }
+    const stats = fs.statSync(inputFile);
+    logToFile(`Download complete: ${inputFile} (${stats.size} bytes)`);
+
+    if (stats.size === 0) {
+      throw new Error('Downloaded file is empty');
+    }
 
     // 2. Process with FFmpeg
     logToFile(`Starting HLS conversion for ${albumId}...`);
     await new Promise((resolve, reject) => {
       ffmpeg(inputFile)
         .outputOptions([
-          '-profile:a aac_low',
+          '-c:a aac',
+          '-b:a 128k',
+          '-ac 2',
           '-hls_time 10',
           '-hls_list_size 0',
           '-f hls'
         ])
         .output(outputPlaylist)
         .on('start', (cmd) => logToFile(`FFmpeg command: ${cmd}`))
-        .on('progress', (progress) => logToFile(`FFmpeg progress: ${progress.percent}%`))
+        .on('progress', (progress) => {
+          if (progress.percent) logToFile(`FFmpeg progress: ${progress.percent.toFixed(1)}%`);
+        })
         .on('end', () => {
           logToFile('FFmpeg finished successfully');
           resolve(true);
         })
-        .on('error', (err) => {
+        .on('error', (err, stdout, stderr) => {
           logToFile(`FFmpeg error: ${err.message}`);
-          reject(err);
+          logToFile(`FFmpeg stderr: ${stderr}`);
+          reject(new Error(`FFmpeg failed: ${err.message}. Details: ${stderr}`));
         })
         .run();
     });
