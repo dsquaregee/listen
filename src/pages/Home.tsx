@@ -77,12 +77,12 @@ export default function Home() {
             transition={{ delay: 0.5, duration: 0.8 }}
           >
             <div className="flex gap-2 items-center mb-6">
-              <span className="bg-[#F4C430] text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+              <span className="bg-primary text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
                 Featured Experience
               </span>
               {featured.tier === 'premium' && (
                 <span className="bg-white/10 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-white/20 flex items-center gap-1.5">
-                  <Crown className="w-3 h-3 text-[#F4C430]" /> Premium
+                  <Crown className="w-3 h-3 text-primary" /> Premium
                 </span>
               )}
             </div>
@@ -96,7 +96,7 @@ export default function Home() {
             <div className="flex items-center gap-6">
               <button 
                 onClick={() => setAlbum(featured)}
-                className="bg-white text-black px-10 py-4 rounded-full text-xs font-bold uppercase tracking-[0.2em] hover:bg-[#F4C430] transition-colors shadow-lg active:scale-95 duration-200"
+                className="bg-white text-black px-10 py-4 rounded-full text-xs font-bold uppercase tracking-[0.2em] hover:bg-primary transition-colors shadow-lg active:scale-95 duration-200"
               >
                 Immerse Now
               </button>
@@ -130,7 +130,7 @@ export default function Home() {
               </div>
               <Link 
                 to={`/category/${cat.slug}`}
-                className="text-[10px] text-[#F4C430] uppercase font-bold tracking-widest hover:underline mb-2"
+                className="text-[10px] text-primary uppercase font-bold tracking-widest hover:underline mb-2"
               >
                 Explore All
               </Link>
@@ -149,7 +149,7 @@ export default function Home() {
                     className="flex-shrink-0 w-72 sm:w-80 group cursor-pointer"
                     onClick={() => setAlbum(album)}
                   >
-                    <div className="relative aspect-[4/5] bg-[#1a1a1a] rounded-[2rem] overflow-hidden mb-6 border border-white/5 shadow-2xl transition-all duration-500 group-hover:shadow-[#F4C430]/10">
+                    <div className="relative aspect-[4/5] bg-[#1a1a1a] rounded-[2rem] overflow-hidden mb-6 border border-white/5 shadow-2xl transition-all duration-500 group-hover:shadow-primary/10">
                       <OptimizedImage 
                         src={album.coverUrl} 
                         alt={album.title} 
@@ -158,7 +158,7 @@ export default function Home() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
                       
                       {album.tier === 'premium' && (
-                        <div className="absolute top-4 right-4 p-2 bg-black/40 backdrop-blur-md rounded-full text-[#F4C430] border border-white/10">
+                        <div className="absolute top-4 right-4 p-2 bg-black/40 backdrop-blur-md rounded-full text-primary border border-white/10">
                           <Crown className="w-3 h-3" />
                         </div>
                       )}
@@ -172,7 +172,7 @@ export default function Home() {
                         </span>
                       </div>
                     </div>
-                    <h3 className="text-xl font-serif italic text-white group-hover:text-[#F4C430] transition-colors mb-2 truncate">
+                    <h3 className="text-xl font-serif italic text-white group-hover:text-primary transition-colors mb-2 truncate">
                       {album.title}
                     </h3>
                     <p className="text-xs text-white/40 line-clamp-2 leading-relaxed font-light italic">
@@ -192,7 +192,7 @@ export default function Home() {
 
       {/* Trending / Global - Sophisticated Footer section */}
       <section className="mt-32 max-w-7xl mx-auto px-4 mb-20 text-center">
-        <div className="h-px w-24 bg-[#F4C430] mx-auto mb-12 opacity-30" />
+        <div className="h-px w-24 bg-primary mx-auto mb-12 opacity-30" />
         <h2 className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/20 mb-8">Harmonizing the Future</h2>
         <div className="flex flex-wrap justify-center gap-12 sm:gap-24 opacity-40 grayscale hover:grayscale-0 transition-all duration-1000">
           <TrendingUp className="w-8 h-8" />

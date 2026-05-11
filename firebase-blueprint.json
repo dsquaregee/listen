@@ -60,6 +60,20 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "albumId"]
+    },
+    "Playlist": {
+      "title": "User Playlist",
+      "description": "Collections of albums created by users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "albumIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "name", "albumIds"]
     }
   },
   "firestore": {
@@ -78,6 +92,10 @@
     "/favorites/{favoriteId}": {
       "schema": "Favorite",
       "description": "Stores user favorites"
+    },
+    "/playlists/{playlistId}": {
+      "schema": "Playlist",
+      "description": "Stores user-created playlists"
     }
   }
 }

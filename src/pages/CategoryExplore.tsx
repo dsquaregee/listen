@@ -34,17 +34,23 @@ export default function CategoryExplore() {
 
         if (activeCat) {
           setCategory(activeCat);
-          // Fetch albums for this category from Firestore
+          
+          // 1. Try fetching from Firestore
           const albumsQ = query(
             collection(db, 'albums'), 
             where('categoryId', '==', activeCat.id)
           );
           const albumsSn = await getDocs(albumsQ);
+          
           if (!albumsSn.empty) {
             setAlbums(albumsSn.docs.map(doc => ({ id: doc.id, ...doc.data() } as Album)));
           } else {
-             // Fallback to mock filtering
-            setAlbums(MOCK_ALBUMS.filter(a => a.categoryId === activeCat?.id));
+            // 2. Fallback to mock filtering - support both Firestore ID and Mock ID
+            const mockCat = MOCK_CATEGORIES.find(c => c.slug === slug);
+            const albumsToShow = MOCK_ALBUMS.filter(a => 
+              a.categoryId === activeCat?.id || (mockCat && a.categoryId === mockCat.id)
+            );
+            setAlbums(albumsToShow);
           }
         }
       } catch (e) {
@@ -58,7 +64,7 @@ export default function CategoryExplore() {
 
   if (isLoading) return (
     <div className="pt-32 flex justify-center h-screen bg-black">
-      <Loader2 className="w-8 h-8 text-[#F4C430] animate-spin" />
+      <Loader2 className="w-8 h-8 text-primary animate-spin" />
     </div>
   );
 

@@ -437,7 +437,7 @@ export default function AlbumManager() {
             resetForm();
             setIsAdding(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#F4C430] text-black font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform"
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-black font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform"
         >
           <Plus className="w-4 h-4" />
           Add Album
@@ -446,7 +446,7 @@ export default function AlbumManager() {
 
       {isLoading ? (
         <div className="py-20 flex justify-center">
-          <div className="w-8 h-8 border-2 border-[#F4C430] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6">
@@ -460,11 +460,11 @@ export default function AlbumManager() {
               >
                 <form 
                   onSubmit={editingId ? (e) => { e.preventDefault(); handleUpdate(editingId); } : handleCreate} 
-                  className="p-8 rounded-[32px] bg-white/5 border border-[#F4C430]/30 space-y-6"
+                  className="p-8 rounded-[32px] bg-white/[0.03] border border-primary/30 space-y-6 shadow-2xl"
                 >
                   <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-4">
                     <h3 className="text-lg font-serif font-bold italic flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-[#F4C430]" />
+                      <Sparkles className="w-5 h-5 text-primary" />
                       {editingId ? 'Refine Experience' : 'New Sonic Entity'}
                     </h3>
                     <button 
@@ -486,7 +486,7 @@ export default function AlbumManager() {
                           required
                           value={formData.title}
                           onChange={e => setFormData({...formData, title: e.target.value})}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#F4C430] transition-colors"
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
                           placeholder="e.g. Gravity's End"
                         />
                       </div>
@@ -499,7 +499,7 @@ export default function AlbumManager() {
                           required
                           value={formData.artist}
                           onChange={e => setFormData({...formData, artist: e.target.value})}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#F4C430] transition-colors"
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
                           placeholder="e.g. Solar Wind"
                         />
                       </div>
@@ -514,7 +514,7 @@ export default function AlbumManager() {
                             required
                             value={formData.duration}
                             onChange={e => setFormData({...formData, duration: parseInt(e.target.value) || 0})}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#F4C430] transition-colors"
+                            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
                           />
                         </div>
                         <div className="space-y-2">
@@ -525,7 +525,7 @@ export default function AlbumManager() {
                             required
                             value={formData.categoryId}
                             onChange={e => setFormData({...formData, categoryId: e.target.value})}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#F4C430] transition-colors appearance-none"
+                            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors appearance-none text-white"
                           >
                             <option value="" disabled className="bg-neutral-900">Select...</option>
                             {categories.map(c => (
@@ -544,7 +544,7 @@ export default function AlbumManager() {
                             type="number"
                             value={formData.bpm}
                             onChange={e => setFormData({...formData, bpm: parseInt(e.target.value) || 0})}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-primary transition-colors"
                           />
                         </div>
                         <div className="space-y-2 col-span-2">
@@ -554,7 +554,7 @@ export default function AlbumManager() {
                           <input 
                             value={formData.instruments.join(', ')}
                             onChange={e => setFormData({...formData, instruments: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-primary transition-colors"
                             placeholder="Piano, Synth..."
                           />
                         </div>
@@ -567,7 +567,7 @@ export default function AlbumManager() {
                         <input 
                           value={formData.moodTags.join(', ')}
                           onChange={e => setFormData({...formData, moodTags: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-primary transition-colors"
                           placeholder="Ethereal, Atmospheric..."
                         />
                       </div>
@@ -581,7 +581,7 @@ export default function AlbumManager() {
                             type="button"
                             onClick={generateDescription}
                             disabled={isGeneratingDescription}
-                            className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-[#F4C430] transition-opacity hover:opacity-80 disabled:opacity-50"
+                            className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-primary transition-opacity hover:opacity-80 disabled:opacity-50"
                           >
                             {isGeneratingDescription ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                             AI Magic
@@ -590,7 +590,7 @@ export default function AlbumManager() {
                         <textarea 
                           value={formData.description}
                           onChange={e => setFormData({...formData, description: e.target.value})}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-[#F4C430] transition-colors min-h-[100px] leading-relaxed"
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary transition-colors min-h-[100px] leading-relaxed"
                           placeholder="Describe the sonic atmosphere..."
                         />
                       </div>
@@ -622,7 +622,7 @@ export default function AlbumManager() {
                                 <input 
                                   value={formData.coverUrl}
                                   onChange={e => setFormData({...formData, coverUrl: e.target.value})}
-                                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[10px] focus:outline-none focus:border-primary transition-colors"
                                   placeholder="Artwork URL (Unsplash or base64)..."
                                 />
                               </div>
@@ -630,7 +630,7 @@ export default function AlbumManager() {
                                 type="button"
                                 onClick={generateArtwork}
                                 disabled={isGeneratingArtwork}
-                                className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-[#F4C430] text-black hover:scale-105 transition-transform disabled:opacity-50 disabled:scale-100"
+                                className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-black hover:scale-105 transition-transform disabled:opacity-50 disabled:scale-100"
                                 title="Generate with AI"
                               >
                                 {isGeneratingArtwork ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -648,7 +648,7 @@ export default function AlbumManager() {
                           <button
                             type="button"
                             onClick={() => setIsManualUpload(!isManualUpload)}
-                            className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-[#F4C430] hover:opacity-80 transition-opacity"
+                            className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-primary hover:opacity-80 transition-opacity"
                           >
                             {isManualUpload ? <ToggleRight className="w-3 h-3" /> : <ToggleLeft className="w-3 h-3" />}
                             Manual HLS Upload
@@ -666,7 +666,7 @@ export default function AlbumManager() {
                             />
                             <label 
                               htmlFor="wav-upload"
-                              className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-[#F4C430] cursor-pointer hover:opacity-80 transition-opacity"
+                              className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-primary cursor-pointer hover:opacity-80 transition-opacity"
                             >
                               <Music className="w-3 h-3" />
                               {audioFile ? audioFile.name : 'Select .wav'}
@@ -705,7 +705,7 @@ export default function AlbumManager() {
                             />
                             <label 
                               htmlFor="hls-upload"
-                              className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-[#F4C430] cursor-pointer hover:opacity-80 transition-opacity"
+                              className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-primary cursor-pointer hover:opacity-80 transition-opacity"
                             >
                               <FolderUp className="w-3 h-3" />
                               {manualFiles.length > 0 ? `${manualFiles.length} files selected` : 'Select HLS Folder'}
@@ -737,7 +737,7 @@ export default function AlbumManager() {
                               required
                               value={formData.hlsUrl}
                               onChange={e => setFormData({...formData, hlsUrl: e.target.value})}
-                              className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                              className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-[10px] focus:outline-none focus:border-primary transition-colors"
                               placeholder="Master HLS (.m3u8)..."
                             />
                           </div>
@@ -746,14 +746,14 @@ export default function AlbumManager() {
                             <input 
                               value={formData.videoHlsUrl}
                               onChange={e => setFormData({...formData, videoHlsUrl: e.target.value})}
-                              className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-12 py-2 text-[10px] focus:outline-none focus:border-[#F4C430] transition-colors"
+                              className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-10 pr-12 py-2 text-[10px] focus:outline-none focus:border-primary transition-colors"
                               placeholder="Optional Video HLS / Reel..."
                             />
                             <button 
                               type="button"
                               onClick={generatePreview}
                               disabled={isGeneratingPreview}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-[#F4C430] hover:text-[#D4AF37] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:text-[#D4AF37] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                               title="Generate AI Preview"
                             >
                               {isGeneratingPreview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
@@ -771,8 +771,8 @@ export default function AlbumManager() {
                               onChange={e => setFormData({...formData, featured: e.target.checked})}
                               className="sr-only peer"
                             />
-                            <div className="w-10 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#F4C430]/20 peer-checked:border-[#F4C430]/50 transition-all" />
-                            <div className="absolute left-1 w-3 h-3 bg-white/40 rounded-full peer-checked:bg-[#F4C430] peer-checked:translate-x-5 transition-all" />
+                            <div className="w-10 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-primary/20 peer-checked:border-primary/50 transition-all" />
+                            <div className="absolute left-1 w-3 h-3 bg-white/40 rounded-full peer-checked:bg-primary peer-checked:translate-x-5 transition-all" />
                           </div>
                           <span className="text-[10px] font-bold uppercase tracking-widest text-white/40 group-hover:text-white transition-colors">Featured</span>
                         </label>
@@ -781,14 +781,14 @@ export default function AlbumManager() {
                           <button 
                             type="button"
                             onClick={() => setFormData({...formData, tier: 'free'})}
-                            className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all ${formData.tier === 'free' ? 'bg-white/10 text-[#F4C430]' : 'text-white/20'}`}
+                            className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all ${formData.tier === 'free' ? 'bg-white/10 text-primary' : 'text-white/20'}`}
                           >
                             Free
                           </button>
                           <button 
                             type="button"
                             onClick={() => setFormData({...formData, tier: 'premium'})}
-                            className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all ${formData.tier === 'premium' ? 'bg-[#F4C430] text-black shadow-lg shadow-[#F4C430]/20' : 'text-white/20'}`}
+                            className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all ${formData.tier === 'premium' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-white/20'}`}
                           >
                             Premium
                           </button>

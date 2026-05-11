@@ -6,12 +6,13 @@ import {
   Volume2, VolumeX, Maximize2, Minimize2,
   ChevronDown, Heart, Clock, ListMusic,
   GripVertical, X, Trash2, CheckCircle2,
-  Zap, Share2, Twitter, Facebook, Link,
+  Zap, Share2, Twitter, Facebook, Instagram, Link,
   PlusCircle, FolderPlus, ListPlus, Download,
   Shuffle, Repeat, Repeat1, Search
 } from 'lucide-react';
 import AudioVisualizer from './AudioVisualizer';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { hapticFeedback } from '../lib/haptics';
 import { useUserStore } from '../store/useUserStore';
 import { MOCK_ALBUMS } from '../data/mockData';
@@ -100,7 +101,7 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
           >
             <div className="space-y-3">
               <div className="flex justify-between items-start gap-2">
-                <h5 className="text-[9px] font-bold text-[#F4C430] uppercase tracking-[0.2em] opacity-80">Experience Intel</h5>
+                <h5 className="text-[9px] font-bold text-primary uppercase tracking-[0.2em] opacity-80">Experience Intel</h5>
                 <div className="flex items-center gap-1 text-[9px] text-white/40 font-mono">
                   <Clock className="w-2.5 h-2.5" />
                   {formatTime(album.duration)}
@@ -130,11 +131,11 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
             exit={{ opacity: 0, scaleX: 0, y: -5 }}
             className="absolute -top-1 left-2 right-2 h-0.5 z-20 pointer-events-none"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#F4C430] to-transparent shadow-[0_0_15px_rgba(244,196,48,0.8)] rounded-full" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_15px_rgba(212,175,55,0.8)] rounded-full" />
             <motion.div 
               animate={{ opacity: [0.4, 1, 0.4] }}
               transition={{ repeat: Infinity, duration: 1.5 }}
-              className="absolute -top-4 left-1/2 -translate-x-1/2 text-[7px] font-bold text-[#F4C430] uppercase tracking-[0.4em] whitespace-nowrap bg-black/80 px-2 py-0.5 rounded-full border border-[#F4C430]/30 backdrop-blur-sm"
+              className="absolute -top-4 left-1/2 -translate-x-1/2 text-[7px] font-bold text-primary uppercase tracking-[0.4em] whitespace-nowrap bg-black/80 px-2 py-0.5 rounded-full border border-primary/30 backdrop-blur-sm"
             >
               Release to Stage
             </motion.div>
@@ -149,7 +150,7 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
         className={cn(
           "flex items-center gap-3 p-3 rounded-xl transition-all group relative border",
           isActive 
-            ? "bg-white/10 border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.05)]" 
+            ? "bg-white/10 border-white/20 shadow-[0_0_20px_rgba(212,175,55,0.05)]" 
             : "bg-white/[0.02] border-white/[0.05] hover:bg-white/5 hover:border-white/10",
           isDragging && "opacity-0 scale-95", // Hide the ghost item roughly
           isOver && !isDragging && "translate-y-1 bg-white/10"
@@ -157,8 +158,8 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
       >
         {/* Placeholder visual when dragging */}
         {isDragging && (
-          <div className="absolute inset-0 bg-[#F4C430]/5 rounded-xl border border-dashed border-[#F4C430]/20 flex items-center justify-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#F4C430]/20 animate-pulse" />
+          <div className="absolute inset-0 bg-primary/5 rounded-xl border border-dashed border-primary/20 flex items-center justify-center">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary/20 animate-pulse" />
           </div>
         )}
 
@@ -256,7 +257,7 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId }: WaveformSeekb
       {/* Background Glow Atmosphere */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-30">
         <motion.div 
-          className="absolute h-full w-48 blur-[80px] bg-gradient-to-r from-transparent via-[#F4C430]/20 to-transparent"
+          className="absolute h-full w-48 blur-[80px] bg-gradient-to-r from-transparent via-[#D4AF37]/20 to-transparent"
           style={{ left: `${progress * 100}%`, x: '-50%' }}
         />
       </div>
@@ -277,17 +278,17 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId }: WaveformSeekb
                 animate={{ 
                   height: `${height * 100}%`,
                   opacity: isActive ? 1 : isHovered ? 0.6 : 0.12,
-                  backgroundColor: isActive ? '#F4C430' : '#ffffff',
-                  boxShadow: (isActive && isNearPlayhead) ? '0 0 15px rgba(244,196,48,0.6)' : 'none',
+                  backgroundColor: isActive ? 'var(--color-primary)' : '#ffffff',
+                  boxShadow: (isActive && isNearPlayhead) ? '0 0 15px rgba(212,175,55,0.6)' : 'none',
                   scale: (isPlaying && isNearPlayhead) ? [1, 1.1, 1] : 1
                 }}
-                transition={{ 
-                  duration: 0.25,
-                  scale: { repeat: Infinity, duration: 1.5, ease: "easeInOut" }
-                }}
+                  transition={{ 
+                    duration: 0.25,
+                    scale: isPlaying ? { repeat: Infinity, duration: 1.5, ease: "easeInOut" } : { duration: 0.2 }
+                  }}
                 className={cn(
                   "w-full rounded-t-[1px] transition-colors duration-500",
-                  isActive && "shadow-[0_0_8px_rgba(244,196,48,0.2)]"
+                  isActive && "shadow-[0_0_8px_rgba(212,175,55,0.2)]"
                 )}
               />
               {/* Bottom half (mirrored reflection) */}
@@ -296,13 +297,13 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId }: WaveformSeekb
                 animate={{ 
                   height: `${height * 50}%`,
                   opacity: isActive ? 0.4 : isHovered ? 0.2 : 0.05,
-                  backgroundColor: isActive ? '#F4C430' : '#ffffff',
+                  backgroundColor: isActive ? 'var(--color-primary)' : '#ffffff',
                   filter: 'blur(0.5px)',
                   scale: (isPlaying && isNearPlayhead) ? [1, 1.05, 1] : 1
                 }}
                 transition={{ 
                   duration: 0.3,
-                  scale: { repeat: Infinity, duration: 2, ease: "easeInOut", delay: 0.1 }
+                  scale: isPlaying ? { repeat: Infinity, duration: 2, ease: "easeInOut", delay: 0.1 } : { duration: 0.2 }
                 }}
                 className="w-full rounded-b-[1px] transition-colors duration-500"
               />
@@ -332,17 +333,17 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId }: WaveformSeekb
 
       {/* Playhead Indicator with Custom Glow */}
       <motion.div 
-        className="absolute top-0 bottom-0 w-[3px] bg-[#F4C430] z-30 pointer-events-none"
+        className="absolute top-0 bottom-0 w-[3px] bg-primary z-30 pointer-events-none"
         style={{ left: `${progress * 100}%`, x: '-50%' }}
       >
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 -translate-y-1/2 bg-[#F4C430] blur-xl opacity-40 rounded-full" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-8 translate-y-1/2 bg-[#F4C430] blur-xl opacity-40 rounded-full" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 -translate-y-1/2 bg-primary blur-xl opacity-40 rounded-full" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-8 translate-y-1/2 bg-primary blur-xl opacity-40 rounded-full" />
         
         {/* Playhead Bead */}
         <motion.div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_15px_#F4C430] ring-4 ring-[#F4C430]/30"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_15px_rgba(212,175,55,0.8)] ring-4 ring-primary/30"
           animate={{ scale: isPlaying ? [1, 1.3, 1] : 1 }}
-          transition={{ repeat: Infinity, duration: 2 }}
+          transition={isPlaying ? { repeat: Infinity, duration: 2 } : { duration: 0.3 }}
         />
       </motion.div>
     </div>
@@ -383,7 +384,7 @@ function QualitySelector({ onQualityChange, currentLevel, levels }: QualitySelec
       >
         <div className={cn(
           "p-1 rounded-md transition-colors",
-          isOpen ? "bg-white/10 text-[#F4C430]" : "group-hover:bg-white/5"
+          isOpen ? "bg-white/10 text-primary" : "group-hover:bg-white/5"
         )}>
           <Zap className="w-5 h-5" />
         </div>
@@ -419,14 +420,14 @@ function QualitySelector({ onQualityChange, currentLevel, levels }: QualitySelec
                   }}
                   className={cn(
                     "w-full flex items-center justify-between p-3 rounded-xl transition-all",
-                    currentLevel === -1 ? "bg-[#F4C430]/10 border border-[#F4C430]/20" : "hover:bg-white/5 border border-transparent"
+                    currentLevel === -1 ? "bg-primary/10 border border-primary/20" : "hover:bg-white/5 border border-transparent"
                   )}
                 >
                   <div className="text-left">
-                    <p className={cn("text-xs font-bold", currentLevel === -1 ? "text-[#F4C430]" : "text-white")}>Auto Adaptive</p>
+                    <p className={cn("text-xs font-bold", currentLevel === -1 ? "text-primary" : "text-white")}>Auto Adaptive</p>
                     <p className="text-[9px] text-white/30 uppercase tracking-widest mt-0.5">Network Optimized</p>
                   </div>
-                  {currentLevel === -1 && <div className="w-1.5 h-1.5 rounded-full bg-[#F4C430] shadow-[0_0_8px_#F4C430]" />}
+                  {currentLevel === -1 && <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(212,175,55,0.4)]" />}
                 </button>
 
                 {levels.map((level, i) => (
@@ -438,14 +439,14 @@ function QualitySelector({ onQualityChange, currentLevel, levels }: QualitySelec
                     }}
                     className={cn(
                       "w-full flex items-center justify-between p-3 rounded-xl transition-all",
-                      currentLevel === i ? "bg-[#F4C430]/10 border border-[#F4C430]/20" : "hover:bg-white/5 border border-transparent"
+                      currentLevel === i ? "bg-primary/10 border border-primary/20" : "hover:bg-white/5 border border-transparent"
                     )}
                   >
                     <div className="text-left">
-                      <p className={cn("text-xs font-bold", currentLevel === i ? "text-[#F4C430]" : "text-white")}>{getLabel(i)}</p>
+                      <p className={cn("text-xs font-bold", currentLevel === i ? "text-primary" : "text-white")}>{getLabel(i)}</p>
                       <p className="text-[9px] text-white/30 uppercase tracking-widest mt-0.5">{getSubLabel(i)}</p>
                     </div>
-                    {currentLevel === i && <div className="w-1.5 h-1.5 rounded-full bg-[#F4C430] shadow-[0_0_8px_#F4C430]" />}
+                    {currentLevel === i && <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(212,175,55,0.4)]" />}
                   </button>
                 ))}
               </div>
@@ -467,6 +468,7 @@ interface PlaylistModalProps {
 }
 
 function PlaylistModal({ isOpen, onClose, album }: PlaylistModalProps) {
+  const { user } = useAuthStore();
   const { playlists, createPlaylist, addAlbumToPlaylist } = useUserStore();
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -492,105 +494,112 @@ function PlaylistModal({ isOpen, onClose, album }: PlaylistModalProps) {
         <div className="p-6 border-b border-white/5 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-serif font-bold text-white italic">Preserve Experience</h3>
-            <p className="text-[10px] text-[#F4C430] uppercase tracking-widest mt-1">Add to Collection</p>
+            <p className="text-[10px] text-primary uppercase tracking-widest mt-1">Add to Collection</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/40">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
-          {/* Create New Sector */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">New Sector</h4>
-              {isCreating && (
+        {!user ? (
+          <div className="p-12 text-center space-y-4">
+            <p className="text-sm text-white/60">Authentication required to preserve atmospheres.</p>
+            <div className="text-[10px] text-primary font-bold uppercase tracking-widest">Sign in to continue</div>
+          </div>
+        ) : (
+          <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+            {/* Create New Sector */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">New Sector</h4>
+                {isCreating && (
+                  <button 
+                    onClick={() => setIsCreating(false)}
+                    className="text-[9px] text-primary uppercase font-bold hover:underline"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+              
+              {!isCreating ? (
                 <button 
-                  onClick={() => setIsCreating(false)}
-                  className="text-[9px] text-[#F4C430] uppercase font-bold hover:underline"
+                  onClick={() => setIsCreating(true)}
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-dashed border-white/10 hover:border-primary/40 hover:bg-primary/5 transition-all group"
                 >
-                  Cancel
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white/40 group-hover:text-primary transition-colors">
+                    <PlusCircle className="w-5 h-5" />
+                  </div>
+                  <span className="text-sm font-medium text-white/60 group-hover:text-white transition-colors">Initialize New Playlist</span>
                 </button>
-              )}
-            </div>
-            
-            {!isCreating ? (
-              <button 
-                onClick={() => setIsCreating(true)}
-                className="w-full flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-dashed border-white/10 hover:border-[#F4C430]/40 hover:bg-[#F4C430]/5 transition-all group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white/40 group-hover:text-[#F4C430] transition-colors">
-                  <PlusCircle className="w-5 h-5" />
-                </div>
-                <span className="text-sm font-medium text-white/60 group-hover:text-white transition-colors">Initialize New Playlist</span>
-              </button>
-            ) : (
-              <div className="flex gap-2">
-                <input 
-                  autoFocus
-                  value={newPlaylistName}
-                  onChange={e => setNewPlaylistName(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && newPlaylistName) {
-                      createPlaylist(newPlaylistName);
+              ) : (
+                <div className="flex gap-2">
+                  <input 
+                    autoFocus
+                    value={newPlaylistName}
+                    onChange={e => setNewPlaylistName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && newPlaylistName) {
+                        createPlaylist(user.uid, newPlaylistName);
+                        setNewPlaylistName('');
+                        setIsCreating(false);
+                      }
+                    }}
+                    placeholder="Atmosphere name..."
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                  />
+                  <button 
+                    disabled={!newPlaylistName}
+                    onClick={() => {
+                      createPlaylist(user.uid, newPlaylistName);
                       setNewPlaylistName('');
                       setIsCreating(false);
-                    }
-                  }}
-                  placeholder="Atmosphere name..."
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#F4C430] transition-colors"
-                />
-                <button 
-                  disabled={!newPlaylistName}
-                  onClick={() => {
-                    createPlaylist(newPlaylistName);
-                    setNewPlaylistName('');
-                    setIsCreating(false);
-                  }}
-                  className="px-4 bg-[#F4C430] text-black rounded-xl text-xs font-bold uppercase tracking-widest disabled:opacity-50"
-                >
-                  Save
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Existing Sectors */}
-          <div className="space-y-3">
-            <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Existing Atmospheres</h4>
-            <div className="space-y-2">
-              {playlists.length > 0 ? (
-                playlists.map(pl => (
-                  <button
-                    key={pl.id}
-                    onClick={() => {
-                      addAlbumToPlaylist(pl.id, album.id);
-                      onClose();
                     }}
-                    className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/20 hover:bg-white/5 transition-all group"
+                    className="px-4 bg-primary text-black rounded-xl text-xs font-bold uppercase tracking-widest disabled:opacity-50"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center border border-white/5 overflow-hidden">
-                        <FolderPlus className="w-5 h-5 text-white/20 group-hover:text-white/60 transition-colors" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-medium text-white truncate">{pl.name}</p>
-                        <p className="text-[10px] text-white/20 uppercase tracking-widest">{pl.albumIds.length} Experiences</p>
-                      </div>
-                    </div>
-                    <div className="p-2 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <PlusCircle className="w-4 h-4 text-[#F4C430]" />
-                    </div>
+                    Save
                   </button>
-                ))
-              ) : (
-                <div className="py-8 text-center bg-white/[0.02] rounded-2xl border border-white/5 italic text-xs text-white/20">
-                  No atmospheres discovered yet.
                 </div>
               )}
             </div>
+
+            {/* Existing Sectors */}
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Existing Atmospheres</h4>
+              <div className="space-y-2">
+                {playlists.length > 0 ? (
+                  playlists.map(pl => (
+                    <button
+                      key={pl.id}
+                      onClick={() => {
+                        addAlbumToPlaylist(pl.id, album.id);
+                        onClose();
+                      }}
+                      className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/20 hover:bg-white/5 transition-all group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center border border-white/5 overflow-hidden">
+                          <FolderPlus className="w-5 h-5 text-white/20 group-hover:text-white/60 transition-colors" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-medium text-white truncate">{pl.name}</p>
+                          <p className="text-[10px] text-white/20 uppercase tracking-widest">{pl.albumIds.length} Experiences</p>
+                        </div>
+                      </div>
+                      <div className="p-2 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <PlusCircle className="w-4 h-4 text-primary" />
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="py-8 text-center bg-white/[0.02] rounded-2xl border border-white/5 italic text-xs text-white/20">
+                    No atmospheres discovered yet.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
         
         <div className="p-4 bg-white/5 border-t border-white/5 flex items-center justify-center gap-3">
           <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 shadow-lg">
@@ -667,17 +676,34 @@ export default function AudioPlayer() {
   };
   
   const shareLinks = {
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(`Listening to ${currentAlbum?.title} by ${currentAlbum?.artist} on DsquareGee | Carnatic Instrumental Experience: ${window.location.origin}/album/${currentAlbum?.id}`)}`,
     twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Listening to ${currentAlbum?.title} by ${currentAlbum?.artist} on DsquareGee | Carnatic Revolution`)}&url=${encodeURIComponent(window.location.origin + '/album/' + currentAlbum?.id)}`,
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin + '/album/' + currentAlbum?.id)}`,
+    instagram: `https://www.instagram.com/`,
+    tiktok: `https://www.tiktok.com/`,
   };
 
   const copyLink = () => {
     if (!currentAlbum) return;
     const link = `${window.location.origin}/album/${currentAlbum.id}`;
     navigator.clipboard.writeText(link).then(() => {
+      // Show success state or toast if we had one, but at least close the menu
+      hapticFeedback.medium();
       setIsShareOpen(false);
     });
   };
+
+  const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.94 3.659 1.437 5.634 1.437h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+    </svg>
+  );
+
+  const TikTokIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.04-.1z"/>
+    </svg>
+  );
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showActiveTooltip, setShowActiveTooltip] = useState(false);
@@ -1085,12 +1111,25 @@ export default function AudioPlayer() {
       setProgress(time / dur);
 
       // Trigger crossfade 2 seconds before end
-      if (dur - time < 2 && !isTransitioningRef.current && autoPlayNext && queue.length > 0) {
-        console.log('Triggering auto-advance crossfade');
+      // Only if autoPlayNext is on OR repeatMode is on (to loop back to start/next)
+      if (dur - time < 2 && !isTransitioningRef.current && (autoPlayNext || repeatMode !== 'none')) {
+        // If it's repeat one, we might not want to crossfade into the SAME track 
+        // as it can sound weird with HLS, but let's allow next() to handle the decision.
+        // next() in store handles the repeat logic.
+        console.log('Triggering auto-advance/repeat transition');
         next();
       }
     }
   };
+
+  // Sync currentTime from store (for loop/previous resets)
+  useEffect(() => {
+    const currentAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
+    if (currentAudio && currentTime === 0 && currentAudio.currentTime > 1) {
+      // Command from store: reset to 0 (repeat one or previous)
+      currentAudio.currentTime = 0;
+    }
+  }, [currentTime, activePlayer]);
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleSeekValue(parseFloat(e.target.value));
@@ -1120,7 +1159,7 @@ export default function AudioPlayer() {
         crossOrigin="anonymous"
         preload="auto"
         onTimeUpdate={activePlayer === 1 ? handleTimeUpdate : undefined}
-        onEnded={activePlayer === 1 ? (() => autoPlayNext && next()) : undefined}
+        onEnded={activePlayer === 1 ? (() => (autoPlayNext || repeatMode !== 'none') && next()) : undefined}
         onLoadedMetadata={activePlayer === 1 ? ((e) => setDuration(e.currentTarget.duration)) : undefined}
         onError={(e) => console.error('Audio 1 Error:', e.currentTarget.error)}
       />
@@ -1129,7 +1168,7 @@ export default function AudioPlayer() {
         crossOrigin="anonymous"
         preload="auto"
         onTimeUpdate={activePlayer === 2 ? handleTimeUpdate : undefined}
-        onEnded={activePlayer === 2 ? (() => autoPlayNext && next()) : undefined}
+        onEnded={activePlayer === 2 ? (() => (autoPlayNext || repeatMode !== 'none') && next()) : undefined}
         onLoadedMetadata={activePlayer === 2 ? ((e) => setDuration(e.currentTarget.duration)) : undefined}
         onError={(e) => console.error('Audio 2 Error:', e.currentTarget.error)}
       />
@@ -1148,20 +1187,26 @@ export default function AudioPlayer() {
             {/* Progress Bar Over the Player */}
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/10">
               <motion.div 
-                className="h-full bg-[#F4C430] shadow-[0_0_10px_rgba(244,196,48,0.5)]"
+                className="h-full bg-primary shadow-[0_0_10px_rgba(212,175,55,0.5)]"
                 style={{ width: `${progress * 100}%` }}
               />
             </div>
 
             <div className="flex items-center gap-2 md:gap-4 w-1/2 md:w-1/3">
               <div className="w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-lg flex-shrink-0 overflow-hidden border border-white/5">
-                <img src={currentAlbum.coverUrl || undefined} alt="" className="w-full h-full object-cover" />
+                <motion.img 
+                  src={currentAlbum.coverUrl || undefined} 
+                  alt="" 
+                  className="w-full h-full object-cover"
+                  animate={{ opacity: isPlaying ? 1 : 0.6 }}
+                  transition={{ duration: 0.5 }}
+                />
               </div>
               <div className="flex flex-col overflow-hidden">
                 <span className="text-xs md:text-sm font-medium truncate text-white">{currentAlbum.title}</span>
                 <div className="flex items-center gap-1.5 overflow-hidden">
                   {currentAlbum.isDownloaded && (
-                    <CheckCircle2 className="w-2 md:w-2.5 h-2 md:h-2.5 text-[#F4C430]/60" />
+                    <CheckCircle2 className="w-2 md:w-2.5 h-2 md:h-2.5 text-primary/60" />
                   )}
                   <span className="text-[8px] md:text-[10px] text-white/40 uppercase tracking-tighter truncate">
                     {currentAlbum.tier === 'premium' ? 'Premium Experience' : 'Standard Journey'}
@@ -1182,7 +1227,7 @@ export default function AudioPlayer() {
                 </button>
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleTogglePlay(); }}
-                  className="w-10 h-10 bg-[#F4C430] rounded-full flex items-center justify-center text-black shadow-lg shadow-[#F4C430]/20 hover:scale-110 active:scale-95 transition-all"
+                  className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-black shadow-lg shadow-primary/20 hover:scale-110 active:scale-95 transition-all"
                   aria-label={isPlaying ? "Pause" : "Play"}
                   title={isPlaying ? "Pause" : "Play"}
                 >
@@ -1203,9 +1248,9 @@ export default function AudioPlayer() {
                     <motion.div
                       key={i}
                       animate={{ height: isPlaying ? [4, 12, 6, 16, 4][i % 5] : 4 }}
-                      transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
+                      transition={isPlaying ? { duration: 0.5, repeat: Infinity, delay: i * 0.1 } : { duration: 0.3 }}
                       className={cn(
-                        "w-0.5 bg-[#F4C430]",
+                        "w-0.5 bg-primary",
                         i > 4 && "bg-white/20"
                       )}
                     />
@@ -1220,12 +1265,12 @@ export default function AudioPlayer() {
             <div className="flex items-center justify-end gap-3 md:gap-6 w-1/2 md:w-1/3">
               <button 
                 onClick={(e) => { e.stopPropagation(); handleTogglePlay(); }}
-                className="sm:hidden w-10 h-10 bg-[#F4C430] rounded-full flex items-center justify-center text-black shadow-lg shadow-[#F4C430]/20"
+                className="sm:hidden w-10 h-10 bg-primary rounded-full flex items-center justify-center text-black shadow-lg shadow-primary/20"
               >
                 {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
               </button>
               <button className="flex flex-col items-center gap-1 group">
-                <div className="text-[#D4AF37] group-hover:text-[#F4C430] transition-colors">
+                <div className="text-primary group-hover:text-primary transition-colors">
                    <Heart className="w-5 h-5" />
                 </div>
                 <span className="text-[8px] font-bold uppercase opacity-60">Save</span>
@@ -1276,7 +1321,7 @@ export default function AudioPlayer() {
                 <ChevronDown className="w-6 h-6 text-white" />
               </button>
               <div className="text-center">
-                <p className="text-[10px] uppercase tracking-widest text-[#F4C430] font-bold">Immersive Experience</p>
+                <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Immersive Experience</p>
                 <h3 className="text-sm font-medium text-white/60">Now Playing</h3>
               </div>
               <button 
@@ -1289,7 +1334,7 @@ export default function AudioPlayer() {
                 onClick={() => setIsPlaylistModalOpen(true)}
                 className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
               >
-                <ListPlus className="w-6 h-6 text-[#F4C430]" />
+                <ListPlus className="w-6 h-6 text-primary" />
               </button>
             </div>
 
@@ -1331,7 +1376,7 @@ export default function AudioPlayer() {
                   
                   <motion.div 
                     animate={isPlaying ? {
-                      boxShadow: `0 0 ${20 + (frequencyValue * 40)}px rgba(244, 196, 48, ${0.1 + (frequencyValue * 0.2)})`
+                      boxShadow: `0 0 ${20 + (frequencyValue * 40)}px rgba(212, 175, 55, ${0.1 + (frequencyValue * 0.2)})`
                     } : { boxShadow: '0 0 20px rgba(0,0,0,0.4)' }}
                     className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/20 cinematic-glow"
                   >
@@ -1389,7 +1434,7 @@ export default function AudioPlayer() {
                   }}
                   className={cn(
                     "transition-all p-2 transform hover:scale-110 active:scale-95",
-                    isShuffled ? "text-[#F4C430]" : "text-white/40 hover:text-white"
+                    isShuffled ? "text-primary" : "text-white/40 hover:text-white"
                   )}
                   aria-label="Shuffle"
                   title="Shuffle"
@@ -1409,7 +1454,7 @@ export default function AudioPlayer() {
                 </button>
                 <button 
                   onClick={handleTogglePlay}
-                  className="w-24 h-24 rounded-full bg-[#F4C430] text-black flex items-center justify-center shadow-2xl transform hover:scale-110 active:scale-95 transition-all ring-1 ring-white/20"
+                  className="w-24 h-24 rounded-full bg-primary text-black flex items-center justify-center shadow-2xl transform hover:scale-110 active:scale-95 transition-all ring-1 ring-white/20"
                   aria-label={isPlaying ? "Pause" : "Play"}
                   title={isPlaying ? "Pause" : "Play"}
                 >
@@ -1437,14 +1482,14 @@ export default function AudioPlayer() {
                   }}
                   className={cn(
                     "transition-all p-2 transform hover:scale-110 active:scale-95 relative",
-                    repeatMode !== 'none' ? "text-[#F4C430]" : "text-white/40 hover:text-white"
+                    repeatMode !== 'none' ? "text-primary" : "text-white/40 hover:text-white"
                   )}
                   aria-label="Repeat"
                   title="Repeat"
                 >
                   {repeatMode === 'one' ? <Repeat1 className="w-5 h-5" /> : <Repeat className="w-5 h-5" />}
                   {repeatMode === 'all' && (
-                    <span className="absolute -top-0 -right-0 w-1 h-1 bg-[#F4C430] rounded-full" />
+                    <span className="absolute -top-0 -right-0 w-1 h-1 bg-primary rounded-full" />
                   )}
                 </button>
                 <div className="relative">
@@ -1455,7 +1500,7 @@ export default function AudioPlayer() {
                     }}
                     className={cn(
                       "flex flex-col items-center gap-1 transition-all group",
-                      sleepTimerRemaining !== null ? "text-[#F4C430]" : "text-white/40 hover:text-white"
+                      sleepTimerRemaining !== null ? "text-primary" : "text-white/40 hover:text-white"
                     )}
                   >
                     <div className={cn(
@@ -1521,12 +1566,12 @@ export default function AudioPlayer() {
                   onClick={() => setAutoPlayNext(!autoPlayNext)}
                   className={cn(
                     "flex flex-col items-center gap-1 transition-all group",
-                    autoPlayNext ? "text-[#F4C430]" : "text-white/40 hover:text-white"
+                    autoPlayNext ? "text-primary" : "text-white/40 hover:text-white"
                   )}
                 >
                   <div className={cn(
                     "p-1 rounded-md transition-colors",
-                    autoPlayNext ? "bg-[#F4C430]/10" : "group-hover:bg-white/5"
+                    autoPlayNext ? "bg-primary/10" : "group-hover:bg-white/5"
                   )}>
                     <ListMusic className="w-6 h-6" />
                   </div>
@@ -1563,7 +1608,7 @@ export default function AudioPlayer() {
                     disabled={isDownloading}
                     className={cn(
                       "flex flex-col items-center gap-1 transition-all relative group",
-                      offlineAlbums.includes(currentAlbum.id) ? "text-[#F4C430]" : "text-white/40 hover:text-white"
+                      offlineAlbums.includes(currentAlbum.id) ? "text-primary" : "text-white/40 hover:text-white"
                     )}
                   >
                     <div className="relative">
@@ -1583,7 +1628,7 @@ export default function AudioPlayer() {
                             cy="16"
                             r="14"
                             fill="none"
-                            stroke="#F4C430"
+                            stroke="var(--color-primary)"
                             strokeWidth="2"
                             strokeDasharray={2 * Math.PI * 14}
                             initial={{ strokeDashoffset: 2 * Math.PI * 14 }}
@@ -1602,13 +1647,13 @@ export default function AudioPlayer() {
                         } : {}}
                         className={cn(
                           "p-1 rounded-full transition-colors",
-                          offlineAlbums.includes(currentAlbum.id) ? "bg-[#F4C430]/10" : "group-hover:bg-white/5"
+                          offlineAlbums.includes(currentAlbum.id) ? "bg-primary/10" : "group-hover:bg-white/5"
                         )}
                       >
                         {isDownloading ? (
                           <Download className="w-5 h-5 animate-bounce" />
                         ) : offlineAlbums.includes(currentAlbum.id) ? (
-                          <CheckCircle2 className="w-5 h-5 shadow-[0_0_10px_rgba(244,196,48,0.4)]" />
+                          <CheckCircle2 className="w-5 h-5 shadow-[0_0_10px_rgba(212,175,55,0.4)]" />
                         ) : (
                           <Download className="w-5 h-5" />
                         )}
@@ -1629,8 +1674,8 @@ export default function AudioPlayer() {
                   </button>
 
                   {isOfflineMode ? (
-                    <div className="flex flex-col items-center gap-1 text-[#F4C430]">
-                      <div className="p-1 rounded-md bg-[#F4C430]/10">
+                    <div className="flex flex-col items-center gap-1 text-primary">
+                      <div className="p-1 rounded-md bg-primary/10">
                         <CheckCircle2 className="w-5 h-5" />
                       </div>
                       <span className="text-[8px] font-bold uppercase tracking-widest">Offline Mode</span>
@@ -1660,7 +1705,7 @@ export default function AudioPlayer() {
                     >
                       <div className={cn(
                         "p-1 rounded-md transition-colors",
-                        isShareOpen ? "bg-white/10 text-[#F4C430]" : "group-hover:bg-white/5"
+                        isShareOpen ? "bg-white/10 text-primary" : "group-hover:bg-white/5"
                       )}>
                         <Share2 className="w-5 h-5" />
                       </div>
@@ -1686,35 +1731,73 @@ export default function AudioPlayer() {
                             <div className="p-4 border-b border-white/5">
                               <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Transmit frequency</h3>
                             </div>
-                            <div className="p-2 space-y-1">
-                              <a 
-                                href={shareLinks.twitter} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                onClick={() => setIsShareOpen(false)}
-                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
-                              >
-                                <Twitter className="w-4 h-4 text-[#1DA1F2]" />
-                                <span className="text-xs font-bold text-white uppercase tracking-widest">X / Twitter</span>
-                              </a>
-                              <a 
-                                href={shareLinks.facebook} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                onClick={() => setIsShareOpen(false)}
-                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
-                              >
-                                <Facebook className="w-4 h-4 text-[#1877F2]" />
-                                <span className="text-xs font-bold text-white uppercase tracking-widest">Facebook</span>
-                              </a>
-                              <button 
-                                onClick={copyLink}
-                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
-                              >
-                                <Link className="w-4 h-4 text-[#F4C430]" />
-                                <span className="text-xs font-bold text-white uppercase tracking-widest">Copy Connection</span>
-                              </button>
-                            </div>
+                             <div className="p-2 space-y-1">
+                               <a 
+                                 href={shareLinks.whatsapp} 
+                                 target="_blank" 
+                                 rel="noreferrer"
+                                 onClick={() => setIsShareOpen(false)}
+                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
+                               >
+                                 <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
+                                 <span className="text-xs font-bold text-white uppercase tracking-widest">WhatsApp</span>
+                               </a>
+                               <a 
+                                 href={shareLinks.twitter} 
+                                 target="_blank" 
+                                 rel="noreferrer"
+                                 onClick={() => setIsShareOpen(false)}
+                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
+                               >
+                                 <Twitter className="w-4 h-4 text-[#1DA1F2]" />
+                                 <span className="text-xs font-bold text-white uppercase tracking-widest">Twitter</span>
+                               </a>
+                               <a 
+                                 href={shareLinks.facebook} 
+                                 target="_blank" 
+                                 rel="noreferrer"
+                                 onClick={() => setIsShareOpen(false)}
+                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
+                               >
+                                 <Facebook className="w-4 h-4 text-[#1877F2]" />
+                                 <span className="text-xs font-bold text-white uppercase tracking-widest">Facebook</span>
+                               </a>
+                               <a 
+                                 href={shareLinks.instagram} 
+                                 target="_blank" 
+                                 rel="noreferrer"
+                                 onClick={() => {
+                                   copyLink();
+                                   setIsShareOpen(false);
+                                   window.open(shareLinks.instagram, '_blank');
+                                 }}
+                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
+                               >
+                                 <Instagram className="w-4 h-4 text-[#E4405F]" />
+                                 <span className="text-xs font-bold text-white uppercase tracking-widest">Instagram</span>
+                               </a>
+                               <a 
+                                 href={shareLinks.tiktok} 
+                                 target="_blank" 
+                                 rel="noreferrer"
+                                 onClick={() => {
+                                   copyLink();
+                                   setIsShareOpen(false);
+                                   window.open(shareLinks.tiktok, '_blank');
+                                 }}
+                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
+                               >
+                                 <TikTokIcon className="w-4 h-4 text-white" />
+                                 <span className="text-xs font-bold text-white uppercase tracking-widest">Tik Tok</span>
+                               </a>
+                               <button 
+                                 onClick={copyLink}
+                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group border-t border-white/5 mt-1 pt-4"
+                               >
+                                 <Link className="w-4 h-4 text-primary" />
+                                 <span className="text-xs font-bold text-white uppercase tracking-widest">Copy Link</span>
+                               </button>
+                             </div>
                           </motion.div>
                         </>
                       )}
@@ -1774,9 +1857,9 @@ export default function AudioPlayer() {
 
                 {/* Queue Search Interface */}
                 <div className="relative group">
-                  <div className="absolute inset-0 bg-[#F4C430]/5 rounded-xl blur-lg group-focus-within:bg-[#F4C430]/10 transition-all opacity-0 group-focus-within:opacity-100" />
-                  <div className="relative flex items-center gap-3 px-4 py-3 bg-white/[0.03] border border-white/10 rounded-xl group-focus-within:border-[#F4C430]/30 group-focus-within:bg-white/[0.05] transition-all">
-                    <Search className="w-4 h-4 text-white/20 group-focus-within:text-[#F4C430] transition-colors" />
+                  <div className="absolute inset-0 bg-primary/5 rounded-xl blur-lg group-focus-within:bg-primary/10 transition-all opacity-0 group-focus-within:opacity-100" />
+                  <div className="relative flex items-center gap-3 px-4 py-3 bg-white/[0.03] border border-white/10 rounded-xl group-focus-within:border-primary/30 group-focus-within:bg-white/[0.05] transition-all">
+                    <Search className="w-4 h-4 text-white/20 group-focus-within:text-primary transition-colors" />
                     <input 
                       type="text"
                       placeholder="Filter staged frequencies..."
@@ -1800,7 +1883,7 @@ export default function AudioPlayer() {
                 {/* Now Playing in Queue */}
                 <section>
                   <div className="flex items-center justify-between mb-4 px-2">
-                    <h3 className="text-[10px] font-bold text-[#F4C430] uppercase tracking-[0.3em]">Currently Active</h3>
+                    <h3 className="text-[10px] font-bold text-primary uppercase tracking-[0.3em]">Currently Active</h3>
                     <motion.div 
                       key={isPlaying ? 'playing' : 'paused'}
                       initial={{ scale: 0.8, opacity: 0 }}
@@ -1814,9 +1897,9 @@ export default function AudioPlayer() {
                   </div>
                   <motion.div 
                     animate={isPlaying ? { 
-                      boxShadow: ["0 0 20px rgba(244,196,48,0.05)", "0 0 40px rgba(244,196,48,0.15)", "0 0 20px rgba(244,196,48,0.05)"]
-                    } : {}}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                      boxShadow: ["0 0 20px rgba(212,175,55,0.05)", "0 0 40px rgba(212,175,55,0.15)", "0 0 20px rgba(212,175,55,0.05)"]
+                    } : { boxShadow: "0 0 0px rgba(212,175,55,0)" }}
+                    transition={isPlaying ? { duration: 4, repeat: Infinity, ease: "easeInOut" } : { duration: 0.5 }}
                     onMouseEnter={() => {
                       activeTooltipTimeoutRef.current = setTimeout(() => setShowActiveTooltip(true), 400);
                     }}
@@ -1824,7 +1907,7 @@ export default function AudioPlayer() {
                       if (activeTooltipTimeoutRef.current) clearTimeout(activeTooltipTimeoutRef.current);
                       setShowActiveTooltip(false);
                     }}
-                    className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-br from-[#F4C430]/10 to-transparent border border-[#F4C430]/20 relative overflow-hidden group shadow-lg cursor-help"
+                    className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/20 relative overflow-hidden group shadow-lg cursor-help"
                   >
                      {/* Active Tooltip Overlay */}
                      <AnimatePresence>
@@ -1833,11 +1916,11 @@ export default function AudioPlayer() {
                            initial={{ opacity: 0, x: -10, scale: 0.95 }}
                            animate={{ opacity: 1, x: 0, scale: 1 }}
                            exit={{ opacity: 0, x: -10, scale: 0.95 }}
-                           className="absolute right-full mr-4 top-1/2 -translate-y-1/2 w-64 p-4 rounded-2xl bg-black/90 border border-[#F4C430]/20 backdrop-blur-xl shadow-2xl z-[100] pointer-events-none"
+                           className="absolute right-full mr-4 top-1/2 -translate-y-1/2 w-64 p-4 rounded-2xl bg-black/90 border border-primary/20 backdrop-blur-xl shadow-2xl z-[100] pointer-events-none"
                          >
                            <div className="space-y-3">
                              <div className="flex justify-between items-start gap-2">
-                               <h5 className="text-[9px] font-bold text-[#F4C430] uppercase tracking-[0.2em] opacity-80">Currently Flowing</h5>
+                               <h5 className="text-[9px] font-bold text-primary uppercase tracking-[0.2em] opacity-80">Currently Flowing</h5>
                                <div className="flex items-center gap-1 text-[9px] text-white/40 font-mono">
                                  <Clock className="w-2.5 h-2.5" />
                                  {formatTime(currentAlbum.duration)}
@@ -1853,7 +1936,7 @@ export default function AudioPlayer() {
                              </div>
                            </div>
                            {/* Tooltip Arrow */}
-                           <div className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-2 bg-black opacity-90 border-r border-t border-[#F4C430]/20 rotate-45" />
+                           <div className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-2 bg-black opacity-90 border-r border-t border-primary/20 rotate-45" />
                          </motion.div>
                        )}
                      </AnimatePresence>
@@ -1863,7 +1946,7 @@ export default function AudioPlayer() {
                        <motion.div 
                          animate={{ opacity: [0.02, 0.08, 0.02] }}
                          transition={{ duration: 2, repeat: Infinity }}
-                         className="absolute inset-0 bg-[#F4C430] pointer-events-none"
+                         className="absolute inset-0 bg-primary pointer-events-none"
                        />
                      )}
 
@@ -1878,11 +1961,11 @@ export default function AudioPlayer() {
                                     height: isPlaying ? [6, 24, 12, 32, 8][i % 5] : 4,
                                     opacity: isPlaying ? [0.6, 1, 0.6] : 0.4
                                   }}
-                                  transition={{ 
+                                  transition={isPlaying ? { 
                                     height: { duration: 0.5, repeat: Infinity, delay: i * 0.1, ease: "easeInOut" },
                                     opacity: { duration: 1, repeat: Infinity, delay: i * 0.1 }
-                                  }}
-                                  className="w-1.5 bg-[#F4C430] rounded-t-full shadow-[0_0_12px_rgba(244,196,48,0.8)]"
+                                  } : { duration: 0.3 }}
+                                  className="w-1.5 bg-primary rounded-t-full shadow-[0_0_12px_rgba(212,175,55,0.8)]"
                                 />
                               ))}
                            </div>
@@ -1895,13 +1978,13 @@ export default function AudioPlayer() {
                             <motion.div 
                               animate={{ scale: [1, 1.2, 1] }}
                               transition={{ duration: 1, repeat: Infinity }}
-                              className="w-1.5 h-1.5 rounded-full bg-[#F4C430]"
+                              className="w-1.5 h-1.5 rounded-full bg-primary"
                             />
                           )}
                         </div>
                         
                         <div className="flex items-center gap-2 mt-0.5">
-                           <p className="text-[9px] text-[#F4C430]/70 uppercase tracking-[0.1em] truncate">
+                           <p className="text-[9px] text-primary/70 uppercase tracking-[0.1em] truncate">
                               {currentAlbum.artist} <span className="mx-1 opacity-40">•</span> {currentAlbum.moodTags[0]}
                            </p>
                         </div>
@@ -1912,7 +1995,7 @@ export default function AudioPlayer() {
                         
                         <div className="flex items-center gap-3 mt-1.5">
                            {currentAlbum.isDownloaded && (
-                              <CheckCircle2 className="w-2.5 h-2.5 text-[#F4C430]/40 shrink-0" />
+                              <CheckCircle2 className="w-2.5 h-2.5 text-primary/40 shrink-0" />
                            )}
                            <p className="text-[9px] font-mono text-white/20">{formatTime(currentTime)} / {formatTime(duration)}</p>
                         </div>
@@ -1936,55 +2019,57 @@ export default function AudioPlayer() {
                   </div>
                   
                   {queue.length === 0 ? (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="py-24 text-center flex flex-col items-center justify-center gap-8 px-4"
-                    >
-                      <div className="relative">
+                    <>
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="py-24 text-center flex flex-col items-center justify-center gap-8 px-4"
+                      >
+                        <div className="relative">
                         {/* Pulse Rings */}
                         <motion.div 
                           animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
                           transition={{ duration: 3, repeat: Infinity }}
-                          className="absolute inset-0 bg-[#F4C430]/20 rounded-full blur-xl scale-150"
+                          className="absolute inset-0 bg-primary/20 rounded-full blur-xl scale-150"
                         />
-                        <motion.div 
-                          animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.1, 0.5] }}
-                          transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
-                          className="absolute inset-0 border border-[#F4C430]/30 rounded-full"
-                        />
-                        
-                        <div className="relative w-20 h-20 rounded-full bg-gradient-to-b from-white/10 to-transparent flex items-center justify-center border border-white/10 shadow-2xl backdrop-blur-md">
-                          <ListMusic className="w-10 h-10 text-white/20" />
                           <motion.div 
-                            animate={{ y: [0, -4, 0], x: [0, 2, 0] }}
-                            transition={{ duration: 4, repeat: Infinity }}
-                            className="absolute -top-1 -right-1 p-2 rounded-full bg-[#F4C430] text-black shadow-lg shadow-[#F4C430]/30"
-                          >
-                            <Play className="w-3 h-3 fill-current" />
-                          </motion.div>
+                            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.1, 0.5] }}
+                            transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
+                            className="absolute inset-0 border border-primary/30 rounded-full"
+                          />
+                          
+                          <div className="relative w-20 h-20 rounded-full bg-gradient-to-b from-white/10 to-transparent flex items-center justify-center border border-white/10 shadow-2xl backdrop-blur-md">
+                            <ListMusic className="w-10 h-10 text-white/20" />
+                            <motion.div 
+                              animate={{ y: [0, -4, 0], x: [0, 2, 0] }}
+                              transition={{ duration: 4, repeat: Infinity }}
+                              className="absolute -top-1 -right-1 p-2 rounded-full bg-primary text-black shadow-lg shadow-primary/30"
+                            >
+                              <Play className="w-3 h-3 fill-current" />
+                            </motion.div>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="space-y-4 max-w-[240px]">
-                        <motion.h4 
-                          initial={{ y: 10, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: 0.2 }}
-                          className="text-lg font-serif font-bold text-white italic"
-                        >
-                          Silence Awaits
-                        </motion.h4>
-                        <motion.p 
-                          initial={{ y: 10, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: 0.3 }}
-                          className="text-[10px] text-white/40 uppercase tracking-[0.25em] leading-loose"
-                        >
-                          Your sequence is waiting for its first resonance. <br/>
-                          <span className="text-[#F4C430]">Staging a clip</span> from a series to build your journey.
-                        </motion.p>
-                      </div>
+                        <div className="space-y-4 max-w-[240px]">
+                          <motion.h4 
+                            initial={{ y: 10, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="text-lg font-serif font-bold text-white italic"
+                          >
+                            Silence Awaits
+                          </motion.h4>
+                          <motion.p 
+                            initial={{ y: 10, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="text-[10px] text-white/40 uppercase tracking-[0.25em] leading-loose"
+                          >
+                            Your sequence is waiting for its first resonance. <br/>
+                            <span className="text-primary">Staging a clip</span> from a series to build your journey.
+                          </motion.p>
+                        </div>
+                      </motion.div>
 
                       <motion.button
                         initial={{ scale: 0.9, opacity: 0 }}
@@ -1995,7 +2080,7 @@ export default function AudioPlayer() {
                       >
                         Explore Universes
                       </motion.button>
-                    </motion.div>
+                    </>
                   ) : queue.filter(a => 
                       a.title.toLowerCase().includes(queueSearch.toLowerCase()) || 
                       a.artist.toLowerCase().includes(queueSearch.toLowerCase())
@@ -2050,9 +2135,9 @@ export default function AudioPlayer() {
                           <motion.div 
                             initial={{ scale: 1, rotate: 0 }}
                             animate={{ scale: 1.05, rotate: -2, y: -10 }}
-                            className="flex items-center gap-3 p-3 rounded-xl bg-[#111] border border-[#F4C430]/40 shadow-[0_40px_80px_rgba(0,0,0,0.9)] backdrop-blur-2xl z-[200] cursor-grabbing w-[calc(100%-2rem)] max-w-sm ring-2 ring-[#F4C430]/20"
+                            className="flex items-center gap-3 p-3 rounded-xl bg-[#111] border border-primary/40 shadow-[0_40px_80px_rgba(0,0,0,0.9)] backdrop-blur-2xl z-[200] cursor-grabbing w-[calc(100%-2rem)] max-w-sm ring-2 ring-primary/20"
                           >
-                            <div className="text-[#F4C430] p-1">
+                            <div className="text-primary p-1">
                               <GripVertical className="w-4 h-4" />
                             </div>
                             <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 shadow-2xl ring-1 ring-white/20">
@@ -2060,17 +2145,17 @@ export default function AudioPlayer() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="text-xs font-bold text-white truncate italic tracking-tight">{activeDraggingAlbum.title}</h4>
-                              <p className="text-[9px] text-[#F4C430] line-clamp-1 italic mb-0.5 font-medium">
+                              <p className="text-[9px] text-primary line-clamp-1 italic mb-0.5 font-medium">
                                 Shifting Universe...
                               </p>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 {activeDraggingAlbum.isDownloaded && (
-                                  <CheckCircle2 className="w-2.5 h-2.5 text-[#F4C430]/80" />
+                                  <CheckCircle2 className="w-2.5 h-2.5 text-primary/80" />
                                 )}
                                 <p className="text-[10px] text-white/40 uppercase tracking-widest truncate">{activeDraggingAlbum.artist}</p>
                               </div>
                             </div>
-                            <div className="px-3 py-1.5 rounded-full bg-[#F4C430] text-black">
+                            <div className="px-3 py-1.5 rounded-full bg-primary text-black">
                               <span className="text-[8px] font-bold uppercase tracking-[0.2em] whitespace-nowrap">Relocating</span>
                             </div>
                           </motion.div>
@@ -2150,7 +2235,7 @@ export default function AudioPlayer() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-xs font-bold text-white truncate italic">{album.title}</h4>
-                        <p className="text-[9px] text-[#F4C430] truncate uppercase tracking-tighter mt-0.5">{album.artist}</p>
+                        <p className="text-[9px] text-primary truncate uppercase tracking-tighter mt-0.5">{album.artist}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <button 
@@ -2158,7 +2243,7 @@ export default function AudioPlayer() {
                             setAlbum(album);
                             setIsDownloadsOpen(false);
                           }}
-                          className="p-2 rounded-full bg-[#F4C430]/10 text-[#F4C430] hover:bg-[#F4C430]/20 transition-colors"
+                          className="p-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                         >
                           <Play className="w-4 h-4 fill-current" />
                         </button>
@@ -2192,15 +2277,15 @@ export default function AudioPlayer() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-sm bg-[#111111] border border-white/10 rounded-3xl p-8 text-center space-y-6 shadow-2xl overflow-hidden"
+              className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 text-center space-y-6 shadow-2xl overflow-hidden"
             >
               {/* Decorative background */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#F4C430]/10 rounded-full blur-3xl -z-10" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10" />
               
               <div className="flex justify-center">
                 <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center relative">
-                  <div className="absolute inset-0 border border-[#F4C430]/20 rounded-full animate-ping pointer-events-none" />
-                  <Heart className="w-10 h-10 text-[#F4C430] fill-current" />
+                  <div className="absolute inset-0 border border-primary/20 rounded-full animate-ping pointer-events-none" />
+                  <Heart className="w-10 h-10 text-primary fill-current" />
                 </div>
               </div>
               
@@ -2219,7 +2304,7 @@ export default function AudioPlayer() {
                     setShowPremiumModal(false);
                     usePlayerStore.getState().setUserTier('premium');
                   }}
-                  className="w-full py-4 bg-[#F4C430] text-black font-bold rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-[#F4C430]/20 text-sm uppercase tracking-widest"
+                  className="w-full py-4 bg-primary text-black font-bold rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20 text-sm uppercase tracking-widest"
                 >
                   Start Journey • $9.99/mo
                 </button>
@@ -2244,7 +2329,7 @@ export default function AudioPlayer() {
             exit={{ opacity: 0, y: 20, x: '-50%' }}
             className={cn(
               "fixed bottom-28 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-2xl backdrop-blur-xl border flex items-center gap-3 shadow-2xl min-w-[280px] max-w-[90vw]",
-              toast.type === 'success' ? "bg-[#F4C430]/10 border-[#F4C430]/20 text-[#F4C430]" : "bg-red-500/10 border-red-500/20 text-red-500"
+              toast.type === 'success' ? "bg-primary/10 border-primary/20 text-primary" : "bg-red-500/10 border-red-500/20 text-red-500"
             )}
           >
             <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">

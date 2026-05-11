@@ -19,14 +19,14 @@ export default function AdminDashboard() {
   if (!user?.isAdmin) return <Navigate to="/" replace />;
 
   const stats = [
-    { label: 'Active Seekers', value: '412', icon: Users, diff: '+12%', color: 'text-blue-400' },
+    { label: 'Active Seekers', value: '412', icon: Users, diff: '+12%', color: 'text-primary' },
     { label: 'Streaming Time', value: '48.2k hrs', icon: Clock, diff: '+5%', color: 'text-green-400' },
-    { label: 'CDN Bandwidth', value: '1.2 TB', icon: Activity, diff: '-2%', color: 'text-[#F4C430]' },
+    { label: 'CDN Bandwidth', value: '1.2 TB', icon: Activity, diff: '-2%', color: 'text-primary' },
     { label: 'Retention Rate', value: '84%', icon: TrendingUp, diff: '+2.4%', color: 'text-purple-400' },
   ];
 
   return (
-    <div className="min-h-screen pt-24 px-4 md:px-8 pb-12 bg-black text-white">
+    <div className="min-h-screen pt-24 px-4 md:px-8 pb-12 bg-[#050505] text-white">
       <header className="mb-8 md:mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
           <h1 className="text-3xl md:text-4xl font-serif font-bold italic mb-2">Universe Control</h1>
@@ -36,13 +36,13 @@ export default function AdminDashboard() {
         <div className="flex bg-white/5 rounded-2xl p-1 border border-white/10 w-full md:w-auto">
           <button 
             onClick={() => setActiveTab('metrics')}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'metrics' ? 'bg-[#F4C430] text-black shadow-lg shadow-[#F4C430]/20' : 'text-white/40 hover:text-white'}`}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'metrics' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-white/40 hover:text-white'}`}
           >
             <Activity className="w-3 h-3" /> Metrics
           </button>
           <button 
             onClick={() => setActiveTab('content')}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'content' ? 'bg-[#F4C430] text-black shadow-lg shadow-[#F4C430]/20' : 'text-white/40 hover:text-white'}`}
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'content' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-white/40 hover:text-white'}`}
           >
             <Layers className="w-3 h-3" /> Content
           </button>
@@ -58,10 +58,10 @@ export default function AdminDashboard() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className="p-6 rounded-3xl bg-white/5 border border-white/10 relative overflow-hidden group"
+                className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 relative overflow-hidden group shadow-2xl"
               >
                 <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 rounded-2xl bg-white/5">
+                  <div className="p-3 rounded-2xl bg-white/[0.05]">
                     <stat.icon className={cn("w-6 h-6", stat.color)} />
                   </div>
                   <span className={cn("text-[10px] font-bold", stat.diff.startsWith('+') ? 'text-green-400' : 'text-red-400')}>
@@ -75,7 +75,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 p-8 rounded-[40px] bg-white/5 border border-white/10">
+            <div className="lg:col-span-2 p-8 rounded-[40px] bg-white/[0.02] border border-white/10">
               <div className="flex justify-between items-center mb-8">
                 <h3 className="font-serif font-bold italic text-xl">Streaming Efficiency</h3>
                 <div className="flex gap-4">
@@ -84,19 +84,19 @@ export default function AdminDashboard() {
                   ))}
                 </div>
               </div>
-              <div className="h-64 flex items-end justify-between gap-2 px-4">
+              <div className="h-64 flex items-end justify-between gap-1 px-4">
                 {[...Array(24)].map((_, i) => (
                   <motion.div 
                     key={i}
                     initial={{ height: 0 }}
                     animate={{ height: `${Math.random() * 80 + 20}%` }}
-                    className="flex-1 bg-[#F4C430]/20 rounded-full hover:bg-[#F4C430]/50 transition-colors cursor-pointer"
+                    className="flex-1 bg-primary/20 rounded-t-full hover:bg-primary/50 transition-all cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.1)]"
                   />
                 ))}
               </div>
             </div>
 
-            <div className="p-8 rounded-[40px] bg-white/5 border border-white/10 space-y-6">
+            <div className="p-8 rounded-[40px] bg-white/[0.02] border border-white/10 space-y-6">
               <h3 className="font-serif font-bold italic text-xl">Access Health</h3>
               <div className="space-y-4">
                 {[
@@ -104,12 +104,12 @@ export default function AdminDashboard() {
                   { label: 'Signed URLs', status: 'Active', icon: ShieldCheck },
                   { label: 'Cloud CDN', status: 'Caching', icon: Activity },
                 ].map(item => (
-                  <div key={item.label} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+                  <div key={item.label} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.04] border border-white/5">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-white/5"><item.icon className="w-4 h-4 text-white/40" /></div>
+                      <div className="p-2 rounded-lg bg-white/[0.05] shadow-lg"><item.icon className="w-4 h-4 text-white/40" /></div>
                       <span className="text-xs font-semibold">{item.label}</span>
                     </div>
-                    <span className="text-[10px] uppercase font-bold text-[#F4C430]">{item.status}</span>
+                    <span className="text-[10px] uppercase font-bold text-primary">{item.status}</span>
                   </div>
                 ))}
               </div>
@@ -119,7 +119,7 @@ export default function AdminDashboard() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <aside className="space-y-4">
-            <div className="p-6 rounded-[32px] bg-white/5 border border-white/10 space-y-2">
+            <div className="p-6 rounded-[32px] bg-white/[0.02] border border-white/10 space-y-2">
               <p className="text-[10px] uppercase font-bold text-white/40 tracking-[0.2em] mb-4">Orchestrator</p>
               {[
                 { id: 'categories', label: 'Categories', icon: Layers, count: 'Manage Collections' },
@@ -128,17 +128,18 @@ export default function AdminDashboard() {
                 <button 
                   key={item.id}
                   onClick={() => setActiveContent(item.id as any)}
-                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${activeContent === item.id ? 'bg-[#F4C430]/10 border-[#F4C430]/30' : 'bg-white/5 border border-white/10 hover:bg-white/10 group'}`}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${activeContent === item.id ? 'bg-primary/10 border-primary/30 shadow-lg' : 'bg-white/[0.03] border border-white/10 hover:bg-white/[0.05] group'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <item.icon className={`w-4 h-4 ${activeContent === item.id ? 'text-[#F4C430]' : 'text-white/40 group-hover:text-white'}`} />
-                    <span className={`text-xs font-bold ${activeContent === item.id ? 'text-[#F4C430]' : ''}`}>{item.label}</span>
+                    <item.icon className={`w-4 h-4 ${activeContent === item.id ? 'text-primary' : 'text-white/40 group-hover:text-white'}`} />
+                    <span className={`text-xs font-bold ${activeContent === item.id ? 'text-primary' : ''}`}>{item.label}</span>
                   </div>
-                  <ChevronRight className={`w-3 h-3 ${activeContent === item.id ? 'text-[#F4C430]' : 'text-white/20'}`} />
+                  <ChevronRight className={`w-3 h-3 ${activeContent === item.id ? 'text-primary' : 'text-white/20'}`} />
                 </button>
               ))}
             </div>
           </aside>
+
 
           <main className="lg:col-span-3">
             <div className="p-4 md:p-8 rounded-[32px] md:rounded-[40px] bg-white/10 border border-white/10 backdrop-blur-md overflow-x-auto">

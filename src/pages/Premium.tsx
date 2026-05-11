@@ -35,7 +35,7 @@ export default function Premium() {
   return (
     <div className="min-h-screen pt-24 px-6 pb-20 relative overflow-hidden bg-black">
       {/* Immersive background elements */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#F4C430]/5 blur-[120px] rounded-full -z-10 animate-pulse" />
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full -z-10 animate-pulse" />
       <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-900/5 blur-[150px] rounded-full -z-10" />
 
       <header className="text-center max-w-3xl mx-auto mb-20">
@@ -44,12 +44,12 @@ export default function Premium() {
            animate={{ y: 0, opacity: 1 }}
            className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-6"
         >
-          <Sparkles className="w-3 h-3 text-[#F4C430]" />
+          <Sparkles className="w-3 h-3 text-primary" />
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">Subscription Selection</span>
         </motion.div>
         <h1 className="text-5xl sm:text-7xl font-serif font-bold italic text-white mb-6 leading-tight">
           Choose Your <br />
-          <span className="text-[#F4C430] drop-shadow-[0_0_20px_rgba(244,196,48,0.3)]">Level of Echo</span>
+          <span className="text-primary drop-shadow-[0_0_20px_rgba(255,119,0,0.3)]">Level of Echo</span>
         </h1>
         <p className="text-white/40 text-lg sm:text-xl font-light italic leading-relaxed">
           From the surface ripples to the deep oceanic stillness. <br />
@@ -67,12 +67,12 @@ export default function Premium() {
             className={cn(
               "relative p-10 rounded-[40px] flex flex-col border transition-all duration-500",
               tier.premium 
-                ? "bg-white/5 border-[#F4C430]/20 shadow-[0_30px_100px_rgba(244,196,48,0.05)] ring-1 ring-[#F4C430]/10" 
+                ? "bg-white/5 border-primary/20 shadow-[0_30px_100px_rgba(255,119,0,0.05)] ring-1 ring-primary/10" 
                 : "bg-transparent border-white/5 hover:bg-white/5"
             )}
           >
             {tier.premium && (
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#F4C430] text-black px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 shadow-xl">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-black px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 shadow-xl">
                 <Crown className="w-3 h-3" /> Most Immersive
               </div>
             )}
@@ -92,9 +92,9 @@ export default function Premium() {
                 <li key={feature} className="flex items-center gap-4 text-white/60 text-sm">
                   <div className={cn(
                     "w-5 h-5 rounded-full flex items-center justify-center shrink-0",
-                    tier.premium ? "bg-[#F4C430]/10" : "bg-white/5"
+                    tier.premium ? "bg-primary/10" : "bg-white/5"
                   )}>
-                    <Check className={cn("w-3 h-3", tier.premium ? "text-[#F4C430]" : "text-white/40")} />
+                    <Check className={cn("w-3 h-3", tier.premium ? "text-primary" : "text-white/40")} />
                   </div>
                   {feature}
                 </li>
@@ -106,7 +106,7 @@ export default function Premium() {
               className={cn(
                 "w-full py-5 rounded-2xl font-bold uppercase tracking-[0.2em] text-xs transition-all",
                 tier.premium 
-                  ? "bg-[#F4C430] text-black hover:scale-[1.02] active:scale-95 shadow-xl shadow-[#F4C430]/20" 
+                  ? "bg-primary text-black hover:scale-[1.02] active:scale-95 shadow-xl shadow-primary/20" 
                   : "bg-white/5 text-white/40 border border-white/10 cursor-default"
               )}
             >

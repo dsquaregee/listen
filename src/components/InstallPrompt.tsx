@@ -56,12 +56,12 @@ export function InstallPrompt() {
       >
         <div className="relative group">
           {/* Neon Border Glow */}
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F4C430] to-[#D4AF37] rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200 animate-pulse" />
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-accent rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200 animate-pulse" />
           
           <div className="relative bg-[#111111]/90 backdrop-blur-2xl border border-white/10 p-4 rounded-2xl flex items-center shadow-2xl overflow-hidden">
             <div className="relative z-10 flex flex-1 items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-[#F4C430]/10 flex items-center justify-center shrink-0 border border-[#F4C430]/20">
-                <Download className="w-6 h-6 text-[#F4C430]" />
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                <Download className="w-6 h-6 text-primary" />
               </div>
               
               <div className="flex-1 min-w-0">
@@ -72,7 +72,7 @@ export function InstallPrompt() {
               <div className="flex flex-col gap-2">
                 <button
                   onClick={handleInstall}
-                  className="bg-[#F4C430] hover:bg-[#D4AF37] text-black text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-[0_0_15px_rgba(244,196,48,0.3)]"
+                  className="bg-primary hover:bg-accent text-black text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-[0_0_15px_rgba(0,242,255,0.3)]"
                 >
                   Install Now
                 </button>
@@ -87,7 +87,7 @@ export function InstallPrompt() {
             </button>
 
             {/* Decorative background intensity lines */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#F4C430]/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
           </div>
         </div>
       </motion.div>

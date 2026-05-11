@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { auth, db } from './lib/firebase';
 import { useAuthStore } from './store/useAuthStore';
 import { usePlayerStore } from './store/usePlayerStore';
+import { useUserStore } from './store/useUserStore';
 import { UserProfile } from './types';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
 
@@ -27,11 +28,31 @@ const queryClient = new QueryClient();
 export default function App() {
   const { setUser, setLoading } = useAuthStore();
   const { setUserTier } = usePlayerStore();
+  const { setPlaylists } = useUserStore();
 
   useEffect(() => {
+    let playlistsUnsubscribe: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
+          // Playlists Listener
+          const plQuery = query(
+            collection(db, 'playlists'),
+            where('userId', '==', firebaseUser.uid),
+            orderBy('createdAt', 'desc')
+          );
+
+          playlistsUnsubscribe = onSnapshot(plQuery, (snapshot) => {
+            const plys = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            })) as any[];
+            setPlaylists(plys);
+          }, (err) => {
+            handleFirestoreError(err, OperationType.GET, 'playlists');
+          });
+
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           const userDoc = await getDoc(userDocRef);
           const adminEmail = 'dsquaregee@gmail.com';
@@ -62,12 +83,20 @@ export default function App() {
         }
       } else {
         setUser(null);
+        setPlaylists([]);
+        if (playlistsUnsubscribe) {
+          playlistsUnsubscribe();
+          playlistsUnsubscribe = null;
+        }
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [setUser, setLoading]);
+    return () => {
+      unsubscribe();
+      if (playlistsUnsubscribe) playlistsUnsubscribe();
+    };
+  }, [setUser, setLoading, setPlaylists, setUserTier]);
 
   return (
     <QueryClientProvider client={queryClient}>

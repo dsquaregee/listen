@@ -105,7 +105,6 @@ export default function Navbar() {
 
   const navItems = [
     { name: 'Home', path: '/', icon: Home },
-    { name: 'Library', path: '/library', icon: Library },
   ];
 
   return (
@@ -113,8 +112,8 @@ export default function Navbar() {
     <div className="flex items-center gap-2 md:gap-4 shrink-0">
       <Link to="/" className="flex items-center gap-2 md:gap-3">
         <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-[#D4AF37] to-[#F4C430] rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
-          <div className="relative w-10 h-10 md:w-12 md:h-12 bg-[#111] rounded-full flex items-center justify-center border border-[#D4AF37]/20 overflow-hidden shadow-2xl">
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-[#8E6E00] rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+          <div className="relative w-10 h-10 md:w-12 md:h-12 bg-[#0a0a0a] rounded-full flex items-center justify-center border border-primary/20 overflow-hidden shadow-2xl">
             <img 
               src={logoUrl}
               alt="DsquareGee Logo" 
@@ -124,7 +123,7 @@ export default function Navbar() {
         </div>
         <div className="flex flex-col">
           <span className="text-lg md:text-xl font-serif font-bold italic tracking-tighter text-white leading-none">DsquareGee</span>
-          <span className="text-[6px] md:text-[7px] font-bold uppercase tracking-[0.4em] text-[#F4C430] leading-none mt-1 opacity-60">Seeker of Sounds</span>
+          <span className="text-[6px] md:text-[7px] font-bold uppercase tracking-[0.4em] text-primary leading-none mt-1 opacity-60">Seeker of Sounds</span>
         </div>
       </Link>
     </div>
@@ -133,11 +132,11 @@ export default function Navbar() {
       <div ref={searchRef} className="relative flex-1 max-w-[256px]">
         <div 
           className={cn(
-            "flex items-center gap-2 bg-white/5 px-3 md:px-4 py-1.5 rounded-full border border-white/10 transition-all duration-300 group",
-            isFocused ? "w-full bg-white/10 border-[#D4AF37]/40 ring-1 ring-[#D4AF37]/20" : "w-full md:w-48 ml-auto"
+            "flex items-center gap-2 bg-white/[0.03] px-3 md:px-4 py-1.5 rounded-full border border-white/10 transition-all duration-300 group shadow-lg",
+            isFocused ? "w-full bg-white/[0.05] border-primary/40 ring-1 ring-primary/20" : "w-full md:w-48 ml-auto"
           )}
         >
-          <Search className={cn("w-4 h-4 transition-colors", isFocused ? "text-[#F4C430]" : "text-[#D4AF37]")} />
+          <Search className={cn("w-4 h-4 transition-colors", isFocused ? "text-primary" : "text-primary/60")} />
           <input
             type="text"
             placeholder="Search Universe"
@@ -160,7 +159,7 @@ export default function Navbar() {
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute top-full mt-3 right-0 w-80 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] backdrop-blur-xl"
+              className="absolute top-full mt-3 right-0 w-80 bg-[#0a0a0a]/95 border border-white/10 rounded-2xl shadow-3xl overflow-hidden z-[100] backdrop-blur-2xl"
             >
               <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                 {results.length > 0 ? (
@@ -168,10 +167,10 @@ export default function Navbar() {
                     {/* Top Result Highlight */}
                     {results.length > 0 && searchQuery.length > 2 && (
                       <div className="mb-2 px-1">
-                        <p className="text-[9px] font-bold text-[#F4C430] uppercase tracking-[0.2em] px-2 mb-2">Top Discovery</p>
+                        <p className="text-[9px] font-bold text-primary uppercase tracking-[0.2em] px-2 mb-2">Top Discovery</p>
                         <button
                           onClick={() => handleResultClick(results[0].id)}
-                          className="w-full flex flex-col gap-3 p-3 rounded-2xl bg-gradient-to-br from-white/10 to-transparent border border-white/10 hover:border-primary/40 transition-all group relative overflow-hidden"
+                          className="w-full flex flex-col gap-3 p-3 rounded-2xl bg-gradient-to-br from-white/[0.08] to-transparent border border-white/10 hover:border-primary/40 transition-all group relative overflow-hidden"
                         >
                           <div className="flex items-center gap-4 relative z-10">
                             <OptimizedImage 
@@ -189,7 +188,7 @@ export default function Navbar() {
                               </div>
                             </div>
                           </div>
-                          {/* Decorative Background Element */}
+                   {/* Decorative Background Element */}
                           <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-32 h-32 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors" />
                         </button>
                       </div>
@@ -202,7 +201,7 @@ export default function Navbar() {
                       <button
                         key={album.id}
                         onClick={() => handleResultClick(album.id)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all group text-left"
+                        className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.05] transition-all group text-left"
                       >
                         <OptimizedImage 
                           src={album.coverUrl} 
@@ -210,7 +209,7 @@ export default function Navbar() {
                           className="w-10 h-10 rounded-lg shrink-0 border border-white/5 group-hover:scale-105 transition-transform duration-500"
                         />
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-xs font-bold text-white truncate group-hover:text-[#F4C430] transition-colors">{album.title}</h4>
+                          <h4 className="text-xs font-bold text-white truncate group-hover:text-primary transition-colors">{album.title}</h4>
                           <p className="text-[9px] text-white/30 line-clamp-1 italic mt-0.5">{album.description}</p>
                         </div>
                       </button>
@@ -276,12 +275,12 @@ export default function Navbar() {
         )}
       </div>
 
-      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-[#D4AF37]/30 p-0.5 shrink-0 overflow-hidden active:scale-95 transition-transform">
-        <Link to="/profile" className="w-full h-full bg-[#222] rounded-full flex items-center justify-center overflow-hidden">
+      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-primary/30 p-0.5 shrink-0 overflow-hidden active:scale-95 transition-transform">
+        <Link to="/profile" className="w-full h-full bg-[#0a0a0a] rounded-full flex items-center justify-center overflow-hidden">
           {user?.photoURL ? (
             <img src={user.photoURL || undefined} alt="" className="w-full h-full object-cover" />
           ) : (
-            <span className="text-[10px] text-[#D4AF37]">
+            <span className="text-[10px] text-primary">
               {user?.displayName ? user.displayName.substring(0, 2).toUpperCase() : 'Guest'}
             </span>
           )}

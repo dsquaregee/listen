@@ -1,11 +1,25 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { db } from '../lib/firebase';
+import { 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  doc, 
+  deleteDoc, 
+  serverTimestamp, 
+  arrayUnion,
+  arrayRemove
+} from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 
 interface Playlist {
   id: string;
+  userId: string;
   name: string;
   albumIds: string[];
-  createdAt: number;
+  createdAt: any;
+  updatedAt: any;
 }
 
 interface UserState {
@@ -17,12 +31,13 @@ interface UserState {
   playlists: Playlist[];
   
   // Actions
+  setPlaylists: (playlists: Playlist[]) => void;
   recordListening: (albumId: string, timeInMinutes: number) => void;
   toggleFavorite: (albumId: string) => void;
-  createPlaylist: (name: string) => void;
-  addAlbumToPlaylist: (playlistId: string, albumId: string) => void;
-  removeAlbumFromPlaylist: (playlistId: string, albumId: string) => void;
-  deletePlaylist: (playlistId: string) => void;
+  createPlaylist: (userId: string, name: string) => Promise<void>;
+  addAlbumToPlaylist: (playlistId: string, albumId: string) => Promise<void>;
+  removeAlbumFromPlaylist: (playlistId: string, albumId: string) => Promise<void>;
+  deletePlaylist: (playlistId: string) => Promise<void>;
 }
 
 export const useUserStore = create<UserState>()(
@@ -34,6 +49,8 @@ export const useUserStore = create<UserState>()(
       recentlyPlayed: [],
       favorites: [],
       playlists: [],
+
+      setPlaylists: (playlists) => set({ playlists }),
 
       recordListening: (albumId, timeInMinutes) => {
         const today = new Date().toDateString();
@@ -67,40 +84,62 @@ export const useUserStore = create<UserState>()(
           : [...state.favorites, albumId]
       })),
 
-      createPlaylist: (name) => set((state) => ({
-        playlists: [
-          ...state.playlists,
-          {
-            id: Math.random().toString(36).substr(2, 9),
+      createPlaylist: async (userId, name) => {
+        try {
+          const playlistData = {
+            userId,
             name,
             albumIds: [],
-            createdAt: Date.now()
-          }
-        ]
-      })),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          };
+          await addDoc(collection(db, 'playlists'), playlistData);
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, 'playlists');
+        }
+      },
 
-      addAlbumToPlaylist: (playlistId, albumId) => set((state) => ({
-        playlists: state.playlists.map(pl => 
-          pl.id === playlistId 
-            ? { ...pl, albumIds: pl.albumIds.includes(albumId) ? pl.albumIds : [...pl.albumIds, albumId] }
-            : pl
-        )
-      })),
+      addAlbumToPlaylist: async (playlistId, albumId) => {
+        try {
+          const playlistRef = doc(db, 'playlists', playlistId);
+          await updateDoc(playlistRef, {
+            albumIds: arrayUnion(albumId),
+            updatedAt: serverTimestamp(),
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `playlists/${playlistId}`);
+        }
+      },
 
-      removeAlbumFromPlaylist: (playlistId, albumId) => set((state) => ({
-        playlists: state.playlists.map(pl => 
-          pl.id === playlistId 
-            ? { ...pl, albumIds: pl.albumIds.filter(id => id !== albumId) }
-            : pl
-        )
-      })),
+      removeAlbumFromPlaylist: async (playlistId, albumId) => {
+        try {
+          const playlistRef = doc(db, 'playlists', playlistId);
+          await updateDoc(playlistRef, {
+            albumIds: arrayRemove(albumId),
+            updatedAt: serverTimestamp(),
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `playlists/${playlistId}`);
+        }
+      },
 
-      deletePlaylist: (playlistId) => set((state) => ({
-        playlists: state.playlists.filter(pl => pl.id !== playlistId)
-      }))
+      deletePlaylist: async (playlistId) => {
+        try {
+          await deleteDoc(doc(db, 'playlists', playlistId));
+        } catch (error) {
+          handleFirestoreError(error, OperationType.DELETE, `playlists/${playlistId}`);
+        }
+      }
     }),
     {
-      name: 'natural-tones-user-data'
+      name: 'natural-tones-user-data',
+      partialize: (state) => ({
+        streak: state.streak,
+        lastListenDate: state.lastListenDate,
+        totalListeningTime: state.totalListeningTime,
+        recentlyPlayed: state.recentlyPlayed,
+        favorites: state.favorites,
+      }), // Don't persist playlists locally, we'll fetch from Firestore
     }
   )
 );

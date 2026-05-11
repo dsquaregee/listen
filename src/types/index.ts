@@ -44,3 +44,12 @@ export interface Favorite {
   albumId: string;
   createdAt: string;
 }
+
+export interface Playlist {
+  id: string;
+  userId: string;
+  name: string;
+  albumIds: string[];
+  createdAt: any;
+  updatedAt: any;
+}

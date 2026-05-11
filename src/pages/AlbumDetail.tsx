@@ -83,18 +83,6 @@ export default function AlbumDetail() {
         <img src={album.coverUrl || undefined} alt={album.title} className="relative w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         
-        {album.videoHlsUrl && (
-          <button 
-            onClick={() => {
-              hapticFeedback.light();
-              setShowPreview(true);
-            }}
-            className="absolute bottom-32 right-8 z-20 flex items-center gap-3 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 text-white text-xs font-bold uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
-          >
-            <Maximize2 className="w-4 h-4 text-primary" />
-            Watch Preview
-          </button>
-        )}
 
         <Link to="/" className="absolute top-6 left-6 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-black/60 transition-colors">
           <ChevronLeft className="w-6 h-6 text-white" />
@@ -196,109 +184,8 @@ export default function AlbumDetail() {
             <p className="text-slate-400 leading-relaxed text-lg mb-8 italic">
               {album.description}
             </p>
-
-            <div className="flex justify-center gap-12">
-              <div className="text-center">
-                <span className="text-[10px] uppercase tracking-[0.3em] text-primary/40 font-bold block mb-2">Duration</span>
-                <div className="flex items-center gap-2 text-white font-mono text-xl justify-center">
-                  {formatTime(album.duration)}
-                </div>
-              </div>
-              <div className="text-center">
-                <span className="text-[10px] uppercase tracking-[0.3em] text-primary/40 font-bold block mb-2">Universe</span>
-                <div className="flex items-center gap-2 text-white font-mono text-xl justify-center">
-                  {album.tier === 'premium' ? 'Gold' : 'Silver'}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
-
-        {/* Cinematic Shorts Section */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-serif font-bold text-white mb-8">Cinematic Shorts</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {album.videoHlsUrl ? (
-              <div 
-                className="aspect-[9/16] rounded-2xl bg-slate-900 overflow-hidden relative group cursor-pointer border border-white/5 ring-1 ring-white/5 shadow-2xl"
-                onClick={() => {
-                  hapticFeedback.light();
-                  setShowPreview(true);
-                }}
-              >
-                <HlsVideoPlayer 
-                  src={album.videoHlsUrl}
-                  autoplay
-                  loop
-                  muted
-                  controls={false}
-                  className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                  <Maximize2 className="w-12 h-12 text-white bg-black/40 backdrop-blur-md rounded-full p-2" />
-                </div>
-                <div className="absolute bottom-4 left-4 z-20">
-                  <p className="text-white text-[10px] font-bold uppercase tracking-widest">AI Preview Clip</p>
-                </div>
-              </div>
-            ) : (
-              [1, 2, 3].map((clip) => (
-                <div key={clip} className="aspect-[9/16] rounded-2xl bg-slate-900 overflow-hidden relative group cursor-pointer">
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                    <Play className="w-12 h-12 text-white bg-black/40 backdrop-blur-md rounded-full p-2" />
-                  </div>
-                  <div className="absolute bottom-4 left-4 z-20">
-                    <p className="text-white text-xs font-medium">Moment {clip}</p>
-                  </div>
-                  <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                    <Music className="w-8 h-8 text-white/10" />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* Video Preview Modal */}
-        <AnimatePresence>
-          {showPreview && album.videoHlsUrl && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-3xl px-4"
-              onClick={() => setShowPreview(false)}
-            >
-              <button 
-                onClick={() => setShowPreview(false)}
-                className="absolute top-8 right-8 p-3 rounded-full bg-white/5 border border-white/10 text-white z-[110] hover:bg-white/10 transition-all hover:scale-110"
-              >
-                <X className="w-6 h-6" />
-              </button>
-
-              <motion.div 
-                initial={{ scale: 0.9, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.9, y: 20 }}
-                className="relative w-full max-w-lg aspect-[9/16] rounded-[32px] overflow-hidden shadow-[0_0_100px_rgba(244,196,48,0.2)] border border-white/10"
-                onClick={e => e.stopPropagation()}
-              >
-              <HlsVideoPlayer 
-                src={album.videoHlsUrl}
-                autoplay
-                className="w-full h-full object-cover"
-              />
-                <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black via-black/60 to-transparent pointer-events-none">
-                  <h3 className="text-2xl font-serif font-bold italic text-white mb-2">{album.title}</h3>
-                  <p className="text-primary text-sm uppercase tracking-widest mb-4 font-bold">{album.artist} • Preview</p>
-                  <p className="text-white/60 text-xs leading-relaxed italic">{album.description}</p>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Related Albums */}
         <section>

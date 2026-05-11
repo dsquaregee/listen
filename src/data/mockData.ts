@@ -5,8 +5,8 @@ export const MOCK_CATEGORIES: Category[] = [
     id: '1',
     name: 'Sunrise Gold',
     slug: 'ragas',
-    description: 'Ragas with Instruments',
-    visualIdentity: 'bg-gradient-to-br from-[#403121] to-[#201912] border-[#D4AF37]/20 hover:border-[#D4AF37]/50',
+    description: 'Carnatic Instrumental',
+    visualIdentity: 'bg-gradient-to-br from-[#004040] to-[#002020] border-primary/20 hover:border-primary/50',
     order: 1
   },
   {
@@ -22,7 +22,7 @@ export const MOCK_CATEGORIES: Category[] = [
     name: 'Deep Cosmos',
     slug: 'fusion-slow',
     description: 'Fusion Slow',
-    visualIdentity: 'bg-gradient-to-br from-[#1B263B] to-[#0D1117] border-blue-400/20 hover:border-blue-400/50',
+    visualIdentity: 'bg-gradient-to-br from-[#1A1A00] to-[#0A0A02] border-primary/20 hover:border-primary/50',
     order: 3
   },
   {

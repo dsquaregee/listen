@@ -126,5 +126,26 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidFavorite(incoming()) && isValidId(favoriteId);
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
+
+    // 5. Playlists Collection
+    match /playlists/{playlistId} {
+      function isValidPlaylist(data) {
+        return data.userId == request.auth.uid &&
+               data.name is string && data.name.size() <= 100 &&
+               data.albumIds is list && data.albumIds.size() <= 500 &&
+               (data.albumIds.size() == 0 || (data.albumIds[0] is string));
+      }
+
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() && isValidPlaylist(incoming()) && isValidId(playlistId);
+      
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && 
+                    isValidPlaylist(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['name', 'albumIds', 'updatedAt']);
+                    
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
   }
 }

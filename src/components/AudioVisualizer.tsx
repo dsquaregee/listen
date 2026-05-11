@@ -27,7 +27,7 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
     const dataArray = new Uint8Array(analyzer?.frequencyBinCount || 0);
 
     const particles: { x: number; y: number; size: number; speedX: number; speedY: number; opacity: number; color: string }[] = [];
-    const particleColors = ['#F4C430', '#D4AF37', '#ffffff'];
+    const particleColors = ['#D4AF37', '#F4C430', '#ffffff'];
     for (let i = 0; i < 60; i++) {
       particles.push({
         x: Math.random() * canvas.width,
@@ -40,12 +40,12 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
       });
     }
 
-    let hue = 45; // Start with gold hue
+    let hue = 46; // Start with Gold hue
 
     const draw = () => {
       if (!analyzer || !isPlaying) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        animationRef.current = requestAnimationFrame(draw);
+        // Stop the animation loop immediately when paused or analyzer is missing.
+        // We don't call requestAnimationFrame(draw) here, effectively "freezing" the last frame.
         return;
       }
 
@@ -146,9 +146,9 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
         const y = (Date.now() * 0.05 + i * canvas.height / 3) % canvas.height;
         const streakAlpha = 0.02 * (1 + normalizedLow);
         const streakGradient = ctx.createLinearGradient(0, y, canvas.width, y);
-        streakGradient.addColorStop(0, 'rgba(244, 196, 48, 0)');
-        streakGradient.addColorStop(0.5, `rgba(244, 196, 48, ${streakAlpha})`);
-        streakGradient.addColorStop(1, 'rgba(244, 196, 48, 0)');
+        streakGradient.addColorStop(0, 'rgba(212, 175, 55, 0)');
+        streakGradient.addColorStop(0.5, `rgba(212, 175, 55, ${streakAlpha})`);
+        streakGradient.addColorStop(1, 'rgba(212, 175, 55, 0)');
         ctx.fillStyle = streakGradient;
         ctx.fillRect(0, y - 50, canvas.width, 100);
       }

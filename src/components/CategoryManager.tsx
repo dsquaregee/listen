@@ -19,11 +19,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 
 const PRESET_VISUALS = [
-  'bg-gradient-to-br from-[#403121] to-[#201912] border-[#D4AF37]/20 hover:border-[#D4AF37]/50',
-  'bg-gradient-to-br from-[#3D1E1E] to-[#1E0F0F] border-red-500/20 hover:border-red-500/50',
-  'bg-gradient-to-br from-[#1B263B] to-[#0D1117] border-blue-400/20 hover:border-blue-400/50',
-  'bg-gradient-to-br from-[#3A2A1A] to-[#1A120A] border-orange-400/20 hover:border-orange-400/50',
+  'bg-gradient-to-br from-[#403121] to-[#201912] border-primary/20 hover:border-primary/50',
+  'bg-gradient-to-br from-[#1A1A00] to-[#0A0A02] border-primary/20 hover:border-primary/50',
+  'bg-gradient-to-br from-[#3D2B1F] to-[#1A110A] border-[#8E6E00]/40 hover:border-[#8E6E00]',
   'bg-gradient-to-br from-[#2D3436] to-[#000000] border-white/20 hover:border-white/50',
+  'bg-gradient-to-br from-[#3D1E1E] to-[#1E0F0F] border-red-500/20 hover:border-red-500/50',
 ];
 
 export default function CategoryManager() {
@@ -122,7 +122,7 @@ export default function CategoryManager() {
         </div>
         <button 
           onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#F4C430] text-black font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform"
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-black font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-primary/20"
         >
           <Plus className="w-4 h-4" />
           Add Category
@@ -131,7 +131,7 @@ export default function CategoryManager() {
 
       {isLoading ? (
         <div className="py-20 flex justify-center">
-          <div className="w-8 h-8 border-2 border-[#F4C430] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -143,7 +143,7 @@ export default function CategoryManager() {
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden"
               >
-                <form onSubmit={handleCreate} className="p-6 rounded-3xl bg-white/5 border border-[#F4C430]/30 space-y-4 mb-6">
+                <form onSubmit={handleCreate} className="p-6 rounded-3xl bg-white/[0.03] border border-primary/30 space-y-4 mb-6 shadow-2xl">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
@@ -153,7 +153,7 @@ export default function CategoryManager() {
                         required
                         value={formData.name}
                         onChange={e => setFormData({...formData, name: e.target.value})}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#F4C430] transition-colors"
+                        className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors text-white"
                         placeholder="e.g. Kinetic Fire"
                       />
                     </div>
@@ -165,7 +165,7 @@ export default function CategoryManager() {
                         required
                         value={formData.slug}
                         onChange={e => setFormData({...formData, slug: e.target.value})}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#F4C430] transition-colors"
+                        className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors text-white"
                         placeholder="e.g. fusion-fast"
                       />
                     </div>
@@ -178,7 +178,7 @@ export default function CategoryManager() {
                     <textarea 
                       value={formData.description}
                       onChange={e => setFormData({...formData, description: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#F4C430] transition-colors min-h-[80px]"
+                      className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors min-h-[80px] text-white"
                       placeholder="Universe essence..."
                     />
                   </div>
@@ -193,7 +193,7 @@ export default function CategoryManager() {
                           key={v}
                           type="button"
                           onClick={() => setFormData({...formData, visualIdentity: v})}
-                          className={`w-10 h-10 rounded-lg border-2 transition-all ${v} ${formData.visualIdentity === v ? 'border-[#F4C430] scale-110 shadow-lg' : 'border-transparent'}`}
+                          className={`w-10 h-10 rounded-lg border-2 transition-all shadow-lg ${v} ${formData.visualIdentity === v ? 'border-primary scale-110 shadow-primary/20' : 'border-transparent hover:scale-105'}`}
                         />
                       ))}
                     </div>
@@ -209,7 +209,7 @@ export default function CategoryManager() {
                     </button>
                     <button 
                       type="submit"
-                      className="px-6 py-2 rounded-full bg-[#F4C430] text-black text-xs font-bold uppercase tracking-widest hover:scale-105 transition-transform"
+                      className="px-6 py-2 rounded-full bg-primary text-black text-xs font-bold uppercase tracking-widest hover:scale-105 transition-transform"
                     >
                       Initialize
                     </button>
@@ -222,23 +222,23 @@ export default function CategoryManager() {
           {categories.map((cat) => (
             <div 
               key={cat.id}
-              className={`p-4 rounded-2xl border transition-all flex items-center justify-between group ${cat.id === editingId ? 'bg-white/10 border-[#F4C430]' : 'bg-white/5 border-white/5 hover:border-white/20'}`}
+              className={`p-4 rounded-2xl border transition-all flex items-center justify-between group ${cat.id === editingId ? 'bg-white/10 border-primary' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}
             >
               <div className="flex items-center gap-4 flex-1">
-                <div className={`w-12 h-12 rounded-xl shrink-0 border border-white/10 ${cat.visualIdentity}`} />
+                <div className={`w-12 h-12 rounded-xl shrink-0 border border-white/10 shadow-lg ${cat.visualIdentity}`} />
                 <div className="flex-1">
                   {editingId === cat.id ? (
                     <input 
                       autoFocus
                       value={formData.name}
                       onChange={e => setFormData({...formData, name: e.target.value})}
-                      className="bg-transparent border-b border-[#F4C430] text-sm font-bold italic focus:outline-none w-full"
+                      className="bg-transparent border-b border-primary text-sm font-bold italic focus:outline-none w-full text-white"
                     />
                   ) : (
                     <>
                       <h4 className="text-sm font-bold italic text-white flex items-center gap-2">
                         {cat.name}
-                        <span className="text-[9px] font-normal uppercase tracking-widest text-[#F4C430] bg-[#F4C430]/10 px-2 py-0.5 rounded-full">/{cat.slug}</span>
+                        <span className="text-[9px] font-normal uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full">/{cat.slug}</span>
                       </h4>
                       <p className="text-[10px] text-white/40 line-clamp-1">{cat.description}</p>
                     </>

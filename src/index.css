@@ -6,13 +6,13 @@
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-primary: #F4C430; /* Sunrise Gold */
-  --color-accent: #D4AF37; /* Gold Metallic */
+  --color-primary: #D4AF37; /* Metallic Gold */
+  --color-accent: #8E6E00; /* Rich Bronze */
 }
 
 @layer base {
   body {
-    @apply bg-[#080808] text-[#E0D8D0] antialiased selection:bg-primary/30;
+    @apply bg-[#050505] text-[#E0D8D0] antialiased selection:bg-primary/30;
   }
 }
 
@@ -21,7 +21,7 @@
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-[#080808];
+  @apply bg-[#050505];
 }
 ::-webkit-scrollbar-thumb {
   @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
@@ -29,11 +29,11 @@
 
 /* Cinematic Shadows */
 .cinematic-glow {
-  box-shadow: 0 0 40px -15px rgba(244, 196, 48, 0.3);
+  box-shadow: 0 0 50px -10px rgba(212, 175, 55, 0.25);
 }
 
 .cinematic-gradient-bg {
-  background: radial-gradient(circle at top right, rgba(244, 196, 48, 0.05), transparent),
-              radial-gradient(circle at bottom left, rgba(27, 38, 59, 0.2), transparent);
+  background: radial-gradient(circle at top right, rgba(212, 175, 55, 0.08), transparent),
+              radial-gradient(circle at bottom left, rgba(142, 110, 0, 0.08), transparent);
 }
 
