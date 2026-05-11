@@ -3,9 +3,9 @@ import Hls from 'hls.js';
 export class StreamingService {
   private hls: Hls | null = null;
   private audio: HTMLAudioElement | null = null;
-  private onErrorCallback?: (error: string) => void;
+  private onErrorCallback?: (error: string, url?: string) => void;
 
-  setOnError(callback: (error: string) => void) {
+  setOnError(callback: (error: string, url?: string) => void) {
     this.onErrorCallback = callback;
   }
 
@@ -36,7 +36,7 @@ export class StreamingService {
           console.error('Fatal HLS Error:', data.type, data.details);
           if (data.response) {
             console.error('HTTP Status:', data.response.code, 'at', data.response.url);
-            this.onErrorCallback?.(`${data.type}: ${data.details} (HTTP ${data.response.code})`);
+            this.onErrorCallback?.(`${data.type}: ${data.details} (HTTP ${data.response.code})`, data.response.url);
           } else {
             this.onErrorCallback?.(`${data.type}: ${data.details}`);
           }

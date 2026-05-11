@@ -843,12 +843,13 @@ export default function AudioPlayer() {
     if (audioRef1.current && audioRef2.current) {
       console.log('Initializing services with audio elements');
       
-      const handleError = (error: string) => {
-        console.error('Streaming Player Error:', error);
+      const handleError = (error: string, url?: string) => {
+        console.error('Streaming Player Error:', error, 'at', url);
         let message = 'Playback error occurred.';
         
         if (error.includes('HTTP 403')) {
-          message = 'Access Denied (403). Your storage bucket needs public access or CORS configuration.';
+          const domain = url ? new URL(url).hostname : 'storage.googleapis.com';
+          message = `Access Denied (403). ${domain} needs public access and CORS configuration.`;
         } else if (error.includes('networkError')) {
           message = 'Connection issue. Please check your network or stream configuration.';
         }
