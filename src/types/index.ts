@@ -12,19 +12,20 @@ export type SubscriptionTier = 'free' | 'premium';
 export interface Album {
   id: string;
   title: string;
-  artist: string;
-  duration: number; // in seconds
+  artist?: string;
+  duration?: number; // in seconds
   coverUrl: string;
   hlsUrl: string; // Master playlist .m3u8 for adaptive bitrate
   videoHlsUrl?: string; // HLS for reel/preview
   categoryId: string;
   description: string;
-  instruments: string[];
-  moodTags: string[];
+  instruments?: string[];
+  moodTags?: string[];
   bpm?: number;
   featured?: boolean;
   isDownloaded?: boolean;
   tier: SubscriptionTier;
+  playCount?: number;
   createdAt: string;
 }
 
@@ -35,8 +36,12 @@ export interface UserProfile {
   photoURL: string;
   tier: SubscriptionTier;
   isAdmin?: boolean;
-  subscriptionId?: string; // Stripe subscription link
-  expiresAt?: string;
+  subscriptionAmount?: number;
+  subscriptionCurrency?: string;
+  subscriptionDate?: string;
+  totalMinutesStreamed?: number;
+  topAlbumId?: string;
+  updatedAt?: string;
 }
 
 export interface Favorite {

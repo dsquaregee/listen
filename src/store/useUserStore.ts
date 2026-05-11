@@ -52,7 +52,7 @@ export const useUserStore = create<UserState>()(
 
       setPlaylists: (playlists) => set({ playlists }),
 
-      recordListening: (albumId, timeInMinutes) => {
+      recordListening: async (albumId, timeInMinutes) => {
         const today = new Date().toDateString();
         const last = get().lastListenDate;
         
@@ -76,6 +76,26 @@ export const useUserStore = create<UserState>()(
             recentlyPlayed: [albumId, ...filteredRecent].slice(0, 10)
           };
         });
+
+        // Sync to Firestore if authenticated
+        const { auth } = await import('../lib/firebase');
+        if (auth.currentUser) {
+          try {
+            const userRef = doc(db, 'users', auth.currentUser.uid);
+            await updateDoc(userRef, {
+              totalMinutesStreamed: get().totalListeningTime,
+              updatedAt: serverTimestamp()
+            });
+
+            // Also increment album play count
+            const albumRef = doc(db, 'albums', albumId);
+            await updateDoc(albumRef, {
+              playCount: (await import('firebase/firestore')).increment(1)
+            });
+          } catch (e) {
+            console.error('Failed to sync metrics:', e);
+          }
+        }
       },
 
       toggleFavorite: (albumId) => set((state) => ({

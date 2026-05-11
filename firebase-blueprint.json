@@ -2,7 +2,7 @@
   "entities": {
     "User": {
       "title": "User Profile",
-      "description": "User account information and premium status",
+      "description": "User account information, premium status, and streaming metrics",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -10,6 +10,12 @@
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
         "isPremium": { "type": "boolean" },
+        "subscriptionAmount": { "type": "number" },
+        "subscriptionCurrency": { "type": "string" },
+        "subscriptionDate": { "type": "string", "format": "date-time" },
+        "totalMinutesStreamed": { "type": "number" },
+        "primaryGenre": { "type": "string" },
+        "topAlbumId": { "type": "string" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email"]
@@ -46,6 +52,7 @@
         "moodTags": { "type": "array", "items": { "type": "string" } },
         "bpm": { "type": "number" },
         "featured": { "type": "boolean" },
+        "playCount": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "title", "audioUrl", "categoryId"]

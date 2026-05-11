@@ -44,13 +44,16 @@ service cloud.firestore {
     // 1. Users Collection
     match /users/{userId} {
       function isValidUser(data) {
-        let requiredKeys = ['uid', 'email', 'displayName', 'photoURL', 'tier'];
+        let requiredKeys = ['uid', 'email', 'displayName', 'photoURL'];
         return data.keys().hasAll(requiredKeys) &&
                data.uid == userId &&
                data.email is string && data.email.size() <= 200 &&
                data.displayName is string && data.displayName.size() <= 100 &&
                data.photoURL is string && data.photoURL.size() <= 500 &&
-               data.tier in ['free', 'premium'] &&
+               (data.get('isPremium', false) is bool) &&
+               (data.get('subscriptionAmount', 0) is number) &&
+               (data.get('subscriptionCurrency', 'USD') is string) &&
+               (data.get('totalMinutesStreamed', 0) is number) &&
                (data.get('isAdmin', false) == false || isAdmin());
       }
 
@@ -61,12 +64,12 @@ service cloud.firestore {
       allow list: if isAdmin(); 
 
       allow create: if isOwner(userId) && isValidUser(incoming()) && 
-                    (incoming().tier == 'free' || isAdmin()) && 
+                    (incoming().get('isPremium', false) == false || isAdmin()) && 
                     (incoming().get('isAdmin', false) == false || isAdmin());
                     
       allow update: if isOwner(userId) && (
-        // Allow updating core profile fields
-        (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt', 'email', 'uid', 'tier']) && 
+        // Allow updating core profile fields, subscription, and metrics
+        (incoming().diff(existing()).affectedKeys().hasAll(['updatedAt']) && 
          isValidUser(incoming())) ||
         // Admin override
         isAdmin()

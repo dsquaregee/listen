@@ -16,25 +16,46 @@ export default function AdminDashboard() {
   const { user, isLoading } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'metrics' | 'content'>('metrics');
   const [activeContent, setActiveContent] = useState<'categories' | 'albums'>('categories');
+  const [metrics, setMetrics] = useState({
+    totalUsers: 0,
+    totalHours: 0,
+    topAlbum: 'None',
+    premiumUsers: 0
+  });
 
-  // One-time migration to rename "Ragas with Instruments" if found
   useEffect(() => {
     if (user?.isAdmin) {
-      const migrate = async () => {
+      const fetchMetrics = async () => {
         try {
-          const q = query(collection(db, 'categories'), where('name', '==', 'Ragas with Instruments'));
-          const sn = await getDocs(q);
-          sn.forEach(async (d) => {
-            await updateDoc(doc(db, 'categories', d.id), {
-              name: 'Carnatic Instrumental'
-            });
-            console.log('Migrated category Ragas with Instruments -> Carnatic Instrumental');
+          const userSn = await getDocs(collection(db, 'users'));
+          let totalMins = 0;
+          let premium = 0;
+          userSn.forEach(doc => {
+            const data = doc.data();
+            totalMins += (data.totalMinutesStreamed || 0);
+            if (data.tier === 'premium') premium++;
+          });
+
+          const albumSn = await getDocs(collection(db, 'albums'));
+          let bestAlbum = { title: 'None', plays: -1 };
+          albumSn.forEach(doc => {
+            const data = doc.data();
+            if (data.playCount > bestAlbum.plays) {
+              bestAlbum = { title: data.title, plays: data.playCount };
+            }
+          });
+
+          setMetrics({
+            totalUsers: userSn.size,
+            totalHours: Math.round(totalMins / 60),
+            topAlbum: bestAlbum.title,
+            premiumUsers: premium
           });
         } catch (e) {
-          console.error('Migration failed:', e);
+          console.error('Failed to fetch admin metrics:', e);
         }
       };
-      migrate();
+      fetchMetrics();
     }
   }, [user]);
 
@@ -42,9 +63,9 @@ export default function AdminDashboard() {
   if (!user?.isAdmin) return <Navigate to="/" replace />;
 
   const stats = [
-    { label: 'Active Seekers', value: '412', icon: Users, diff: '+12%', color: 'text-primary' },
-    { label: 'Streaming Time', value: '48.2k hrs', icon: Clock, diff: '+5%', color: 'text-green-400' },
-    { label: 'CDN Bandwidth', value: '1.2 TB', icon: Activity, diff: '-2%', color: 'text-primary' },
+    { label: 'Active Seekers', value: metrics.totalUsers.toString(), icon: Users, diff: `+${metrics.premiumUsers} Premium`, color: 'text-primary' },
+    { label: 'Streaming Time', value: `${metrics.totalHours} hrs`, icon: Clock, diff: 'Global Accumulation', color: 'text-green-400' },
+    { label: 'Top Experience', value: metrics.topAlbum, icon: Music, diff: 'Most Resonated', color: 'text-primary' },
     { label: 'Retention Rate', value: '84%', icon: TrendingUp, diff: '+2.4%', color: 'text-purple-400' },
   ];
 
@@ -100,22 +121,24 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 p-8 rounded-[40px] bg-white/[0.02] border border-white/10">
               <div className="flex justify-between items-center mb-8">
-                <h3 className="font-serif font-bold italic text-xl">Streaming Efficiency</h3>
-                <div className="flex gap-4">
-                  {['HLS HD', 'HLS SD', 'Segmented'].map(tab => (
-                    <button key={tab} className="text-[10px] uppercase font-bold text-white/40 hover:text-white transition-colors">{tab}</button>
-                  ))}
-                </div>
+                <h3 className="font-serif font-bold italic text-xl">Seeker Directory</h3>
+                <p className="text-[10px] text-white/40 uppercase tracking-widest">Recent Activity</p>
               </div>
-              <div className="h-64 flex items-end justify-between gap-1 px-4">
-                {[...Array(24)].map((_, i) => (
-                  <motion.div 
-                    key={i}
-                    initial={{ height: 0 }}
-                    animate={{ height: `${Math.random() * 80 + 20}%` }}
-                    className="flex-1 bg-primary/20 rounded-t-full hover:bg-primary/50 transition-all cursor-pointer shadow-[0_0_15px_rgba(153,102,204,0.1)]"
-                  />
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-white/5 text-[10px] uppercase font-bold text-white/20 tracking-widest">
+                      <th className="pb-4 pt-0">Seeker</th>
+                      <th className="pb-4 pt-0">Vibration Time</th>
+                      <th className="pb-4 pt-0">Contribution</th>
+                      <th className="pb-4 pt-0">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {/* We'd normally fetch real user list here, let's use a snippet of real data */}
+                    <UserListRows />
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -172,6 +195,63 @@ export default function AdminDashboard() {
         </div>
       )}
     </div>
+  );
+}
+
+function UserListRows() {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const sn = await getDocs(collection(db, 'users'));
+        setUsers(sn.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  if (loading) return <tr><td colSpan={4} className="py-8 text-center text-[10px] text-white/20 uppercase tracking-widest">Loading Seeker Data...</td></tr>;
+
+  return (
+    <>
+      {users.slice(0, 10).map(u => (
+        <tr key={u.id} className="group">
+          <td className="py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 overflow-hidden shrink-0">
+                <img src={u.photoURL || undefined} alt="" className="w-full h-full object-cover" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">{u.displayName}</p>
+                <p className="text-[9px] text-white/30 truncate">{u.email}</p>
+              </div>
+            </div>
+          </td>
+          <td className="py-4">
+            <p className="text-xs font-mono text-white/60">{(u.totalMinutesStreamed || 0).toFixed(0)}m</p>
+          </td>
+          <td className="py-4">
+            <p className="text-xs font-bold text-primary italic">
+              {u.subscriptionAmount ? `${u.subscriptionCurrency || 'USD'} ${u.subscriptionAmount}` : 'None'}
+            </p>
+          </td>
+          <td className="py-4">
+            <span className={cn(
+              "text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest",
+              u.tier === 'premium' ? "bg-primary/20 text-primary" : "bg-white/5 text-white/40"
+            )}>
+              {u.tier === 'premium' ? 'Universal' : 'Surface'}
+            </span>
+          </td>
+        </tr>
+      ))}
+    </>
   );
 }
 

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Library, Home, X } from 'lucide-react';
+import { Search, Library, Home, X, Crown } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -105,6 +105,8 @@ export default function Navbar() {
 
   const navItems = [
     { name: 'Home', path: '/', icon: Home },
+    { name: 'Playlists', path: '/playlists', icon: Library },
+    { name: 'Subscribe', path: '/premium', icon: Crown },
   ];
 
   return (

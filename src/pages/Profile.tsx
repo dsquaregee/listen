@@ -2,7 +2,7 @@ import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { useAuthStore } from '../store/useAuthStore';
-import { LogOut, ShieldCheck, Mail, User, Crown, Settings } from 'lucide-react';
+import { LogOut, ShieldCheck, Mail, User, Crown, Settings, Clock, Music } from 'lucide-react';
 import { motion } from 'motion/react';
 import { UserProfile } from '../types';
 import { cn } from '../lib/utils';
@@ -57,6 +57,8 @@ export default function Profile() {
     );
   }
 
+  const hoursStreamed = (user.totalMinutesStreamed || 0) / 60;
+
   return (
     <div className="pt-24 px-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-6 mb-12">
@@ -78,10 +80,23 @@ export default function Profile() {
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-4 mb-12">
+        <div className="p-6 rounded-[32px] bg-white/[0.03] border border-white/5">
+          <Clock className="w-5 h-5 text-primary mb-3" />
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Time Streamed</p>
+          <p className="text-2xl font-bold text-white italic">{hoursStreamed.toFixed(1)} <span className="text-sm font-normal not-italic opacity-40">Hours</span></p>
+        </div>
+        <div className="p-6 rounded-[32px] bg-white/[0.03] border border-white/5">
+          <Music className="w-5 h-5 text-primary mb-3" />
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Experiences</p>
+          <p className="text-2xl font-bold text-white italic">{user.totalMinutesStreamed || 0} <span className="text-sm font-normal not-italic opacity-40">Mins</span></p>
+        </div>
+      </div>
+
       <div className="space-y-4">
         <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Account Settings</h2>
         
-        <SettingsItem icon={Crown} label="Subscription Plan" value={user.tier === 'premium' ? 'Premium Bundle' : 'Free Tier'} highlight={user.tier === 'free'} />
+        <SettingsItem icon={Crown} label="Subscription Plan" value={user.tier === 'premium' ? `Premium ($${user.subscriptionAmount || 0} / ${user.subscriptionCurrency || 'USD'})` : 'Free Tier'} highlight={user.tier === 'free'} />
         <SettingsItem icon={ShieldCheck} label="Security & Privacy" value="Connected via Google" />
         <SettingsItem icon={Settings} label="App Preferences" value="Default" />
 

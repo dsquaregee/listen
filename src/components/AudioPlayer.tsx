@@ -770,6 +770,20 @@ export default function AudioPlayer() {
   const lastOfflineUrlRef = useRef<string | null>(null);
   
   // Sleep Timer state
+  const lastRecordedMinuteRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (isPlaying && currentAlbum) {
+      const interval = setInterval(() => {
+        const now = Date.now();
+        if (now - lastRecordedMinuteRef.current >= 60000) {
+          useUserStore.getState().recordListening(currentAlbum.id, 1);
+          lastRecordedMinuteRef.current = now;
+        }
+      }, 10000); // Check every 10s
+      return () => clearInterval(interval);
+    }
+  }, [isPlaying, currentAlbum]);
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
   const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -1247,14 +1261,37 @@ export default function AudioPlayer() {
             </div>
 
             <div className="flex items-center gap-2 md:gap-4 w-1/2 md:w-1/3">
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-lg flex-shrink-0 overflow-hidden border border-white/5">
-                <motion.img 
-                  src={currentAlbum.coverUrl || undefined} 
-                  alt="" 
-                  className="w-full h-full object-cover"
-                  animate={{ opacity: isPlaying ? 1 : 0.6 }}
-                  transition={{ duration: 0.5 }}
-                />
+              <div className="relative w-10 h-10 md:w-12 md:h-12 flex-shrink-0">
+                {/* Playing Glow Background */}
+                <AnimatePresence>
+                  {isPlaying && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1.2 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="absolute inset-0 bg-primary/20 blur-md rounded-lg"
+                      transition={{ duration: 1, repeat: Infinity, repeatType: "reverse" }}
+                    />
+                  )}
+                </AnimatePresence>
+                <div className={cn(
+                  "relative w-full h-full bg-white/10 rounded-lg overflow-hidden border transition-all duration-500",
+                  isPlaying ? "border-primary/40 shadow-[0_0_15px_rgba(153,102,204,0.3)]" : "border-white/5"
+                )}>
+                  <motion.img 
+                    src={currentAlbum.coverUrl || undefined} 
+                    alt="" 
+                    className="w-full h-full object-cover"
+                    animate={{ 
+                      opacity: isPlaying ? 1 : 0.6,
+                      scale: isPlaying ? [1, 1.05, 1] : 1
+                    }}
+                    transition={{ 
+                      opacity: { duration: 0.5 },
+                      scale: isPlaying ? { duration: 2, repeat: Infinity, ease: "easeInOut" } : { duration: 0.3 }
+                    }}
+                  />
+                </div>
               </div>
               <div className="flex flex-col overflow-hidden">
                 <span className="text-xs md:text-sm font-medium truncate text-white">{currentAlbum.title}</span>
@@ -1281,11 +1318,25 @@ export default function AudioPlayer() {
                 </button>
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleTogglePlay(); }}
-                  className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-black shadow-lg shadow-primary/20 hover:scale-110 active:scale-95 transition-all"
+                  className="relative group/play"
                   aria-label={isPlaying ? "Pause" : "Play"}
                   title={isPlaying ? "Pause" : "Play"}
                 >
-                  {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-1" />}
+                  {/* Subtle Aura */}
+                  <AnimatePresence>
+                    {isPlaying && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 0.4, scale: 1.4 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        className="absolute inset-0 bg-primary rounded-full blur-md"
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      />
+                    )}
+                  </AnimatePresence>
+                  <div className="relative w-10 h-10 bg-primary rounded-full flex items-center justify-center text-black shadow-lg shadow-primary/20 hover:scale-110 active:scale-95 transition-all">
+                    {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-1" />}
+                  </div>
                 </button>
                 <button 
                   onClick={(e) => { e.stopPropagation(); next(); }} 
@@ -1319,9 +1370,22 @@ export default function AudioPlayer() {
             <div className="flex items-center justify-end gap-3 md:gap-6 w-1/2 md:w-1/3">
               <button 
                 onClick={(e) => { e.stopPropagation(); handleTogglePlay(); }}
-                className="sm:hidden w-10 h-10 bg-primary rounded-full flex items-center justify-center text-black shadow-lg shadow-primary/20"
+                className="sm:hidden relative"
               >
-                {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+                <AnimatePresence>
+                  {isPlaying && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 0.4, scale: 1.4 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="absolute inset-0 bg-primary rounded-full blur-md"
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
+                  )}
+                </AnimatePresence>
+                <div className="relative w-10 h-10 bg-primary rounded-full flex items-center justify-center text-black shadow-lg shadow-primary/20">
+                  {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+                </div>
               </button>
               
               {/* Volume Control in Mini Player */}
@@ -1464,11 +1528,21 @@ export default function AudioPlayer() {
                   
                   <motion.div 
                     animate={isPlaying ? {
-                      boxShadow: `0 0 ${20 + (frequencyValue * 40)}px rgba(153, 102, 204, ${0.1 + (frequencyValue * 0.2)})`
-                    } : { boxShadow: '0 0 20px rgba(0,0,0,0.4)' }}
-                    className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/20 cinematic-glow"
+                      boxShadow: `0 0 ${25 + (frequencyValue * 50)}px rgba(153, 102, 204, ${0.2 + (frequencyValue * 0.4)})`,
+                      borderColor: `rgba(153, 102, 204, ${0.3 + (frequencyValue * 0.5)})`
+                    } : { boxShadow: '0 0 20px rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.2)' }}
+                    className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 cinematic-glow border-2 transition-colors duration-200"
                   >
                     <img src={currentAlbum.coverUrl || undefined} className="w-full h-full object-cover" alt="" />
+                    
+                    {/* Inner Glowing Border Overlay */}
+                    {isPlaying && (
+                      <motion.div 
+                        animate={{ opacity: [0.3, 0.6, 0.3] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="absolute inset-0 rounded-3xl border border-primary/20 pointer-events-none"
+                      />
+                    )}
                   </motion.div>
                 </motion.div>
 
@@ -1544,15 +1618,28 @@ export default function AudioPlayer() {
                 </button>
                 <button 
                   onClick={handleTogglePlay}
-                  className="w-24 h-24 rounded-full bg-primary text-black flex items-center justify-center shadow-2xl transform hover:scale-110 active:scale-95 transition-all ring-1 ring-white/20"
+                  className="relative group/mainplay"
                   aria-label={isPlaying ? "Pause" : "Play"}
                   title={isPlaying ? "Pause" : "Play"}
                 >
-                  {isPlaying ? (
-                    <Pause className="w-10 h-10 fill-current" />
-                  ) : (
-                    <Play className="w-10 h-10 fill-current ml-2" />
-                  )}
+                  <AnimatePresence>
+                    {isPlaying && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: [0.2, 0.5, 0.2], scale: [1, 1.2, 1] }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="absolute inset-0 bg-primary rounded-full blur-xl"
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      />
+                    )}
+                  </AnimatePresence>
+                  <div className="relative w-24 h-24 rounded-full bg-primary text-black flex items-center justify-center shadow-2xl transform hover:scale-110 active:scale-95 transition-all ring-1 ring-white/20">
+                    {isPlaying ? (
+                      <Pause className="w-10 h-10 fill-current" />
+                    ) : (
+                      <Play className="w-10 h-10 fill-current ml-2" />
+                    )}
+                  </div>
                 </button>
                 <button 
                   onClick={() => {

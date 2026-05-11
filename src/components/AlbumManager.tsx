@@ -29,8 +29,7 @@ export default function AlbumManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [isGeneratingArtwork, setIsGeneratingArtwork] = useState(false);
-  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [isGeneratingMagic, setIsGeneratingMagic] = useState(false);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [debugLog, setDebugLog] = useState<string[]>([]);
@@ -166,58 +165,28 @@ export default function AlbumManager() {
     setEditingId(album.id);
   };
 
-  const generateArtwork = async () => {
-    if (!formData.title) return alert('Please enter a title first.');
-    setIsGeneratingArtwork(true);
+  const runAiMagic = async () => {
+    if (!formData.description) return alert('Please paste a description first.');
+    setIsGeneratingMagic(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
-      const prompt = `Create a visually stunning album cover for a music piece titled "${formData.title}". 
-      Artist: ${formData.artist || 'Unknown'}. 
-      Style: Cosmic, cinematic, futuristic, ethereal. 
-      Vibe: ${formData.moodTags.join(', ') || 'Ambient'}.
-      Description Context: ${formData.description || 'Ambient cosmic music.'}
-      High resolution, professional design.`;
+      const prompt = `Analyze the following music album description and extract/suggest properties in a clean JSON format.
+      Description: "${formData.description}"
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: [{ parts: [{ text: prompt }] }],
-      });
-      
-      // In this environment, if the model supports image generation, 
-      // the base64 data will be in the parts.
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
-            const base64Data = part.inlineData.data;
-            const imageUrl = `data:image/png;base64,${base64Data}`;
-            setFormData(prev => ({ ...prev, coverUrl: imageUrl }));
-            setIsGeneratingArtwork(false);
-            return;
-          }
-        }
+      JSON Schema to return:
+      {
+        "bestTitle": string (catchy, majestic, or literal based on description),
+        "artist": string (if found, otherwise a cool generic one),
+        "reformattedDescription": string (polished, around 60 words, cinematic tone),
+        "duration": number (estimate in seconds if mentioned, else 1800),
+        "bpm": number (estimate if possible, else 120),
+        "instruments": string[] (extracted from text),
+        "moodTags": string[] (3-5 evocative tags),
+        "suggestedCategoryName": string (one of: ${categories.map(c => c.name).join(', ')})
       }
       
-      // Fallback/Validation if no image was returned in the expected format
-      console.warn("No binary image data found in response parts");
-    } catch (error) {
-      console.error('Error generating artwork:', error);
-      alert('Failed to generate artwork. Make sure your API key is configured and supports image generation.');
-    } finally {
-      setIsGeneratingArtwork(false);
-    }
-  };
-
-  const generateDescription = async () => {
-    if (!formData.title) return alert('Please enter a title first.');
-    setIsGeneratingDescription(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      const prompt = `Write a poetic, cinematic, and technical description (around 60 words) for a music album titled "${formData.title}" by ${formData.artist || 'the artist'}. 
-      Mention these mood elements: ${formData.moodTags.join(', ') || 'atmospheric'}. 
-      Mention these instruments: ${formData.instruments.join(', ') || 'synthesizers'}. 
-      The description should sound like it belongs in a high-end ambient music platform. No markdown formatting, just text.`;
+      Only return valid JSON, no markdown.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -225,16 +194,77 @@ export default function AlbumManager() {
       });
 
       const text = response.text;
-
       if (text) {
-        setFormData(prev => ({ ...prev, description: text.trim() }));
+        try {
+          const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+          const data = JSON.parse(cleanJson);
+          
+          const matchedCategory = categories.find(c => 
+            c.name.toLowerCase().includes(data.suggestedCategoryName?.toLowerCase()) ||
+            data.suggestedCategoryName?.toLowerCase().includes(c.name.toLowerCase())
+          );
+
+          setFormData(prev => ({
+            ...prev,
+            title: data.bestTitle || prev.title,
+            description: data.reformattedDescription || prev.description,
+            artist: data.artist || prev.artist,
+            duration: data.duration || prev.duration,
+            bpm: data.bpm || prev.bpm,
+            instruments: data.instruments || prev.instruments,
+            moodTags: data.moodTags || prev.moodTags,
+            categoryId: matchedCategory?.id || prev.categoryId
+          }));
+
+          // Automatically trigger artwork too if we now have a title
+          if (data.bestTitle) {
+            addDebugLog('Title generated. Initiating Artwork Magic...');
+            generateArtworkForTitle(data.bestTitle, data.artist, data.moodTags);
+          }
+          
+        } catch (e) {
+          console.error('JSON Parse Error:', e, text);
+          alert('Magic happened, but I couldn\'t parse the vision perfectly. Some fields might be missing.');
+        }
       }
     } catch (error) {
-      console.error('Error generating description:', error);
-      alert('Failed to generate description.');
+      console.error('Error in AI Magic:', error);
+      alert('AI Magic failed to initiate.');
     } finally {
-      setIsGeneratingDescription(false);
+      setIsGeneratingMagic(false);
     }
+  };
+
+  const generateArtworkForTitle = async (title: string, artist?: string, moods?: string[]) => {
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `Create a visually stunning album cover for a music piece titled "${title}". 
+      Artist: ${artist || 'Unknown'}. Style: Cosmic, cinematic, futuristic, ethereal. Vibe: ${moods?.join(', ') || 'Ambient'}.
+      High resolution, professional design. No text on image.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: [{ parts: [{ text: prompt }] }],
+      });
+      
+      if (response.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData) {
+            setFormData(prev => ({ ...prev, coverUrl: `data:image/png;base64,${part.inlineData!.data}` }));
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Magic Artwork Error:', error);
+    }
+  };
+
+  const generateArtwork = async () => {
+    if (!formData.title) return alert('Please enter a title first.');
+    setIsGeneratingMagic(true); // Reuse magic loading state for art only
+    await generateArtworkForTitle(formData.title, formData.artist, formData.moodTags);
+    setIsGeneratingMagic(false);
   };
 
   const generatePreview = async () => {
@@ -480,6 +510,29 @@ export default function AlbumManager() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
+                            <AlignLeft className="w-3 h-3" /> Description & AI Orchestration
+                          </label>
+                          <button 
+                            type="button"
+                            onClick={runAiMagic}
+                            disabled={isGeneratingMagic}
+                            className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-primary transition-opacity hover:opacity-80 disabled:opacity-50"
+                          >
+                            {isGeneratingMagic ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                            AI Magic
+                          </button>
+                        </div>
+                        <textarea 
+                          value={formData.description}
+                          onChange={e => setFormData({...formData, description: e.target.value})}
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary transition-colors min-h-[120px] leading-relaxed"
+                          placeholder="Paste the description here, then click AI Magic to orchestrate everything..."
+                        />
+                      </div>
+
                       <div className="space-y-2">
                         <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
                           <Tag className="w-3 h-3" /> Album Title
@@ -489,112 +542,25 @@ export default function AlbumManager() {
                           value={formData.title}
                           onChange={e => setFormData({...formData, title: e.target.value})}
                           className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
-                          placeholder="e.g. Gravity's End"
+                          placeholder="Album Title..."
                         />
                       </div>
 
                       <div className="space-y-2">
                         <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
-                          <User className="w-3 h-3" /> Artist
+                          <Activity className="w-3 h-3" /> Target Category
                         </label>
-                        <input 
+                        <select 
                           required
-                          value={formData.artist}
-                          onChange={e => setFormData({...formData, artist: e.target.value})}
-                          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
-                          placeholder="e.g. Solar Wind"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
-                            <Clock className="w-3 h-3" /> Duration (sec)
-                          </label>
-                          <input 
-                            type="number"
-                            required
-                            value={formData.duration}
-                            onChange={e => setFormData({...formData, duration: parseInt(e.target.value) || 0})}
-                            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
-                            <Activity className="w-3 h-3" /> Category
-                          </label>
-                          <select 
-                            required
-                            value={formData.categoryId}
-                            onChange={e => setFormData({...formData, categoryId: e.target.value})}
-                            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors appearance-none text-white"
-                          >
-                            <option value="" disabled className="bg-neutral-900">Select...</option>
-                            {categories.map(c => (
-                              <option key={c.id} value={c.id} className="bg-neutral-900">{c.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
-                            <Activity className="w-3 h-3" /> BPM
-                          </label>
-                          <input 
-                            type="number"
-                            value={formData.bpm}
-                            onChange={e => setFormData({...formData, bpm: parseInt(e.target.value) || 0})}
-                            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-primary transition-colors"
-                          />
-                        </div>
-                        <div className="space-y-2 col-span-2">
-                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
-                            <Music className="w-3 h-3" /> Instruments
-                          </label>
-                          <input 
-                            value={formData.instruments.join(', ')}
-                            onChange={e => setFormData({...formData, instruments: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
-                            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-primary transition-colors"
-                            placeholder="Piano, Synth..."
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
-                          <Tag className="w-3 h-3" /> Mood Tags
-                        </label>
-                        <input 
-                          value={formData.moodTags.join(', ')}
-                          onChange={e => setFormData({...formData, moodTags: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
-                          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2 text-[10px] focus:outline-none focus:border-primary transition-colors"
-                          placeholder="Ethereal, Atmospheric..."
-                        />
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <label className="text-[10px] uppercase font-bold text-white/40 tracking-widest flex items-center gap-2">
-                            <AlignLeft className="w-3 h-3" /> Description
-                          </label>
-                          <button 
-                            type="button"
-                            onClick={generateDescription}
-                            disabled={isGeneratingDescription}
-                            className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-primary transition-opacity hover:opacity-80 disabled:opacity-50"
-                          >
-                            {isGeneratingDescription ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                            AI Magic
-                          </button>
-                        </div>
-                        <textarea 
-                          value={formData.description}
-                          onChange={e => setFormData({...formData, description: e.target.value})}
-                          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary transition-colors min-h-[100px] leading-relaxed"
-                          placeholder="Describe the sonic atmosphere..."
-                        />
+                          value={formData.categoryId}
+                          onChange={e => setFormData({...formData, categoryId: e.target.value})}
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors appearance-none text-white"
+                        >
+                          <option value="" disabled className="bg-neutral-900">Select...</option>
+                          {categories.map(c => (
+                            <option key={c.id} value={c.id} className="bg-neutral-900">{c.name}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 
@@ -631,11 +597,11 @@ export default function AlbumManager() {
                               <button 
                                 type="button"
                                 onClick={generateArtwork}
-                                disabled={isGeneratingArtwork}
+                                disabled={isGeneratingMagic}
                                 className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-black hover:scale-105 transition-transform disabled:opacity-50 disabled:scale-100"
                                 title="Generate with AI"
                               >
-                                {isGeneratingArtwork ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                {isGeneratingMagic ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                               </button>
                             </div>
                           </div>

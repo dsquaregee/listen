@@ -22,6 +22,7 @@ import CategoryExplore from './pages/CategoryExplore';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 import Premium from './pages/Premium';
+import Playlists from './pages/Playlists';
 
 const queryClient = new QueryClient();
 
@@ -111,6 +112,7 @@ export default function App() {
               <Route path="/category/:slug" element={<CategoryExplore />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/premium" element={<Premium />} />
+              <Route path="/playlists" element={<Playlists />} />
               <Route path="/admin" element={<AdminDashboard />} />
             </Routes>
           </main>
