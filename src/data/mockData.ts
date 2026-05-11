@@ -3,9 +3,9 @@ import { Album, Category } from '../types';
 export const MOCK_CATEGORIES: Category[] = [
   {
     id: '1',
-    name: 'Sunrise Gold',
-    slug: 'ragas',
-    description: 'Carnatic Instrumental',
+    name: 'Carnatic Instrumental',
+    slug: 'carnatic-instrumental',
+    description: 'Traditional Ragam & Talam',
     visualIdentity: 'bg-gradient-to-br from-[#004040] to-[#002020] border-primary/20 hover:border-primary/50',
     order: 1
   },
@@ -22,7 +22,7 @@ export const MOCK_CATEGORIES: Category[] = [
     name: 'Deep Cosmos',
     slug: 'fusion-slow',
     description: 'Fusion Slow',
-    visualIdentity: 'bg-gradient-to-br from-[#1A1A00] to-[#0A0A02] border-primary/20 hover:border-primary/50',
+    visualIdentity: 'bg-gradient-to-br from-[#1E0F2D] to-[#0F0516] border-primary/20 hover:border-primary/50',
     order: 3
   },
   {
@@ -30,7 +30,7 @@ export const MOCK_CATEGORIES: Category[] = [
     name: 'Sacred Glow',
     slug: 'devotional',
     description: 'Devotional Chants',
-    visualIdentity: 'bg-gradient-to-br from-[#3A2A1A] to-[#1A120A] border-orange-400/20 hover:border-orange-400/50',
+    visualIdentity: 'bg-gradient-to-br from-[#3D1E3D] to-[#1E0F1E] border-[#6A4C93]/40 hover:border-[#6A4C93]',
     order: 4
   }
 ];

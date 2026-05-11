@@ -6,8 +6,8 @@
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-primary: #D4AF37; /* Metallic Gold */
-  --color-accent: #8E6E00; /* Rich Bronze */
+  --color-primary: #9966CC; /* Amethyst */
+  --color-accent: #6A4C93; /* Deep Amethyst */
 }
 
 @layer base {
@@ -29,11 +29,11 @@
 
 /* Cinematic Shadows */
 .cinematic-glow {
-  box-shadow: 0 0 50px -10px rgba(212, 175, 55, 0.25);
+  box-shadow: 0 0 50px -10px rgba(153, 102, 204, 0.25);
 }
 
 .cinematic-gradient-bg {
-  background: radial-gradient(circle at top right, rgba(212, 175, 55, 0.08), transparent),
-              radial-gradient(circle at bottom left, rgba(142, 110, 0, 0.08), transparent);
+  background: radial-gradient(circle at top right, rgba(153, 102, 204, 0.08), transparent),
+              radial-gradient(circle at bottom left, rgba(106, 76, 147, 0.08), transparent);
 }
 

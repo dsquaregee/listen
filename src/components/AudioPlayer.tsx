@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, Pause, SkipBack, SkipForward, 
   Volume2, VolumeX, Maximize2, Minimize2,
-  ChevronDown, Heart, Clock, ListMusic,
+  ChevronDown, Heart, Clock, ListMusic, Activity,
   GripVertical, X, Trash2, CheckCircle2,
   Zap, Share2, Twitter, Facebook, Instagram, Link,
   PlusCircle, FolderPlus, ListPlus, Download,
@@ -131,7 +131,7 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
             exit={{ opacity: 0, scaleX: 0, y: -5 }}
             className="absolute -top-1 left-2 right-2 h-0.5 z-20 pointer-events-none"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_15px_rgba(212,175,55,0.8)] rounded-full" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_15px_rgba(153,102,204,0.8)] rounded-full" />
             <motion.div 
               animate={{ opacity: [0.4, 1, 0.4] }}
               transition={{ repeat: Infinity, duration: 1.5 }}
@@ -150,7 +150,7 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
         className={cn(
           "flex items-center gap-3 p-3 rounded-xl transition-all group relative border",
           isActive 
-            ? "bg-white/10 border-white/20 shadow-[0_0_20px_rgba(212,175,55,0.05)]" 
+            ? "bg-white/10 border-primary/30 shadow-[0_0_30px_rgba(153,102,204,0.15)] ring-1 ring-primary/20" 
             : "bg-white/[0.02] border-white/[0.05] hover:bg-white/5 hover:border-white/10",
           isDragging && "opacity-0 scale-95", // Hide the ghost item roughly
           isOver && !isDragging && "translate-y-1 bg-white/10"
@@ -183,8 +183,16 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
         </div>
 
         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onPlay(album)}>
-          <h4 className={cn("text-xs font-bold truncate tracking-tight transition-colors", isActive ? "text-primary" : "text-white group-hover:text-primary")}>
+          <h4 className={cn("text-xs font-bold truncate tracking-tight transition-colors flex items-center gap-2", isActive ? "text-primary" : "text-white group-hover:text-primary")}>
             {album.title}
+            {isActive && (
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Activity className="w-3 h-3 text-primary" />
+              </motion.div>
+            )}
           </h4>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-[9px] text-white/30 uppercase tracking-[0.1em] truncate">
@@ -220,10 +228,13 @@ interface WaveformSeekbarProps {
   isPlaying: boolean;
   onSeek: (progress: number) => void;
   albumId: string;
+  frequencyValue?: number;
+  duration?: number;
 }
 
-function WaveformSeekbar({ progress, isPlaying, onSeek, albumId }: WaveformSeekbarProps) {
+function WaveformSeekbar({ progress, isPlaying, onSeek, albumId, frequencyValue = 0, duration = 0 }: WaveformSeekbarProps) {
   const [hoverProgress, setHoverProgress] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Generate pseudo-random but consistent heights based on albumId with more organic variation
   const points = React.useMemo(() => {
@@ -247,28 +258,67 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId }: WaveformSeekb
 
   return (
     <div 
-      className="relative w-full h-full flex items-center group touch-none select-none"
+      ref={containerRef}
+      className="relative w-full h-full flex items-center group touch-none select-none cursor-pointer"
       onMouseMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
-        setHoverProgress((e.clientX - rect.left) / rect.width);
+        const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        setHoverProgress(p);
+      }}
+      onClick={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        onSeek(p);
       }}
       onMouseLeave={() => setHoverProgress(null)}
     >
+      {/* Time Tooltip */}
+      <AnimatePresence>
+        {hoverProgress !== null && duration > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.8 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.8 }}
+            className="absolute -top-12 z-50 pointer-events-none px-3 py-1.5 rounded-lg bg-black/90 border border-white/20 backdrop-blur-md shadow-2xl text-[10px] font-mono font-bold text-primary whitespace-nowrap"
+            style={{ left: `${hoverProgress * 100}%`, x: '-50%' }}
+          >
+            {formatTime(hoverProgress * duration)}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 w-[1px] h-12 bg-gradient-to-b from-primary/50 to-transparent" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Background Glow Atmosphere */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-30">
         <motion.div 
-          className="absolute h-full w-48 blur-[80px] bg-gradient-to-r from-transparent via-[#D4AF37]/20 to-transparent"
+          className="absolute h-full w-48 blur-[80px] bg-gradient-to-r from-transparent via-[#9966CC]/20 to-transparent"
           style={{ left: `${progress * 100}%`, x: '-50%' }}
         />
+        {/* Frequency reactive glow */}
+        {isPlaying && (
+          <motion.div 
+            animate={{ 
+              opacity: [0.1, 0.3, 0.1],
+              scale: [1, 1.2, 1]
+            }}
+            transition={{ duration: 0.5, repeat: Infinity }}
+            className="absolute inset-0 bg-primary/5 blur-[100px]"
+          />
+        )}
       </div>
 
       <div className="absolute inset-x-0 bottom-12 top-12 flex items-center justify-between gap-[2px] z-10">
         {points.map((height, i) => {
           const pointProgress = i / points.length;
           const isActive = progress >= pointProgress;
-          const isHovered = hoverProgress !== null && Math.abs(hoverProgress - pointProgress) < 0.05;
+          const isHovered = hoverProgress !== null && Math.abs(hoverProgress - pointProgress) < 0.03;
           const distanceToPlayhead = Math.abs(progress - pointProgress);
           const isNearPlayhead = distanceToPlayhead < 0.1;
+          
+          // Audio Reactive Height
+          const reactiveHeight = isPlaying && isActive 
+            ? height * (1 + frequencyValue * 0.8 * (1 - distanceToPlayhead))
+            : height;
           
           return (
             <div key={i} className="flex-1 h-full flex flex-col items-center justify-center gap-[1px]">
@@ -276,27 +326,27 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId }: WaveformSeekb
               <motion.div
                 initial={false}
                 animate={{ 
-                  height: `${height * 100}%`,
-                  opacity: isActive ? 1 : isHovered ? 0.6 : 0.12,
+                  height: `${reactiveHeight * 100}%`,
+                  opacity: isActive ? 1 : isHovered ? 0.8 : 0.12,
                   backgroundColor: isActive ? 'var(--color-primary)' : '#ffffff',
-                  boxShadow: (isActive && isNearPlayhead) ? '0 0 15px rgba(212,175,55,0.6)' : 'none',
-                  scale: (isPlaying && isNearPlayhead) ? [1, 1.1, 1] : 1
+                  boxShadow: (isActive && isNearPlayhead) ? `0 0 ${10 + frequencyValue * 20}px rgba(153,102,204,${0.4 + frequencyValue})` : 'none',
+                  scale: (isPlaying && isNearPlayhead) ? [1, 1.05, 1] : 1
                 }}
                   transition={{ 
-                    duration: 0.25,
+                    duration: 0.1,
                     scale: isPlaying ? { repeat: Infinity, duration: 1.5, ease: "easeInOut" } : { duration: 0.2 }
                   }}
                 className={cn(
                   "w-full rounded-t-[1px] transition-colors duration-500",
-                  isActive && "shadow-[0_0_8px_rgba(212,175,55,0.2)]"
+                  isActive && "shadow-[0_0_8px_rgba(153,102,204,0.2)]"
                 )}
               />
               {/* Bottom half (mirrored reflection) */}
               <motion.div
                 initial={false}
                 animate={{ 
-                  height: `${height * 50}%`,
-                  opacity: isActive ? 0.4 : isHovered ? 0.2 : 0.05,
+                  height: `${reactiveHeight * 50}%`,
+                  opacity: isActive ? 0.4 : isHovered ? 0.3 : 0.05,
                   backgroundColor: isActive ? 'var(--color-primary)' : '#ffffff',
                   filter: 'blur(0.5px)',
                   scale: (isPlaying && isNearPlayhead) ? [1, 1.05, 1] : 1
@@ -341,7 +391,7 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId }: WaveformSeekb
         
         {/* Playhead Bead */}
         <motion.div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_15px_rgba(212,175,55,0.8)] ring-4 ring-primary/30"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_15px_rgba(153,102,204,0.8)] ring-4 ring-primary/30"
           animate={{ scale: isPlaying ? [1, 1.3, 1] : 1 }}
           transition={isPlaying ? { repeat: Infinity, duration: 2 } : { duration: 0.3 }}
         />
@@ -427,7 +477,7 @@ function QualitySelector({ onQualityChange, currentLevel, levels }: QualitySelec
                     <p className={cn("text-xs font-bold", currentLevel === -1 ? "text-primary" : "text-white")}>Auto Adaptive</p>
                     <p className="text-[9px] text-white/30 uppercase tracking-widest mt-0.5">Network Optimized</p>
                   </div>
-                  {currentLevel === -1 && <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(212,175,55,0.4)]" />}
+                  {currentLevel === -1 && <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(153,102,204,0.4)]" />}
                 </button>
 
                 {levels.map((level, i) => (
@@ -446,7 +496,7 @@ function QualitySelector({ onQualityChange, currentLevel, levels }: QualitySelec
                       <p className={cn("text-xs font-bold", currentLevel === i ? "text-primary" : "text-white")}>{getLabel(i)}</p>
                       <p className="text-[9px] text-white/30 uppercase tracking-widest mt-0.5">{getSubLabel(i)}</p>
                     </div>
-                    {currentLevel === i && <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(212,175,55,0.4)]" />}
+                    {currentLevel === i && <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(153,102,204,0.4)]" />}
                   </button>
                 ))}
               </div>
@@ -639,6 +689,7 @@ export default function AudioPlayer() {
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isInfoExpanded, setIsInfoExpanded] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [isDownloadsOpen, setIsDownloadsOpen] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   
@@ -687,9 +738,12 @@ export default function AudioPlayer() {
     if (!currentAlbum) return;
     const link = `${window.location.origin}/album/${currentAlbum.id}`;
     navigator.clipboard.writeText(link).then(() => {
-      // Show success state or toast if we had one, but at least close the menu
+      setCopied(true);
       hapticFeedback.medium();
-      setIsShareOpen(false);
+      setTimeout(() => {
+        setCopied(false);
+        setIsShareOpen(false);
+      }, 1500);
     });
   };
 
@@ -1187,7 +1241,7 @@ export default function AudioPlayer() {
             {/* Progress Bar Over the Player */}
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/10">
               <motion.div 
-                className="h-full bg-primary shadow-[0_0_10px_rgba(212,175,55,0.5)]"
+                className="h-full bg-primary shadow-[0_0_10px_rgba(153,102,204,0.5)]"
                 style={{ width: `${progress * 100}%` }}
               />
             </div>
@@ -1269,6 +1323,40 @@ export default function AudioPlayer() {
               >
                 {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
               </button>
+              
+              {/* Volume Control in Mini Player */}
+              <div className="hidden md:flex items-center gap-2 group/volume relative">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newVol = volume === 0 ? 0.8 : 0;
+                    setVolume(newVol);
+                    hapticFeedback.medium();
+                  }}
+                  className="p-2 text-white/30 hover:text-white transition-colors"
+                >
+                  {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                </button>
+                <div className="w-0 group-hover/volume:w-20 overflow-hidden transition-all duration-300 ease-out flex items-center">
+                  <input 
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      const newVolume = parseFloat(e.target.value);
+                      if (Math.abs(newVolume - volume) > 0.05) {
+                        hapticFeedback.selection();
+                      }
+                      setVolume(newVolume);
+                    }}
+                    className="w-20 h-1 bg-white/10 rounded-full appearance-none accent-primary cursor-pointer hover:accent-white transition-all"
+                  />
+                </div>
+              </div>
+
               <button className="flex flex-col items-center gap-1 group">
                 <div className="text-primary group-hover:text-primary transition-colors">
                    <Heart className="w-5 h-5" />
@@ -1376,7 +1464,7 @@ export default function AudioPlayer() {
                   
                   <motion.div 
                     animate={isPlaying ? {
-                      boxShadow: `0 0 ${20 + (frequencyValue * 40)}px rgba(212, 175, 55, ${0.1 + (frequencyValue * 0.2)})`
+                      boxShadow: `0 0 ${20 + (frequencyValue * 40)}px rgba(153, 102, 204, ${0.1 + (frequencyValue * 0.2)})`
                     } : { boxShadow: '0 0 20px rgba(0,0,0,0.4)' }}
                     className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/20 cinematic-glow"
                   >
@@ -1406,6 +1494,8 @@ export default function AudioPlayer() {
                     isPlaying={isPlaying}
                     onSeek={handleSeekValue}
                     albumId={currentAlbum.id}
+                    frequencyValue={frequencyValue}
+                    duration={duration}
                   />
                 </div>
                 <div className="flex justify-between text-[10px] font-mono text-white/40 uppercase tracking-widest px-2">
@@ -1506,7 +1596,7 @@ export default function AudioPlayer() {
                         initial={{ scale: 0, opacity: 0, y: 5 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0, opacity: 0, y: 5 }}
-                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(212,175,55,0.8)]"
+                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(153,102,204,0.8)]"
                       />
                     )}
                   </AnimatePresence>
@@ -1607,23 +1697,44 @@ export default function AudioPlayer() {
 
               {/* Volume & Extras */}
               <div className="flex items-center gap-8 w-full max-w-xl">
-                <div className="flex items-center gap-3 flex-1">
-                  <Volume2 className="w-5 h-5 text-white/40" />
-                  <input 
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={volume}
-                    onChange={(e) => {
-                      const newVolume = parseFloat(e.target.value);
-                      if (Math.abs(newVolume - volume) > 0.05) {
-                        hapticFeedback.selection();
-                      }
-                      setVolume(newVolume);
+                <div className="flex items-center gap-4 flex-1">
+                  <button 
+                    onClick={() => {
+                      const newVol = volume === 0 ? 0.8 : 0;
+                      setVolume(newVol);
+                      hapticFeedback.medium();
                     }}
-                    className="flex-1 h-1 bg-white/10 rounded-full appearance-none accent-white/40 cursor-pointer"
-                  />
+                    className="p-2 text-white/40 hover:text-white transition-all transform hover:scale-110 active:scale-95"
+                    aria-label={volume === 0 ? "Unmute" : "Mute"}
+                  >
+                    {volume === 0 ? <VolumeX className="w-6 h-6 text-primary" /> : <Volume2 className="w-6 h-6" />}
+                  </button>
+                  
+                  <div className="flex-1 relative group/vslider">
+                    <input 
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={volume}
+                      onChange={(e) => {
+                        const newVolume = parseFloat(e.target.value);
+                        if (Math.abs(newVolume - volume) > 0.05) {
+                          hapticFeedback.selection();
+                        }
+                        setVolume(newVolume);
+                      }}
+                      className="w-full h-1.5 bg-white/10 rounded-full appearance-none accent-primary cursor-pointer transition-all group-hover/vslider:h-2"
+                    />
+                    <div 
+                      className="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-primary pointer-events-none group-hover/vslider:h-2 transition-all shadow-[0_0_10px_rgba(153,102,204,0.4)]"
+                      style={{ width: `${volume * 100}%` }}
+                    />
+                  </div>
+
+                  <span className="text-[10px] font-mono text-white/40 w-10 text-right font-bold tabular-nums">
+                    {Math.round(volume * 100)}%
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-6 border-l border-white/10 pl-8">
@@ -1677,7 +1788,7 @@ export default function AudioPlayer() {
                         {isDownloading ? (
                           <Download className="w-5 h-5 animate-bounce" />
                         ) : offlineAlbums.includes(currentAlbum.id) ? (
-                          <CheckCircle2 className="w-5 h-5 shadow-[0_0_10px_rgba(212,175,55,0.4)]" />
+                          <CheckCircle2 className="w-5 h-5 shadow-[0_0_10px_rgba(153,102,204,0.4)]" />
                         ) : (
                           <Download className="w-5 h-5" />
                         )}
@@ -1744,84 +1855,93 @@ export default function AudioPlayer() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsShareOpen(false)}
-                            className="fixed inset-0 z-[100]"
+                            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
                           />
                           <motion.div
-                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            className="absolute bottom-full mb-4 right-0 w-48 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[110] backdrop-blur-xl"
+                            initial={{ opacity: 0, y: 20, scale: 0.9, rotateX: -10 }}
+                            animate={{ opacity: 1, y: 0, scale: 1, rotateX: 0 }}
+                            exit={{ opacity: 0, y: 20, scale: 0.9, rotateX: -10 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                            className="absolute bottom-full mb-6 right-0 w-72 bg-[#0a0a0a]/90 border border-white/10 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-[110] backdrop-blur-2xl p-6"
                           >
-                            <div className="p-4 border-b border-white/5">
-                              <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Transmit frequency</h3>
+                            <div className="mb-6 text-center">
+                              <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-1">Universal Access</h3>
+                              <p className="text-[8px] text-white/30 uppercase tracking-[0.1em]">Select transmission protocol</p>
                             </div>
-                             <div className="p-2 space-y-1">
-                               <a 
-                                 href={shareLinks.whatsapp} 
-                                 target="_blank" 
-                                 rel="noreferrer"
-                                 onClick={() => setIsShareOpen(false)}
-                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
-                               >
-                                 <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
-                                 <span className="text-xs font-bold text-white uppercase tracking-widest">WhatsApp</span>
-                               </a>
-                               <a 
-                                 href={shareLinks.twitter} 
-                                 target="_blank" 
-                                 rel="noreferrer"
-                                 onClick={() => setIsShareOpen(false)}
-                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
-                               >
-                                 <Twitter className="w-4 h-4 text-[#1DA1F2]" />
-                                 <span className="text-xs font-bold text-white uppercase tracking-widest">Twitter</span>
-                               </a>
-                               <a 
-                                 href={shareLinks.facebook} 
-                                 target="_blank" 
-                                 rel="noreferrer"
-                                 onClick={() => setIsShareOpen(false)}
-                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
-                               >
-                                 <Facebook className="w-4 h-4 text-[#1877F2]" />
-                                 <span className="text-xs font-bold text-white uppercase tracking-widest">Facebook</span>
-                               </a>
-                               <a 
-                                 href={shareLinks.instagram} 
-                                 target="_blank" 
-                                 rel="noreferrer"
-                                 onClick={() => {
-                                   copyLink();
-                                   setIsShareOpen(false);
-                                   window.open(shareLinks.instagram, '_blank');
-                                 }}
-                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
-                               >
-                                 <Instagram className="w-4 h-4 text-[#E4405F]" />
-                                 <span className="text-xs font-bold text-white uppercase tracking-widest">Instagram</span>
-                               </a>
-                               <a 
-                                 href={shareLinks.tiktok} 
-                                 target="_blank" 
-                                 rel="noreferrer"
-                                 onClick={() => {
-                                   copyLink();
-                                   setIsShareOpen(false);
-                                   window.open(shareLinks.tiktok, '_blank');
-                                 }}
-                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group"
-                               >
-                                 <TikTokIcon className="w-4 h-4 text-white" />
-                                 <span className="text-xs font-bold text-white uppercase tracking-widest">Tik Tok</span>
-                               </a>
-                               <button 
-                                 onClick={copyLink}
-                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group border-t border-white/5 mt-1 pt-4"
-                               >
-                                 <Link className="w-4 h-4 text-primary" />
-                                 <span className="text-xs font-bold text-white uppercase tracking-widest">Copy Link</span>
-                               </button>
-                             </div>
+                            
+                            <div className="grid grid-cols-3 gap-4 mb-6">
+                              {[
+                                { name: 'WhatsApp', icon: <WhatsAppIcon />, color: '#25D366', link: shareLinks.whatsapp },
+                                { name: 'Twitter', icon: <Twitter />, color: '#1DA1F2', link: shareLinks.twitter },
+                                { name: 'Facebook', icon: <Facebook />, color: '#1877F2', link: shareLinks.facebook },
+                                { name: 'Instagram', icon: <Instagram />, color: '#E4405F', link: shareLinks.instagram },
+                                { name: 'TikTok', icon: <TikTokIcon />, color: '#FFFFFF', link: shareLinks.tiktok },
+                              ].map((platform) => (
+                                <motion.a
+                                  key={platform.name}
+                                  href={platform.link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  whileHover={{ scale: 1.1, y: -4 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => setIsShareOpen(false)}
+                                  className="flex flex-col items-center gap-2 group"
+                                >
+                                  <div 
+                                    className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 relative"
+                                    style={{ backgroundColor: `${platform.color}15` }}
+                                  >
+                                    <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 blur-lg transition-opacity" style={{ backgroundColor: platform.color }} />
+                                    <div className="relative z-10 transition-transform duration-300 group-hover:scale-110" style={{ color: platform.color }}>
+                                      {React.cloneElement(platform.icon as React.ReactElement, { className: "w-6 h-6" })}
+                                    </div>
+                                  </div>
+                                  <span className="text-[7px] font-bold text-white/40 uppercase tracking-widest group-hover:text-white transition-colors">
+                                    {platform.name}
+                                  </span>
+                                </motion.a>
+                              ))}
+                            </div>
+
+                            <motion.button 
+                              onClick={copyLink}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              className={cn(
+                                "w-full py-4 rounded-2xl flex items-center justify-center gap-3 transition-all relative overflow-hidden group",
+                                copied ? "bg-green-500/20 text-green-400 border border-green-500/50" : "bg-white/5 hover:bg-white/10 text-white border border-white/5 hover:border-white/20"
+                              )}
+                            >
+                              <AnimatePresence mode="wait">
+                                {copied ? (
+                                  <motion.div
+                                    key="copied"
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    exit={{ y: -20, opacity: 0 }}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em]">Link Encrypted</span>
+                                  </motion.div>
+                                ) : (
+                                  <motion.div
+                                    key="copy"
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    exit={{ y: -20, opacity: 0 }}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Link className="w-4 h-4 text-primary" />
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em]">Copy Frequency</span>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                              
+                              <motion.div 
+                                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"
+                              />
+                            </motion.button>
                           </motion.div>
                         </>
                       )}
@@ -1921,8 +2041,8 @@ export default function AudioPlayer() {
                   </div>
                   <motion.div 
                     animate={isPlaying ? { 
-                      boxShadow: ["0 0 20px rgba(212,175,55,0.05)", "0 0 40px rgba(212,175,55,0.15)", "0 0 20px rgba(212,175,55,0.05)"]
-                    } : { boxShadow: "0 0 0px rgba(212,175,55,0)" }}
+                      boxShadow: ["0 0 20px rgba(153,102,204,0.05)", "0 0 40px rgba(153,102,204,0.15)", "0 0 20px rgba(153,102,204,0.05)"]
+                    } : { boxShadow: "0 0 0px rgba(153,102,204,0)" }}
                     transition={isPlaying ? { duration: 4, repeat: Infinity, ease: "easeInOut" } : { duration: 0.5 }}
                     onMouseEnter={() => {
                       activeTooltipTimeoutRef.current = setTimeout(() => setShowActiveTooltip(true), 400);
@@ -1989,7 +2109,7 @@ export default function AudioPlayer() {
                                     height: { duration: 0.5, repeat: Infinity, delay: i * 0.1, ease: "easeInOut" },
                                     opacity: { duration: 1, repeat: Infinity, delay: i * 0.1 }
                                   } : { duration: 0.3 }}
-                                  className="w-1.5 bg-primary rounded-t-full shadow-[0_0_12px_rgba(212,175,55,0.8)]"
+                                  className="w-1.5 bg-primary rounded-t-full shadow-[0_0_12px_rgba(153,102,204,0.8)]"
                                 />
                               ))}
                            </div>

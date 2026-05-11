@@ -16,7 +16,7 @@
     },
     "Category": {
       "title": "Music Category",
-      "description": "Categories for grouping albums (e.g., Fusion Fast, Ragas)",
+      "description": "Categories for grouping albums (e.g., Fusion Fast, Carnatic Instrumental)",
       "type": "object",
       "properties": {
         "id": { "type": "string" },

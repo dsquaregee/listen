@@ -19,9 +19,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 
 const PRESET_VISUALS = [
-  'bg-gradient-to-br from-[#403121] to-[#201912] border-primary/20 hover:border-primary/50',
-  'bg-gradient-to-br from-[#1A1A00] to-[#0A0A02] border-primary/20 hover:border-primary/50',
-  'bg-gradient-to-br from-[#3D2B1F] to-[#1A110A] border-[#8E6E00]/40 hover:border-[#8E6E00]',
+  'bg-gradient-to-br from-[#2D1B4D] to-[#1B0F2D] border-primary/20 hover:border-primary/50',
+  'bg-gradient-to-br from-[#1E0F2D] to-[#0F0516] border-primary/20 hover:border-primary/50',
+  'bg-gradient-to-br from-[#3D1E3D] to-[#1E0F1E] border-[#6A4C93]/40 hover:border-[#6A4C93]',
   'bg-gradient-to-br from-[#2D3436] to-[#000000] border-white/20 hover:border-white/50',
   'bg-gradient-to-br from-[#3D1E1E] to-[#1E0F0F] border-red-500/20 hover:border-red-500/50',
 ];

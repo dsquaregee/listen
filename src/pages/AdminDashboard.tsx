@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
@@ -9,11 +9,34 @@ import {
 } from 'lucide-react';
 import CategoryManager from '../components/CategoryManager';
 import AlbumManager from '../components/AlbumManager';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'metrics' | 'content'>('metrics');
   const [activeContent, setActiveContent] = useState<'categories' | 'albums'>('categories');
+
+  // One-time migration to rename "Ragas with Instruments" if found
+  useEffect(() => {
+    if (user?.isAdmin) {
+      const migrate = async () => {
+        try {
+          const q = query(collection(db, 'categories'), where('name', '==', 'Ragas with Instruments'));
+          const sn = await getDocs(q);
+          sn.forEach(async (d) => {
+            await updateDoc(doc(db, 'categories', d.id), {
+              name: 'Carnatic Instrumental'
+            });
+            console.log('Migrated category Ragas with Instruments -> Carnatic Instrumental');
+          });
+        } catch (e) {
+          console.error('Migration failed:', e);
+        }
+      };
+      migrate();
+    }
+  }, [user]);
 
   if (isLoading) return null;
   if (!user?.isAdmin) return <Navigate to="/" replace />;
@@ -90,7 +113,7 @@ export default function AdminDashboard() {
                     key={i}
                     initial={{ height: 0 }}
                     animate={{ height: `${Math.random() * 80 + 20}%` }}
-                    className="flex-1 bg-primary/20 rounded-t-full hover:bg-primary/50 transition-all cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.1)]"
+                    className="flex-1 bg-primary/20 rounded-t-full hover:bg-primary/50 transition-all cursor-pointer shadow-[0_0_15px_rgba(153,102,204,0.1)]"
                   />
                 ))}
               </div>

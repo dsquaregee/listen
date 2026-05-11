@@ -112,7 +112,7 @@ export default function Navbar() {
     <div className="flex items-center gap-2 md:gap-4 shrink-0">
       <Link to="/" className="flex items-center gap-2 md:gap-3">
         <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-[#8E6E00] rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-[#6A4C93] rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
           <div className="relative w-10 h-10 md:w-12 md:h-12 bg-[#0a0a0a] rounded-full flex items-center justify-center border border-primary/20 overflow-hidden shadow-2xl">
             <img 
               src={logoUrl}

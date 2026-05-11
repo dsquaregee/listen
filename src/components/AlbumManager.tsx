@@ -20,8 +20,10 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 import { GoogleGenAI } from "@google/genai";
+import { usePlayerStore } from '../store/usePlayerStore';
 
 export default function AlbumManager() {
+  const { setAlbum } = usePlayerStore();
   const [albums, setAlbums] = useState<Album[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -753,7 +755,7 @@ export default function AlbumManager() {
                               type="button"
                               onClick={generatePreview}
                               disabled={isGeneratingPreview}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:text-[#D4AF37] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:text-[#9966CC] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                               title="Generate AI Preview"
                             >
                               {isGeneratingPreview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
@@ -824,7 +826,10 @@ export default function AlbumManager() {
                 key={album.id}
                 className="group flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 transition-all"
               >
-                <div className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden border border-white/10">
+                <div 
+                  className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden border border-white/10 cursor-pointer"
+                  onClick={() => setAlbum(album)}
+                >
                   <img src={album.coverUrl || undefined} alt={album.title} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <PlayCircle className="w-6 h-6 text-white" />

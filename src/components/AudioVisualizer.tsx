@@ -27,7 +27,7 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
     const dataArray = new Uint8Array(analyzer?.frequencyBinCount || 0);
 
     const particles: { x: number; y: number; size: number; speedX: number; speedY: number; opacity: number; color: string }[] = [];
-    const particleColors = ['#D4AF37', '#F4C430', '#ffffff'];
+    const particleColors = ['#9966CC', '#B57EDC', '#ffffff'];
     for (let i = 0; i < 60; i++) {
       particles.push({
         x: Math.random() * canvas.width,
@@ -40,7 +40,7 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
       });
     }
 
-    let hue = 46; // Start with Gold hue
+    let hue = 270; // Start with Amethyst hue
 
     const draw = () => {
       if (!analyzer || !isPlaying) {
@@ -146,9 +146,9 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
         const y = (Date.now() * 0.05 + i * canvas.height / 3) % canvas.height;
         const streakAlpha = 0.02 * (1 + normalizedLow);
         const streakGradient = ctx.createLinearGradient(0, y, canvas.width, y);
-        streakGradient.addColorStop(0, 'rgba(212, 175, 55, 0)');
-        streakGradient.addColorStop(0.5, `rgba(212, 175, 55, ${streakAlpha})`);
-        streakGradient.addColorStop(1, 'rgba(212, 175, 55, 0)');
+        streakGradient.addColorStop(0, 'rgba(153, 102, 204, 0)');
+        streakGradient.addColorStop(0.5, `rgba(153, 102, 204, ${streakAlpha})`);
+        streakGradient.addColorStop(1, 'rgba(153, 102, 204, 0)');
         ctx.fillStyle = streakGradient;
         ctx.fillRect(0, y - 50, canvas.width, 100);
       }
