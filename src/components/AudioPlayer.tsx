@@ -1164,7 +1164,7 @@ export default function AudioPlayer() {
                     <CheckCircle2 className="w-2 md:w-2.5 h-2 md:h-2.5 text-[#F4C430]/60" />
                   )}
                   <span className="text-[8px] md:text-[10px] text-white/40 uppercase tracking-tighter truncate">
-                    {currentAlbum.artist}
+                    {currentAlbum.tier === 'premium' ? 'Premium Experience' : 'Standard Journey'}
                   </span>
                 </div>
               </div>
@@ -1340,86 +1340,12 @@ export default function AudioPlayer() {
                 </motion.div>
 
                 <div className="max-w-md w-full">
-                  <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white mb-2 italic">{currentAlbum.title}</h2>
-                  <div className="flex items-center justify-center gap-3 mb-6">
-                    {currentAlbum.isDownloaded && (
-                      <CheckCircle2 className="w-4 h-4 text-[#F4C430]/60" />
-                    )}
-                    <p className="text-lg text-[#F4C430] font-medium uppercase tracking-[0.2em]">{currentAlbum.artist}</p>
-                  </div>
+                  <h2 className="text-4xl sm:text-6xl font-serif font-bold text-white mb-6 italic leading-tight">{currentAlbum.title}</h2>
                   
-                  <div className="flex flex-wrap justify-center gap-2 mb-8">
-                    {currentAlbum.moodTags.map(tag => (
-                      <span key={tag} className="px-3 py-1 rounded-full bg-white/5 text-[10px] uppercase font-bold tracking-tighter text-white/60 border border-white/10 italic">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Collapsible Album Insight */}
-                  <div className="w-full">
-                    <button 
-                      onClick={() => setIsInfoExpanded(!isInfoExpanded)}
-                      className="flex items-center gap-2 mx-auto text-white/40 hover:text-[#F4C430] transition-all group"
-                    >
-                      <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{isInfoExpanded ? 'Retract Insight' : 'Album Insight'}</span>
-                      <motion.div
-                        animate={{ rotate: isInfoExpanded ? 180 : 0 }}
-                        transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </motion.div>
-                    </button>
-
-                    <AnimatePresence>
-                      {isInfoExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0, scale: 0.95 }}
-                          animate={{ height: 'auto', opacity: 1, scale: 1 }}
-                          exit={{ height: 0, opacity: 0, scale: 0.95 }}
-                          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                          className="overflow-hidden mt-6"
-                        >
-                          <div className="px-8 py-10 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-md text-left space-y-8 max-w-sm mx-auto shadow-2xl relative">
-                            {/* Decorative background pulse */}
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-[#F4C430]/5 rounded-full blur-3xl -z-10" />
-                            
-                            <div>
-                              <h4 className="text-[10px] font-bold text-[#F4C430] uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-                                <span className="w-4 h-px bg-[#F4C430]/30" />
-                                Manifesto
-                              </h4>
-                              <p className="text-xs text-white/70 leading-relaxed italic font-light">{currentAlbum.description}</p>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-10">
-                              <div>
-                                <h4 className="text-[10px] font-bold text-[#F4C430] uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-                                  <span className="w-4 h-px bg-[#F4C430]/30" />
-                                  Ensemble
-                                </h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {currentAlbum.instruments.map(inst => (
-                                    <span key={inst} className="text-[10px] text-white/50 lowercase tracking-wide bg-white/5 px-2 py-0.5 rounded-sm">{inst}</span>
-                                  ))}
-                                </div>
-                              </div>
-                              <div>
-                                <h4 className="text-[10px] font-bold text-[#F4C430] uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-                                  <span className="w-4 h-px bg-[#F4C430]/30" />
-                                  Atmosphere
-                                </h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {currentAlbum.moodTags.map(tag => (
-                                    <span key={tag} className="text-[10px] text-white/50 lowercase tracking-wide italic">#{tag}</span>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                  <div className="w-full px-8">
+                    <p className="text-sm text-white/50 leading-relaxed italic font-light line-clamp-3">
+                      {currentAlbum.description}
+                    </p>
                   </div>
                 </div>
                </div>

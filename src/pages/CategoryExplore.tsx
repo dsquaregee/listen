@@ -99,8 +99,10 @@ export default function CategoryExplore() {
                 <Play className="w-12 h-12 text-white fill-current" />
               </div>
             </div>
-            <h3 className="text-lg font-bold text-white group-hover:text-primary transition-colors">{album.title}</h3>
-            <p className="text-slate-400 text-sm">{album.artist}</p>
+            <h3 className="text-xl font-serif italic text-white group-hover:text-primary transition-colors">{album.title}</h3>
+            <p className="text-white/40 text-[10px] uppercase tracking-widest mt-1 font-mono italic">
+              {album.tier === 'premium' ? 'Premium Experience' : 'Standard journey'}
+            </p>
           </motion.div>
         ))}
       </div>

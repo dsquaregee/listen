@@ -143,7 +143,9 @@ export default function AlbumDetail() {
                   <span className="px-2 py-0.5 rounded bg-primary text-black text-[8px] font-black uppercase tracking-widest">Premium</span>
                 )}
               </div>
-              <p className="text-lg md:text-xl text-primary font-medium mb-6 uppercase tracking-[0.2em]">{album.artist}</p>
+              <p className="text-lg md:text-xl text-primary font-medium mb-6 uppercase tracking-[0.2em]">
+                {album.tier === 'premium' ? 'Premium Experience' : 'Standard Journey'}
+              </p>
               
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 md:gap-4">
                 <button 
@@ -186,57 +188,27 @@ export default function AlbumDetail() {
         </div>
 
         {/* Info Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          <div className="md:col-span-2">
-            <h2 className="text-xl font-serif font-bold text-white mb-4 flex items-center gap-2">
-              <Info className="w-5 h-5 text-primary" />
-              About this Experience
+        <div className="mb-16">
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="text-xl font-serif font-bold text-white mb-6 italic">
+              Experience Insight
             </h2>
-            <p className="text-slate-400 leading-relaxed text-lg mb-8">
-              {album.description} This 1-hour immersive session is crafted to guide you through a deep cinematic landscape, blending traditional Carnatic structures with modern atmospheric textures.
+            <p className="text-slate-400 leading-relaxed text-lg mb-8 italic">
+              {album.description}
             </p>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-6 rounded-2xl bg-white/5 border border-white/5">
-                <span className="text-[10px] uppercase tracking-widest text-primary font-bold block mb-2">Duration</span>
-                <div className="flex items-center gap-2 text-white font-mono text-xl">
-                  <Clock className="w-5 h-5 text-white/40" />
+            <div className="flex justify-center gap-12">
+              <div className="text-center">
+                <span className="text-[10px] uppercase tracking-[0.3em] text-primary/40 font-bold block mb-2">Duration</span>
+                <div className="flex items-center gap-2 text-white font-mono text-xl justify-center">
                   {formatTime(album.duration)}
                 </div>
               </div>
-              <div className="p-6 rounded-2xl bg-white/5 border border-white/5">
-                <span className="text-[10px] uppercase tracking-widest text-primary font-bold block mb-2">BPM Range</span>
-                <div className="flex items-center gap-2 text-white font-mono text-xl">
-                  <Wind className="w-5 h-5 text-white/40" />
-                  {album.bpm || 'Variable'}
+              <div className="text-center">
+                <span className="text-[10px] uppercase tracking-[0.3em] text-primary/40 font-bold block mb-2">Universe</span>
+                <div className="flex items-center gap-2 text-white font-mono text-xl justify-center">
+                  {album.tier === 'premium' ? 'Gold' : 'Silver'}
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-lg font-serif font-bold text-white mb-4 flex items-center gap-2">
-                <Music className="w-5 h-5 text-primary" />
-                Instruments
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {album.instruments.map(inst => (
-                  <span key={inst} className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-medium border border-white/5">
-                    {inst}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-lg font-serif font-bold text-white mb-4">Mood Palette</h2>
-              <div className="flex flex-wrap gap-2">
-                {album.moodTags.map(tag => (
-                  <span key={tag} className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-tighter border border-primary/20">
-                    {tag}
-                  </span>
-                ))}
               </div>
             </div>
           </div>
@@ -339,7 +311,7 @@ export default function AlbumDetail() {
                 </div>
                 <div className="flex flex-col justify-center overflow-hidden">
                   <h4 className="text-white font-medium truncate">{a.title}</h4>
-                  <p className="text-slate-400 text-sm">{a.artist}</p>
+                  <p className="text-[10px] text-primary/40 uppercase tracking-widest">{formatTime(a.duration)}</p>
                 </div>
               </Link>
             ))}
