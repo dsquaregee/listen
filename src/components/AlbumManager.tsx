@@ -97,6 +97,7 @@ export default function AlbumManager() {
       resetForm();
       fetchInitialData();
     } catch (error) {
+      console.error('ALBUM_PROPAGATION_ERROR:', error);
       alert('Failed to propagate album. Check console for details.');
       handleFirestoreError(error, OperationType.CREATE, 'albums');
     }
@@ -275,8 +276,78 @@ export default function AlbumManager() {
 
     setIsProcessingAudio(true);
     setDebugLog(['Starting...']);
-    // ... rest of the function remains similar
-  }
+    
+    try {
+      addDebugLog('Requesting Signed URL...');
+      // 1. Get Signed URL from our server
+      const urlResponse = await fetch('/api/get-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: audioFile.name,
+          contentType: audioFile.type || 'audio/wav',
+        }),
+      });
+      
+      if (!urlResponse.ok) {
+        const errorText = await urlResponse.text();
+        throw new Error(`Server Signature Error (${urlResponse.status}): ${errorText}`);
+      }
+
+      const { uploadUrl, gcsPath } = await urlResponse.json();
+      if (!uploadUrl) throw new Error('Failed to get upload authorization');
+
+      addDebugLog('Authorised. Uploading to GCS...');
+      const startTime = Date.now();
+      // 2. Upload directly to GCS using the Signed URL
+      const gcsResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': audioFile.type || 'audio/wav' },
+        body: audioFile,
+      });
+
+      if (!gcsResponse.ok) {
+        const errorText = await gcsResponse.text();
+        console.error('GCS PUT Error:', gcsResponse.status, errorText);
+        throw new Error(`Upload Failed (${gcsResponse.status}): ${errorText}`);
+      }
+      
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+      addDebugLog(`Uploaded in ${duration}s. Processing...`);
+      // 3. Trigger processing on our server
+      const safeId = formData.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const processResponse = await fetch('/api/process-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          albumId: safeId,
+          gcsPath: gcsPath,
+        }),
+      });
+      
+      if (!processResponse.ok) {
+        const errorText = await processResponse.text();
+        throw new Error(`Processing Trigger Failed (${processResponse.status}): ${errorText}`);
+      }
+
+      const data = await processResponse.json();
+      if (data.m3u8Url) {
+        setFormData(prev => ({ ...prev, hlsUrl: data.m3u8Url }));
+        addDebugLog('Success!');
+        alert('Audio processed successfully!');
+        setAudioFile(null);
+      } else {
+        throw new Error(data.error || 'Processing orchestration failure');
+      }
+    } catch (error) {
+      console.error('Advanced Orchestration failed:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      addDebugLog(`Error: ${msg}`);
+      alert('Orchestration failed: ' + msg);
+    } finally {
+      setIsProcessingAudio(false);
+    }
+  };
 
   const handleManualUpload = async () => {
     if (manualFiles.length === 0) return alert('Please select HLS files first.');

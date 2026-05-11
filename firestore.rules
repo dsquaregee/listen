@@ -18,7 +18,10 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'dsquaregee@gmail.com';
+      return isSignedIn() && (
+        request.auth.token.email.lower() == 'dsquaregee@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
     function isOwner(userId) {
@@ -81,7 +84,8 @@ service cloud.firestore {
       }
 
       allow read: if true; 
-      allow write: if isAdmin() && isValidCategory(incoming());
+      allow create, update: if isAdmin() && isValidCategory(incoming());
+      allow delete: if isAdmin();
     }
 
     // 3. Albums Collection
@@ -90,10 +94,10 @@ service cloud.firestore {
         return data.title is string && data.title.size() <= 200 &&
                data.artist is string &&
                data.duration is number &&
-               data.coverUrl is string &&
-               data.hlsUrl is string &&
-               data.categoryId is string &&
-               data.tier in ['free', 'premium'] &&
+               (data.get('coverUrl', '') is string) &&
+               (data.get('hlsUrl', '') is string) &&
+               (data.get('categoryId', '') is string) &&
+               (data.get('tier', 'free') in ['free', 'premium']) &&
                (data.get('videoHlsUrl', '') is string) &&
                (data.get('description', '') is string) &&
                (data.get('instruments', []) is list) &&
@@ -104,7 +108,8 @@ service cloud.firestore {
       }
 
       allow read: if true; 
-      allow write: if isAdmin() && isValidAlbum(incoming());
+      allow create, update: if isAdmin() && isValidAlbum(incoming());
+      allow delete: if isAdmin();
     }
 
     // 4. Favorites Collection
