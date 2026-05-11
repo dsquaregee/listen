@@ -1481,16 +1481,40 @@ export default function AudioPlayer() {
                     toggleRepeat();
                   }}
                   className={cn(
-                    "transition-all p-2 transform hover:scale-110 active:scale-95 relative",
+                    "transition-all p-2 transform hover:scale-110 active:scale-95 relative group",
                     repeatMode !== 'none' ? "text-primary" : "text-white/40 hover:text-white"
                   )}
-                  aria-label="Repeat"
-                  title="Repeat"
+                  aria-label={`Repeat: ${repeatMode}`}
+                  title={`Repeat: ${repeatMode}`}
                 >
                   {repeatMode === 'one' ? <Repeat1 className="w-5 h-5" /> : <Repeat className="w-5 h-5" />}
-                  {repeatMode === 'all' && (
-                    <span className="absolute -top-0 -right-0 w-1 h-1 bg-primary rounded-full" />
+                  
+                  {/* Subtle glow when active */}
+                  {repeatMode !== 'none' && (
+                    <motion.div 
+                      layoutId="repeat-glow"
+                      className="absolute inset-0 bg-primary/10 blur-xl rounded-full -z-10"
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1.2, opacity: 1 }}
+                    />
                   )}
+
+                  {/* Mode Indicator Dot */}
+                  <AnimatePresence>
+                    {repeatMode !== 'none' && (
+                      <motion.div 
+                        initial={{ scale: 0, opacity: 0, y: 5 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0, opacity: 0, y: 5 }}
+                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(212,175,55,0.8)]"
+                      />
+                    )}
+                  </AnimatePresence>
+
+                  {/* Mode Label (Subtle) */}
+                  <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-1 rounded backdrop-blur-sm whitespace-nowrap pointer-events-none border border-white/10">
+                    {repeatMode === 'none' ? 'Repeat Off' : repeatMode === 'all' ? 'Repeat All' : 'Repeat One'}
+                  </span>
                 </button>
                 <div className="relative">
                   <button 
