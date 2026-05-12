@@ -7,8 +7,21 @@ import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from 'ffmpeg-static';
 import { Storage } from '@google-cloud/storage';
 import dotenv from 'dotenv';
+import Stripe from 'stripe';
 
 dotenv.config();
+
+let stripeClient: Stripe | null = null;
+function getStripe() {
+  if (!stripeClient) {
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) {
+      throw new Error('STRIPE_SECRET_KEY is not defined in environment');
+    }
+    stripeClient = new Stripe(key);
+  }
+  return stripeClient;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -299,6 +312,42 @@ app.post('/api/process-audio', async (req, res) => {
     // if (fs.existsSync(inputFile)) fs.unlinkSync(inputFile);
     
     res.status(500).json({ error: 'Failed to process audio', details: errMsg });
+  }
+});
+
+// Stripe Checkout Session Route
+app.post('/api/create-checkout-session', async (req, res) => {
+  try {
+    const { priceId, amount } = req.body;
+    logToFile(`Creating checkout session for amount: ${amount}`);
+    
+    const stripe = getStripe();
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Premium Subscription',
+              description: 'Access to premium features and unlimited high-quality audio experiences.',
+            },
+            unit_amount: amount || 300, // Default to $3.00 if not provided
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${req.headers.origin}/?payment=success`,
+      cancel_url: `${req.headers.origin}/?payment=cancelled`,
+    });
+
+    logToFile(`Checkout session created: ${session.id}`);
+    res.json({ url: session.url });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logToFile(`Checkout Session Failure: ${errMsg}`);
+    res.status(500).json({ error: 'Failed to create checkout session', details: errMsg });
   }
 });
 

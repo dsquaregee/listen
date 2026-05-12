@@ -11,7 +11,7 @@ import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandle
 export default function Premium() {
   const { setUserTier } = usePlayerStore();
   const { user, setUser } = useAuthStore();
-  const [amount, setAmount] = useState(10);
+  const [amount, setAmount] = useState(3);
   const [currency, setCurrency] = useState('USD');
   const [isSubscribing, setIsSubscribing] = useState(false);
 
@@ -42,27 +42,25 @@ export default function Premium() {
 
   const handleSubscribe = async () => {
     if (!user) return alert('Please sign in to subscribe.');
-    if (amount < 4) return alert('Minimum subscription is $4');
+    if (amount < 3) return alert('Minimum subscription is $3');
 
     setIsSubscribing(true);
     try {
-      const userRef = doc(db, 'users', user.uid);
-      const updateData = {
-        tier: 'premium' as const,
-        isPremium: true,
-        subscriptionAmount: amount,
-        subscriptionCurrency: currency,
-        subscriptionDate: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      await updateDoc(userRef, updateData);
-      
-      setUser({ ...user, ...updateData });
-      setUserTier('premium');
-      alert('Welcome to the Universe! Your support is deeply appreciated.');
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: amount * 100 }), // Stripe expects amounts in cents
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const { url } = await response.json();
+      window.location.href = url; // Redirect to Stripe Checkout
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      console.error('Subscription error:', error);
+      alert('Failed to start checkout. Please try again.');
     } finally {
       setIsSubscribing(false);
     }
@@ -90,7 +88,7 @@ export default function Premium() {
           <span className="text-primary drop-shadow-[0_0_20px_rgba(153,102,204,0.3)]">Sonic Craft</span>
         </h1>
         <p className="text-white/40 text-lg sm:text-xl font-light italic">
-          Pay what you want. $4 monthly minimum. <br />
+          Pay what you want. $3 monthly minimum. <br />
           Unlock High-Fidelity Universes & Offline Echoes.
         </p>
       </header>
@@ -126,7 +124,7 @@ export default function Premium() {
                 </div>
                 <input 
                   type="range"
-                  min="4"
+                  min="3"
                   max="100"
                   step="1"
                   value={amount}
@@ -134,7 +132,7 @@ export default function Premium() {
                   className="w-full h-1.5 bg-white/10 rounded-full appearance-none accent-primary cursor-pointer"
                 />
                 <div className="flex justify-between text-[8px] uppercase tracking-widest text-white/20">
-                  <span>$4 Min</span>
+                  <span>$3 Min</span>
                   <span>Generous Donor</span>
                 </div>
               </div>

@@ -253,7 +253,7 @@ export default function Navbar() {
       </div>
       
       <div className="hidden md:flex items-center gap-6">
-        {navItems.map((item) => (
+        {navItems.filter(item => item.name !== 'Subscribe').map((item) => (
           <Link 
             key={item.path} 
             to={item.path}
@@ -265,6 +265,15 @@ export default function Navbar() {
             {item.name}
           </Link>
         ))}
+        {user?.tier !== 'premium' && (
+          <Link 
+            to="/premium"
+            className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 px-3 py-1.5 rounded-full transition-all group group-hover:scale-105 active:scale-95"
+          >
+            <Crown className="w-3 h-3 text-primary animate-pulse" />
+            <span className="text-[9px] font-bold text-primary uppercase tracking-[0.2em]">Subscribe</span>
+          </Link>
+        )}
         {user?.isAdmin && (
           <Link 
             to="/admin"

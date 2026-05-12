@@ -14,6 +14,8 @@ import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler
 import Navbar from './components/Navbar';
 import AudioPlayer from './components/AudioPlayer';
 import { InstallPrompt } from './components/InstallPrompt';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { updateDoc } from 'firebase/firestore';
 
 // Pages
 import Home from './pages/Home';
@@ -26,6 +28,46 @@ import Premium from './pages/Premium';
 import Playlists from './pages/Playlists';
 
 const queryClient = new QueryClient();
+
+function PaymentHandler() {
+  const { user, setUser } = useAuthStore();
+  const { setUserTier } = usePlayerStore();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const paymentStatus = params.get('payment');
+
+    if (paymentStatus === 'success' && user && user.tier !== 'premium') {
+      const updateTier = async () => {
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          const updateData = {
+            tier: 'premium' as const,
+            isPremium: true,
+            updatedAt: new Date().toISOString()
+          };
+          await updateDoc(userRef, updateData);
+          setUser({ ...user, ...updateData });
+          setUserTier('premium');
+          
+          // Clear query params
+          navigate('/', { replace: true });
+          alert('Welcome to Premium! Your payment was successful.');
+        } catch (e) {
+          console.error('Failed to update tier after payment:', e);
+        }
+      };
+      updateTier();
+    } else if (paymentStatus === 'cancelled') {
+       navigate('/', { replace: true });
+       alert('Payment was cancelled.');
+    }
+  }, [location.search, user, setUser, setUserTier, navigate]);
+
+  return null;
+}
 
 export default function App() {
   const { setUser, setLoading } = useAuthStore();
@@ -103,6 +145,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
+        <PaymentHandler />
         <div className="flex flex-col min-h-screen bg-black text-slate-100 cinematic-gradient-bg">
           <Navbar />
           
