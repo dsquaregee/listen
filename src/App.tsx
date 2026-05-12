@@ -27,6 +27,7 @@ import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 import Premium from './pages/Premium';
 import Playlists from './pages/Playlists';
+import PlaylistDetail from './pages/PlaylistDetail';
 
 const queryClient = new QueryClient();
 
@@ -169,6 +170,7 @@ export default function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/premium" element={<Premium />} />
               <Route path="/playlists" element={<Playlists />} />
+              <Route path="/playlist/:id" element={<PlaylistDetail />} />
               <Route path="/admin" element={<AdminDashboard />} />
             </Routes>
           </main>

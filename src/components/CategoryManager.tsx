@@ -7,16 +7,35 @@ import {
   deleteDoc, 
   doc, 
   query, 
-  orderBy 
+  orderBy,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Category } from '../types';
 import { 
   Plus, Edit2, Trash2, X, Check, 
-  Layers, Palette, Tag, AlignLeft, Hash
+  Layers, Palette, Tag, AlignLeft, Hash,
+  GripVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const PRESET_VISUALS = [
   'bg-gradient-to-br from-[#2D1B4D] to-[#1B0F2D] border-primary/20 hover:border-primary/50',
@@ -25,6 +44,120 @@ const PRESET_VISUALS = [
   'bg-gradient-to-br from-[#2D3436] to-[#000000] border-white/20 hover:border-white/50',
   'bg-gradient-to-br from-[#3D1E1E] to-[#1E0F0F] border-red-500/20 hover:border-red-500/50',
 ];
+
+interface SortableItemProps {
+  cat: Category;
+  editingId: string | null;
+  formData: Omit<Category, 'id'>;
+  setFormData: (data: Omit<Category, 'id'>) => void;
+  handleUpdate: (id: string) => Promise<void>;
+  setEditingId: (id: string | null) => void;
+  startEdit: (cat: Category) => void;
+  handleDelete: (id: string) => Promise<void>;
+  key?: React.Key;
+}
+
+function SortableCategoryItem({ 
+  cat, 
+  editingId, 
+  formData, 
+  setFormData, 
+  handleUpdate, 
+  setEditingId, 
+  startEdit, 
+  handleDelete 
+}: SortableItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: cat.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 'auto',
+    position: 'relative' as const
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={style}
+      className={`p-4 rounded-2xl border transition-all flex items-center justify-between group ${isDragging ? 'opacity-50 scale-105 shadow-2xl bg-white/10 border-primary' : (cat.id === editingId ? 'bg-white/10 border-primary' : 'bg-white/[0.02] border-white/5 hover:border-white/20')}`}
+    >
+      <div className="flex items-center gap-4 flex-1">
+        <div 
+          {...attributes} 
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 hover:bg-white/10 rounded transition-colors"
+        >
+          <GripVertical className="w-4 h-4 text-white/20 group-hover:text-white/40" />
+        </div>
+        <div className={`w-12 h-12 rounded-xl shrink-0 border border-white/10 shadow-lg ${cat.visualIdentity}`} />
+        <div className="flex-1">
+          {editingId === cat.id && formData ? (
+            <input 
+              autoFocus
+              value={formData.name}
+              onChange={e => setFormData({...formData, name: e.target.value})}
+              className="bg-transparent border-b border-primary text-sm font-bold italic focus:outline-none w-full text-white"
+            />
+          ) : (
+            <>
+              <h4 className="text-sm font-bold italic text-white flex items-center gap-2">
+                {cat.name}
+                <span className="text-[9px] font-normal uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full">/{cat.slug}</span>
+              </h4>
+              <p className="text-[10px] text-white/40 line-clamp-1">{cat.description}</p>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+        {editingId === cat.id ? (
+          <>
+            <button 
+              onClick={() => handleUpdate(cat.id)}
+              className="p-2 rounded-full bg-green-500/20 text-green-400 hover:bg-green-500/40 transition-colors"
+              title="Save Changes"
+            >
+              <Check className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => setEditingId(null)}
+              className="p-2 rounded-full bg-white/10 text-white/40 hover:text-white transition-colors"
+              title="Cancel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <>
+            <button 
+              onClick={() => startEdit(cat)}
+              className="p-2 rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+              title="Edit Category"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => handleDelete(cat.id)}
+              className="p-2 rounded-full bg-red-400/10 text-red-400/40 hover:text-red-400 hover:bg-red-400/20 transition-colors"
+              title="Delete Category"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function CategoryManager() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -39,6 +172,13 @@ export default function CategoryManager() {
     visualIdentity: PRESET_VISUALS[0],
     order: 0
   });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const fetchCategories = async () => {
     setIsLoading(true);
@@ -89,6 +229,30 @@ export default function CategoryManager() {
     } catch (error) {
       alert('Failed to update category.');
       handleFirestoreError(error, OperationType.UPDATE, `categories/${id}`);
+    }
+  };
+
+  const syncOrderToFirestore = async (newCategories: Category[]) => {
+    const batch = writeBatch(db);
+    newCategories.forEach((cat, index) => {
+      const catRef = doc(db, 'categories', cat.id);
+      batch.update(catRef, { order: index });
+    });
+    try {
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'categories/bulk-order');
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = categories.findIndex((i) => i.id === active.id);
+      const newIndex = categories.findIndex((i) => i.id === over.id);
+      const newCategories = arrayMove(categories, oldIndex, newIndex) as Category[];
+      setCategories(newCategories);
+      syncOrderToFirestore(newCategories);
     }
   };
 
@@ -219,72 +383,32 @@ export default function CategoryManager() {
             )}
           </AnimatePresence>
 
-          {categories.map((cat) => (
-            <div 
-              key={cat.id}
-              className={`p-4 rounded-2xl border transition-all flex items-center justify-between group ${cat.id === editingId ? 'bg-white/10 border-primary' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={categories.map(c => c.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <div className="flex items-center gap-4 flex-1">
-                <div className={`w-12 h-12 rounded-xl shrink-0 border border-white/10 shadow-lg ${cat.visualIdentity}`} />
-                <div className="flex-1">
-                  {editingId === cat.id ? (
-                    <input 
-                      autoFocus
-                      value={formData.name}
-                      onChange={e => setFormData({...formData, name: e.target.value})}
-                      className="bg-transparent border-b border-primary text-sm font-bold italic focus:outline-none w-full text-white"
-                    />
-                  ) : (
-                    <>
-                      <h4 className="text-sm font-bold italic text-white flex items-center gap-2">
-                        {cat.name}
-                        <span className="text-[9px] font-normal uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full">/{cat.slug}</span>
-                      </h4>
-                      <p className="text-[10px] text-white/40 line-clamp-1">{cat.description}</p>
-                    </>
-                  )}
-                </div>
+              <div className="space-y-4">
+                {categories.map((cat) => (
+                  <SortableCategoryItem
+                    key={cat.id}
+                    cat={cat}
+                    editingId={editingId}
+                    formData={formData}
+                    setFormData={setFormData}
+                    handleUpdate={handleUpdate}
+                    setEditingId={setEditingId}
+                    startEdit={startEdit}
+                    handleDelete={handleDelete}
+                  />
+                ))}
               </div>
-
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                {editingId === cat.id ? (
-                  <>
-                    <button 
-                      onClick={() => handleUpdate(cat.id)}
-                      className="p-2 rounded-full bg-green-500/20 text-green-400 hover:bg-green-500/40 transition-colors"
-                      title="Save Changes"
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => setEditingId(null)}
-                      className="p-2 rounded-full bg-white/10 text-white/40 hover:text-white transition-colors"
-                      title="Cancel"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button 
-                      onClick={() => startEdit(cat)}
-                      className="p-2 rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-                      title="Edit Category"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(cat.id)}
-                      className="p-2 rounded-full bg-red-400/10 text-red-400/40 hover:text-red-400 hover:bg-red-400/20 transition-colors"
-                      title="Delete Category"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
+            </SortableContext>
+          </DndContext>
 
           {categories.length === 0 && !isAdding && (
             <div className="py-20 text-center space-y-4">

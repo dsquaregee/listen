@@ -1674,8 +1674,28 @@ export default function AudioPlayer() {
                   </motion.div>
                 </motion.div>
 
-                <div className="max-w-md w-full">
-                  <h2 className="text-4xl sm:text-6xl font-serif font-bold text-white mb-4 italic leading-tight">{currentAlbum.title}</h2>
+                <div className="max-w-md w-full px-4 relative">
+                  <div className="flex flex-col items-center">
+                    <h2 className="text-4xl sm:text-6xl font-serif font-bold text-white mb-4 italic leading-tight">{currentAlbum.title}</h2>
+                    
+                    <button 
+                      onClick={() => {
+                        hapticFeedback.light();
+                        toggleLike(currentAlbum.id);
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 mb-6 px-4 py-2 rounded-full border transition-all",
+                        favorites.includes(currentAlbum.id) 
+                          ? "bg-accent/10 border-accent/30 text-accent" 
+                          : "bg-white/5 border-white/10 text-white/40 hover:text-white"
+                      )}
+                    >
+                      <Heart className={cn("w-4 h-4", favorites.includes(currentAlbum.id) ? "fill-current" : "")} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">
+                        {favorites.includes(currentAlbum.id) ? 'Saved to Atmosphere' : 'Add to Liked'}
+                      </span>
+                    </button>
+                  </div>
                   
                   <div className="flex justify-center mb-6">
                     <RouterLink 
@@ -1719,20 +1739,6 @@ export default function AudioPlayer() {
 
               {/* Playback Buttons */}
               <div className="flex items-center gap-4 sm:gap-10">
-                <button 
-                  onClick={() => {
-                    hapticFeedback.light();
-                    toggleLike(currentAlbum.id);
-                  }}
-                  className={cn(
-                    "transition-colors p-2 hover:scale-110 active:scale-95",
-                    favorites.includes(currentAlbum.id) ? "text-accent" : "text-white/40 hover:text-white"
-                  )}
-                  aria-label="Favorite"
-                  title="Mark as Favorite"
-                >
-                  <Heart className={cn("w-6 h-6", favorites.includes(currentAlbum.id) ? "fill-current" : "")} />
-                </button>
                 <button 
                   onClick={() => {
                     hapticFeedback.light();
