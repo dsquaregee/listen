@@ -82,7 +82,8 @@ if (!fs.existsSync(uploadsBaseDir)) {
   fs.mkdirSync(uploadsBaseDir, { recursive: true });
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use((req, res, next) => {
   if (req.method === 'POST') {
@@ -145,8 +146,12 @@ app.post('/api/upload-artwork', async (req, res) => {
   try {
     const { base64, albumTitle } = req.body;
     if (!base64 || !albumTitle) {
+      logToFile('Artwork Upload: Missing base64 or albumTitle');
       return res.status(400).json({ error: 'base64 and albumTitle are required' });
     }
+
+    const payloadSize = Buffer.byteLength(base64, 'utf8');
+    logToFile(`Artwork Upload: Received payload for "${albumTitle}", size: ${payloadSize} bytes`);
 
     if (!bucketName) {
       return res.status(500).json({ error: 'GCS_BUCKET_NAME is not configured' });
