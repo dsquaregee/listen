@@ -23,11 +23,10 @@ function getStripe() {
   return stripeClient;
 }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Logging helper
-const logFile = path.resolve(__dirname, 'server.log');
+// Unified __dirname and __filename for both ESM and CJS
+const _filename = fileURLToPath(import.meta.url);
+const _dirname = path.dirname(_filename);
+const logFile = path.resolve(_dirname, 'server.log');
 function logToFile(message: string) {
   const timestamp = new Date().toISOString();
   const formattedMessage = `[${timestamp}] ${message}\n`;
@@ -49,7 +48,7 @@ if (ffmpegInstaller) {
 }
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 // Generic request logger (Errors only)
 app.use((req, res, next) => {
@@ -89,9 +88,10 @@ app.get('/api/debug-logs', (req, res) => {
   }
 });
 
-// Ensure uploads directory exists
-const uploadsBaseDir = path.resolve(__dirname, 'uploads');
+// Ensure the uploads directory exists
+const uploadsBaseDir = path.resolve(_dirname, 'uploads');
 if (!fs.existsSync(uploadsBaseDir)) {
+  logToFile(`Creating uploads directory: ${uploadsBaseDir}`);
   fs.mkdirSync(uploadsBaseDir, { recursive: true });
 }
 
@@ -351,9 +351,24 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }
 });
 
+// Global error handlers for better crash reporting
+process.on('uncaughtException', (err) => {
+  logToFile(`CRITICAL: Uncaught Exception: ${err.message}`);
+  logToFile(err.stack || 'No stack trace');
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logToFile(`CRITICAL: Unhandled Rejection at: ${promise}, reason: ${reason}`);
+  process.exit(1);
+});
+
 async function startServer() {
   logToFile('Starting server initialization...');
-  
+  logToFile(`NODE_ENV: ${process.env.NODE_ENV}`);
+  logToFile(`Working directory: ${process.cwd()}`);
+  logToFile(`__dirname: ${_dirname}`);
+
   if (ffmpegInstaller) {
     try {
       const { execSync } = await import('child_process');
@@ -364,26 +379,57 @@ async function startServer() {
     }
   }
 
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-    logToFile('Vite middleware integrated');
+  if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_VITE !== 'true') {
+    logToFile('Integrating Vite middleware (Development mode)');
+    try {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+      logToFile('Vite middleware integrated successfully');
+    } catch (e) {
+      logToFile(`Error integrating Vite: ${e instanceof Error ? e.message : String(e)}`);
+      // Fallback to static in case Vite fails even in dev
+      const distPath = path.join(process.cwd(), 'dist');
+      if (fs.existsSync(distPath)) {
+        logToFile('Vite failed, falling back to static dist in dev mode');
+        app.use(express.static(distPath));
+      }
+    }
   } else {
+    logToFile('Starting Production mode (Static Serving)');
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-    logToFile('Production static serving active');
+    logToFile(`Static assets path: ${distPath}`);
+    
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath));
+      app.get('*', (req, res, next) => {
+        // Only serve index.html for non-API routes
+        if (req.path.startsWith('/api')) {
+          return next();
+        }
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+      logToFile('Production static serving active');
+    } else {
+      logToFile(`ERROR: Dist path not found at ${distPath}. Did build run?`);
+      // In Cloud Run, sometimes we might need to check if we are in the wrong directory
+      app.get('*', (req, res) => {
+        res.status(500).send(`Application not built or dist directory missing at ${distPath}. Current directory: ${process.cwd()}`);
+      });
+    }
   }
 
   const server = app.listen(PORT, '0.0.0.0', () => {
     logToFile(`Server actually listening on http://0.0.0.0:${PORT}`);
   });
   server.timeout = 600000; // 10 minutes
+  
+  // Handle server errors
+  server.on('error', (err) => {
+    logToFile(`Server Listen Error: ${err.message}`);
+  });
 
   // Optional: Try to set CORS for the bucket if we have permissions
   if (bucketName) {
