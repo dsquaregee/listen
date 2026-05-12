@@ -927,7 +927,7 @@ export default function AudioPlayer() {
       refreshOfflineStatus(activeOfflineIds);
     };
     syncOfflineStatus();
-  }, [location.pathname]);
+  }, []); // Only once on mount
 
   // Initialize Streaming Services
   useEffect(() => {
@@ -1155,17 +1155,15 @@ export default function AudioPlayer() {
       setCurrentTime(time);
     }
     
-    if (dur && !isNaN(dur)) {
+    if (dur && !isNaN(dur) && dur > 0) {
       setDuration(dur);
       setProgress(time / dur);
 
       // Trigger crossfade 2 seconds before end
       // Only if autoPlayNext is on OR repeatMode is on (to loop back to start/next)
-      if (dur - time < 2 && !isTransitioningRef.current && (autoPlayNext || repeatMode !== 'none')) {
-        // If it's repeat one, we might not want to crossfade into the SAME track 
-        // as it can sound weird with HLS, but let's allow next() to handle the decision.
-        // next() in store handles the repeat logic.
-        console.log('Triggering auto-advance/repeat transition');
+      // AND dur is reasonable (not a tiny error duration)
+      if (dur > 5 && dur - time < 2 && !isTransitioningRef.current && (autoPlayNext || repeatMode !== 'none')) {
+        console.log('Triggering auto-advance/repeat transition at time:', time, 'duration:', dur);
         next();
       }
     }

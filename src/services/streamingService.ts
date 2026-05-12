@@ -4,6 +4,7 @@ export class StreamingService {
   private hls: Hls | null = null;
   private audio: HTMLAudioElement | null = null;
   private onErrorCallback?: (error: string, url?: string) => void;
+  private currentUrl: string | null = null;
 
   setOnError(callback: (error: string, url?: string) => void) {
     this.onErrorCallback = callback;
@@ -14,6 +15,7 @@ export class StreamingService {
     
     this.destroy();
     this.audio = audioElement;
+    this.currentUrl = null;
     
     if (Hls.isSupported()) {
       console.log('Initializing HLS for audio element');
@@ -68,6 +70,12 @@ export class StreamingService {
       return;
     }
 
+    if (this.currentUrl === url) {
+      console.log('StreamingService: Source already loaded, skipping reload:', url);
+      return;
+    }
+
+    this.currentUrl = url;
     console.log('StreamingService loading source:', url);
     const isLocal = url.startsWith('blob:') || url.startsWith('data:');
     
