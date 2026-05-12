@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
 import { 
   Play, Pause, SkipBack, SkipForward, 
   Volume2, VolumeX, Maximize2, Minimize2,
@@ -19,62 +19,27 @@ import { MOCK_ALBUMS } from '../data/mockData';
 import { formatTime, cn } from '../lib/utils';
 import { streamingService, StreamingService } from '../services/streamingService';
 import { offlineService } from '../services/offlineService';
-import {
-  DndContext, 
-  closestCenter,
-  PointerSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-  defaultDropAnimationSideEffects
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { Album } from '../types';
 
-interface SortableQueueItemProps {
+interface QueueItemProps {
   album: Album;
   onRemove: (id: string) => void;
   onPlay: (album: Album) => void;
   isActive: boolean;
   index: number;
-  key?: string;
+  canReorder: boolean;
+  key?: string | number;
 }
 
-function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: SortableQueueItemProps) {
+function QueueItem({ album, onRemove, onPlay, isActive, index, canReorder }: QueueItemProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-    over
-  } = useSortable({ id: album.id });
-
-  const isOver = over?.id === album.id;
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 100 : 'auto',
-  };
+  const controls = useDragControls();
 
   const handleMouseEnter = () => {
     timeoutRef.current = setTimeout(() => {
       setShowTooltip(true);
-    }, 400); // Subtle delay to be non-intrusive
+    }, 400);
   };
 
   const handleMouseLeave = () => {
@@ -83,16 +48,21 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
   };
 
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      className="relative py-1 select-none"
+    <Reorder.Item 
+      value={album}
+      id={album.id}
+      dragListener={false}
+      dragControls={controls}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.05 }}
+      className="relative py-1 select-none focus:outline-none"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {/* Tooltip Overlay */}
       <AnimatePresence>
-        {showTooltip && !isDragging && (
+        {showTooltip && (
           <motion.div
             initial={{ opacity: 0, x: -10, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -116,55 +86,34 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
                 ))}
               </div>
             </div>
-            {/* Tooltip Arrow */}
             <div className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-2 bg-black/90 border-r border-t border-white/10 rotate-45" />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Drop Indicator - Refined for "Natural Tones" theme */}
-      <AnimatePresence>
-        {isOver && !isDragging && (
-          <motion.div 
-            initial={{ opacity: 0, scaleX: 0, y: -5 }}
-            animate={{ opacity: 1, scaleX: 1, y: 0 }}
-            exit={{ opacity: 0, scaleX: 0, y: -5 }}
-            className="absolute -top-1 left-2 right-2 h-0.5 z-20 pointer-events-none"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_15px_rgba(153,102,204,0.8)] rounded-full" />
-            <motion.div 
-              animate={{ opacity: [0.4, 1, 0.4] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className="absolute -top-4 left-1/2 -translate-x-1/2 text-[7px] font-bold text-primary uppercase tracking-[0.4em] whitespace-nowrap bg-black/80 px-2 py-0.5 rounded-full border border-primary/30 backdrop-blur-sm"
-            >
-              Release to Stage
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.div 
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: index * 0.05 }}
+      <div 
         className={cn(
           "flex items-center gap-3 p-3 rounded-xl transition-all group relative border",
           isActive 
             ? "bg-white/10 border-primary/30 shadow-[0_0_30px_rgba(153,102,204,0.15)] ring-1 ring-primary/20" 
             : "bg-white/[0.02] border-white/[0.05] hover:bg-white/5 hover:border-white/10",
-          isDragging && "opacity-0 scale-95", // Hide the ghost item roughly
-          isOver && !isDragging && "translate-y-1 bg-white/10"
         )}
       >
-        {/* Placeholder visual when dragging */}
-        {isDragging && (
-          <div className="absolute inset-0 bg-primary/5 rounded-xl border border-dashed border-primary/20 flex items-center justify-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary/20 animate-pulse" />
-          </div>
-        )}
-
         <div className="flex items-center gap-3">
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-white/10 hover:text-white/40 transition-colors p-1 touch-none">
+          <div 
+            onPointerDown={(e) => {
+              if (canReorder) {
+                controls.start(e);
+              }
+            }}
+            className={cn(
+              "p-1 transition-colors touch-none",
+              !canReorder 
+                ? "text-white/5 cursor-not-allowed" 
+                : "cursor-grab active:cursor-grabbing text-white/20 hover:text-primary"
+            )}
+            title={!canReorder ? "Cannot reorder while filtering" : "Drag to reorder"}
+          >
             <GripVertical className="w-4 h-4" />
           </div>
           <span className="text-[9px] font-mono font-bold text-white/10 w-4 group-hover:text-white/30 transition-colors">
@@ -218,8 +167,8 @@ function SortableQueueItem({ album, onRemove, onPlay, isActive, index }: Sortabl
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
-      </motion.div>
-    </div>
+      </div>
+    </Reorder.Item>
   );
 }
 
@@ -691,8 +640,36 @@ export default function AudioPlayer() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isDownloadsOpen, setIsDownloadsOpen] = useState(false);
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  
+
+  const [isVolumeHovered, setIsVolumeHovered] = useState(false);
+  const [isMainVolumeHovered, setIsMainVolumeHovered] = useState(false);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if focus is in an input (except the search input itself for Esc)
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      if (isQueueOpen) {
+        if (e.key === '/' && !isInput) {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+        }
+        if (e.key === 'Escape') {
+          if (queueSearch && target === searchInputRef.current) {
+            setQueueSearch('');
+          } else if (!isInput || target === searchInputRef.current) {
+            setIsQueueOpen(false);
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isQueueOpen, queueSearch]);
+
   const handleDeleteDownload = async (albumId: string) => {
     await offlineService.deleteAlbum(albumId);
     const updatedIds = await offlineService.getOfflineAlbumIds();
@@ -918,20 +895,6 @@ export default function AudioPlayer() {
     syncOfflineStatus();
   }, [location.pathname]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
-      },
-    })
-  );
-
   // Initialize Streaming Services
   useEffect(() => {
     if (audioRef1.current && audioRef2.current) {
@@ -1094,22 +1057,6 @@ export default function AudioPlayer() {
     window.addEventListener('premium-required', handlePremiumReq);
     return () => window.removeEventListener('premium-required', handlePremiumReq);
   }, []);
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveDragId(event.active.id as string);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveDragId(null);
-    if (over && active.id !== over.id) {
-      const oldIndex = queue.findIndex((item) => item.id === active.id);
-      const newIndex = queue.findIndex((item) => item.id === over.id);
-      reorderQueue(arrayMove(queue, oldIndex, newIndex));
-    }
-  };
-
-  const activeDraggingAlbum = queue.find(a => a.id === activeDragId);
 
   const handleDownload = async () => {
     if (!currentAlbum || userTier !== 'premium') {
@@ -1309,6 +1256,21 @@ export default function AudioPlayer() {
             <div className="hidden sm:flex flex-col items-center gap-2 flex-1">
               <div className="flex items-center gap-6">
                 <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    hapticFeedback.light();
+                    toggleShuffle();
+                  }}
+                  className={cn(
+                    "transition-all p-2 transform hover:scale-110 active:scale-95",
+                    isShuffled ? "text-primary" : "text-white/20 hover:text-white"
+                  )}
+                  aria-label="Shuffle"
+                  title="Shuffle"
+                >
+                  <Shuffle className="w-4 h-4" />
+                </button>
+                <button 
                   onClick={(e) => { e.stopPropagation(); previous(); }} 
                   className="text-white/40 hover:text-white transition-colors p-2"
                   aria-label="Previous Track"
@@ -1345,6 +1307,24 @@ export default function AudioPlayer() {
                   title="Next Track"
                 >
                   <SkipForward className="w-5 h-5 fill-current" />
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    hapticFeedback.light();
+                    toggleRepeat();
+                  }}
+                  className={cn(
+                    "transition-all p-2 transform hover:scale-110 active:scale-95 relative group/repeat-mini",
+                    repeatMode !== 'none' ? "text-primary" : "text-white/20 hover:text-white"
+                  )}
+                  aria-label={`Repeat: ${repeatMode}`}
+                  title={`Repeat: ${repeatMode}`}
+                >
+                  {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+                  {repeatMode !== 'none' && (
+                    <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(153,102,204,0.8)]" />
+                  )}
                 </button>
               </div>
               <div className="flex items-center gap-3">
@@ -1389,7 +1369,11 @@ export default function AudioPlayer() {
               </button>
               
               {/* Volume Control in Mini Player */}
-              <div className="hidden md:flex items-center gap-2 group/volume relative">
+              <div 
+                className="hidden md:flex items-center group/volume relative h-full"
+                onMouseEnter={() => setIsVolumeHovered(true)}
+                onMouseLeave={() => setIsVolumeHovered(false)}
+              >
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1397,27 +1381,83 @@ export default function AudioPlayer() {
                     setVolume(newVol);
                     hapticFeedback.medium();
                   }}
-                  className="p-2 text-white/30 hover:text-white transition-colors"
+                  className="p-2 text-white/30 hover:text-white transition-colors relative z-20"
                 >
-                  {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                  {volume === 0 ? <VolumeX className="w-5 h-5 text-primary/60" /> : <Volume2 className="w-5 h-5" />}
+                  {volume > 0 && (
+                    <motion.div 
+                      layoutId="volume-pulsar"
+                      className="absolute inset-0 bg-primary/20 blur-lg rounded-full -z-10"
+                      animate={{ 
+                        scale: isVolumeHovered ? [1.2, 1.6, 1.2] : [1, 1.2, 1], 
+                        opacity: isVolumeHovered ? [0.4, 0.6, 0.4] : [0.1, 0.2, 0.1] 
+                      }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                    />
+                  )}
                 </button>
-                <div className="w-0 group-hover/volume:w-20 overflow-hidden transition-all duration-300 ease-out flex items-center">
-                  <input 
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={volume}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => {
-                      const newVolume = parseFloat(e.target.value);
-                      if (Math.abs(newVolume - volume) > 0.05) {
-                        hapticFeedback.selection();
-                      }
-                      setVolume(newVolume);
-                    }}
-                    className="w-20 h-1 bg-white/10 rounded-full appearance-none accent-primary cursor-pointer hover:accent-white transition-all"
-                  />
+                
+                <div className="flex items-center pr-2 h-8 relative">
+                  {/* Subtle track hint for discoverability when not hovered */}
+                  {!isVolumeHovered && (
+                    <motion.div 
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: 12 }}
+                      className="h-1 bg-white/5 rounded-full ml-1"
+                    />
+                  )}
+                  
+                  <AnimatePresence>
+                    {isVolumeHovered && (
+                      <motion.div 
+                        initial={{ width: 0, opacity: 0, x: -10 }}
+                        animate={{ width: 100, opacity: 1, x: 0 }}
+                        exit={{ width: 0, opacity: 0, x: -10 }}
+                        className="overflow-hidden flex items-center"
+                        transition={{ type: "spring", stiffness: 400, damping: 40 }}
+                      >
+                        <div className="relative w-24 flex items-center h-8 px-2 group/slider-container">
+                           <input 
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={volume}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              const newVolume = parseFloat(e.target.value);
+                              if (Math.abs(newVolume - volume) > 0.05) {
+                                hapticFeedback.selection();
+                              }
+                              setVolume(newVolume);
+                            }}
+                            className="w-full h-1.5 bg-white/10 rounded-full appearance-none accent-transparent cursor-pointer hover:bg-white/20 transition-all relative z-10"
+                          />
+                          {/* Richer track highlight */}
+                          <motion.div 
+                            className="absolute h-1.5 bg-gradient-to-r from-primary/60 to-primary left-2 rounded-full pointer-events-none shadow-[0_0_10px_rgba(153,102,204,0.5)]"
+                            style={{ width: `calc(${volume * 100}% - 4px)` }}
+                            animate={{ 
+                              backgroundColor: volume > 0.8 ? "#ff4444" : "#9966cc",
+                            }}
+                          />
+                          {/* Animated Thumb Indicator */}
+                          <motion.div 
+                            className="absolute w-3 h-3 bg-white rounded-full shadow-lg pointer-events-none z-20 border-2 border-primary"
+                            style={{ left: `calc(${volume * 100}% + 2px)` }}
+                            initial={false}
+                            animate={{ 
+                              scale: isVolumeHovered ? 1.2 : 1,
+                              x: "-50%"
+                            }}
+                          />
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                             <span className="text-[7px] font-bold text-primary font-mono tracking-tighter opacity-80">{Math.round(volume * 100)}%</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
@@ -1425,7 +1465,39 @@ export default function AudioPlayer() {
                 <div className="text-primary group-hover:text-primary transition-colors">
                    <Heart className="w-5 h-5" />
                 </div>
-                <span className="text-[8px] font-bold uppercase opacity-60">Save</span>
+                <span className="text-[8px] font-bold uppercase opacity-60">Like</span>
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+                disabled={isDownloading}
+                className={cn(
+                  "flex flex-col items-center gap-1 transition-all group",
+                  offlineAlbums.includes(currentAlbum.id) ? "text-primary" : "text-white/30 hover:text-white"
+                )}
+              >
+                <div className="relative">
+                  {isDownloading ? (
+                    <div className="relative w-5 h-5 flex items-center justify-center">
+                      <svg className="absolute -inset-1 w-7 h-7 -rotate-90">
+                        <circle cx="14" cy="14" r="11" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/10" />
+                        <motion.circle 
+                          cx="14" cy="14" r="11" fill="none" stroke="var(--color-primary)" strokeWidth="1.5"
+                          strokeDasharray={2 * Math.PI * 11}
+                          initial={{ strokeDashoffset: 2 * Math.PI * 11 }}
+                          animate={{ strokeDashoffset: (2 * Math.PI * 11) * (1 - downloadProgress) }}
+                        />
+                      </svg>
+                      <Download className="w-3 h-3 animate-pulse" />
+                    </div>
+                  ) : offlineAlbums.includes(currentAlbum.id) ? (
+                    <CheckCircle2 className="w-5 h-5 shadow-[0_0_10px_rgba(153,102,204,0.4)]" />
+                  ) : (
+                    <Download className="w-5 h-5 transition-transform group-hover:scale-110" />
+                  )}
+                </div>
+                <span className="text-[8px] font-bold uppercase text-white/40">
+                  {isDownloading ? `${Math.round(downloadProgress * 100)}%` : offlineAlbums.includes(currentAlbum.id) ? 'Saved' : 'Off'}
+                </span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsQueueOpen(true); }}
@@ -1797,7 +1869,18 @@ export default function AudioPlayer() {
                     {volume === 0 ? <VolumeX className="w-6 h-6 text-primary" /> : <Volume2 className="w-6 h-6" />}
                   </button>
                   
-                  <div className="flex-1 relative group/vslider">
+                  <div 
+                    className="flex-1 relative group/vslider h-12 flex items-center"
+                    onMouseEnter={() => setIsMainVolumeHovered(true)}
+                    onMouseLeave={() => setIsMainVolumeHovered(false)}
+                  >
+                    {/* Background track ticks for discoverability/precision */}
+                    <div className="absolute inset-x-0 h-1 flex justify-between px-1 pointer-events-none opacity-20">
+                      {[...Array(11)].map((_, i) => (
+                        <div key={i} className="w-0.5 h-full bg-white rounded-full" />
+                      ))}
+                    </div>
+
                     <input 
                       type="range"
                       min="0"
@@ -1811,12 +1894,57 @@ export default function AudioPlayer() {
                         }
                         setVolume(newVolume);
                       }}
-                      className="w-full h-1.5 bg-white/10 rounded-full appearance-none accent-primary cursor-pointer transition-all group-hover/vslider:h-2"
+                      className="w-full h-2 bg-white/10 rounded-full appearance-none accent-transparent cursor-pointer transition-all relative z-10 hover:bg-white/15"
                     />
-                    <div 
-                      className="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-primary pointer-events-none group-hover/vslider:h-2 transition-all shadow-[0_0_10px_rgba(153,102,204,0.4)]"
+                    
+                    <motion.div 
+                      className="absolute top-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-primary/40 to-primary pointer-events-none shadow-[0_0_20px_rgba(153,102,204,0.4)]"
                       style={{ width: `${volume * 100}%` }}
+                      animate={{ 
+                        height: isMainVolumeHovered ? 10 : 8,
+                        opacity: volume > 0 ? 1 : 0.3,
+                        backgroundColor: volume > 0.9 ? "#ff4444" : "#9966cc"
+                      }}
                     />
+
+                    {/* Custom Animated Thumb */}
+                    <motion.div 
+                      className="absolute w-5 h-5 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.4)] pointer-events-none z-20 border-2 border-primary"
+                      style={{ left: `${volume * 100}%` }}
+                      initial={false}
+                      animate={{ 
+                        scale: isMainVolumeHovered ? 1.15 : 1,
+                        x: "-50%",
+                        y: "-50%",
+                        top: "50%"
+                      }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                    
+                    {/* Visual feedback indicator */}
+                    <AnimatePresence>
+                      {isMainVolumeHovered && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 15, scale: 0.9 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 15, scale: 0.9 }}
+                          className="absolute -top-10 left-0 right-0 flex justify-center pointer-events-none"
+                        >
+                          <div className={cn(
+                            "backdrop-blur-xl px-4 py-1.5 rounded-full border shadow-2xl flex items-center gap-2",
+                            volume > 0.8 ? "bg-red-500/20 border-red-500/30" : "bg-primary/20 border-primary/30"
+                          )}>
+                            <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", volume > 0.8 ? "bg-red-500" : "bg-primary")} />
+                            <span className={cn(
+                              "text-[10px] font-bold uppercase tracking-[0.2em] font-mono",
+                              volume > 0.8 ? "text-red-400" : "text-primary"
+                            )}>
+                              {volume > 0.8 ? 'Intense' : volume > 0.4 ? 'Vibrant' : 'Ambient'}: {Math.round(volume * 100)}%
+                            </span>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   <span className="text-[10px] font-mono text-white/40 w-10 text-right font-bold tabular-nums">
@@ -2072,11 +2200,45 @@ export default function AudioPlayer() {
             >
               <div className="p-6 flex flex-col gap-4 border-b border-white/10">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-serif font-bold text-white italic">Playback Queue</h2>
-                    <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">
-                      {queue.length} Experiences Staged
-                    </p>
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <h2 className="text-xl font-serif font-bold text-white italic">Playback Queue</h2>
+                      <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">
+                        {queue.length} Experiences Staged
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg">
+                      <button 
+                        onClick={() => {
+                          hapticFeedback.light();
+                          toggleShuffle();
+                        }}
+                        className={cn(
+                          "p-2 rounded-md transition-all",
+                          isShuffled ? "bg-primary/20 text-primary" : "text-white/20 hover:text-white"
+                        )}
+                        title="Shuffle Queue"
+                      >
+                        <Shuffle className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          hapticFeedback.light();
+                          toggleRepeat();
+                        }}
+                        className={cn(
+                          "p-2 rounded-md transition-all relative",
+                          repeatMode !== 'none' ? "bg-primary/20 text-primary" : "text-white/20 hover:text-white"
+                        )}
+                        title={`Repeat: ${repeatMode}`}
+                      >
+                        {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+                        {repeatMode !== 'none' && (
+                          <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <button 
                     onClick={() => setIsQueueOpen(false)}
@@ -2086,27 +2248,71 @@ export default function AudioPlayer() {
                   </button>
                 </div>
 
-                {/* Queue Search Interface */}
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-primary/5 rounded-xl blur-lg group-focus-within:bg-primary/10 transition-all opacity-0 group-focus-within:opacity-100" />
-                  <div className="relative flex items-center gap-3 px-4 py-3 bg-white/[0.03] border border-white/10 rounded-xl group-focus-within:border-primary/30 group-focus-within:bg-white/[0.05] transition-all">
-                    <Search className="w-4 h-4 text-white/20 group-focus-within:text-primary transition-colors" />
-                    <input 
-                      type="text"
-                      placeholder="Filter staged frequencies..."
-                      value={queueSearch}
-                      onChange={(e) => setQueueSearch(e.target.value)}
-                      className="flex-1 bg-transparent border-none outline-none text-xs text-white placeholder:text-white/20 font-medium"
-                    />
-                    {queueSearch && (
-                      <button 
-                        onClick={() => setQueueSearch('')}
-                        className="p-1 hover:bg-white/10 rounded-full transition-colors"
-                      >
-                        <X className="w-3 h-3 text-white/40" />
-                      </button>
-                    )}
-                  </div>
+                {/* Queue Search Interface - Refined with interaction feedback */}
+                <div className="relative">
+                  <motion.div 
+                    initial={false}
+                    animate={{ 
+                      scale: queueSearch ? 1.01 : 1,
+                      boxShadow: queueSearch ? "0 0 20px rgba(153,102,204,0.1)" : "0 0 0px rgba(0,0,0,0)"
+                    }}
+                    className="relative group overflow-hidden rounded-xl"
+                  >
+                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
+                    <div className="relative flex items-center gap-3 px-4 py-3 bg-white/[0.03] border border-white/10 group-focus-within:border-primary/40 group-focus-within:bg-white/[0.06] transition-all duration-300">
+                      <div className="relative">
+                        <Search className={cn(
+                          "w-4 h-4 transition-colors duration-300",
+                          queueSearch ? "text-primary" : "text-white/20 group-focus-within:text-primary/70"
+                        )} />
+                        {queueSearch && (
+                          <motion.div 
+                            layoutId="search-pulse"
+                            className="absolute -inset-1 bg-primary/20 blur-md rounded-full -z-10"
+                            animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+                            transition={{ repeat: Infinity, duration: 2 }}
+                          />
+                        )}
+                      </div>
+                      <input 
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder="Search tracks in queue..."
+                        value={queueSearch}
+                        onChange={(e) => setQueueSearch(e.target.value)}
+                        className="flex-1 bg-transparent border-none outline-none text-xs text-white placeholder:text-white/20 font-medium placeholder:italic tracking-wide"
+                      />
+                      <div className="flex items-center gap-2">
+                        {queueSearch && (
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="px-1.5 py-0.5 rounded-md bg-primary/10 border border-primary/20"
+                          >
+                            <span className="text-[8px] font-bold text-primary tabular-nums">
+                              {queue.filter(a => 
+                                a.title.toLowerCase().includes(queueSearch.toLowerCase()) || 
+                                a.artist.toLowerCase().includes(queueSearch.toLowerCase())
+                              ).length}
+                            </span>
+                          </motion.div>
+                        )}
+                        {queueSearch ? (
+                          <button 
+                            onClick={() => setQueueSearch('')}
+                            className="p-1 hover:bg-white/10 rounded-full transition-colors group/clear"
+                            title="Clear search (Esc)"
+                          >
+                            <X className="w-3 h-3 text-white/40 group-hover/clear:text-white" />
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1 opacity-20 pointer-events-none group-focus-within:opacity-0 transition-opacity">
+                            <kbd className="h-4 w-4 flex items-center justify-center rounded border border-white/20 text-[9px] font-mono">/</kbd>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
                 </div>
               </div>
 
@@ -2316,83 +2522,42 @@ export default function AudioPlayer() {
                       a.title.toLowerCase().includes(queueSearch.toLowerCase()) || 
                       a.artist.toLowerCase().includes(queueSearch.toLowerCase())
                     ).length === 0 ? (
-                    <div className="py-20 text-center">
-                      <p className="text-xs text-white/20 italic uppercase tracking-[0.2em]">No matching frequencies</p>
+                    <div className="py-20 text-center px-6">
+                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4 border border-white/10">
+                        <Search className="w-5 h-5 text-white/10" />
+                      </div>
+                      <p className="text-xs text-white/40 italic font-serif">"No matching frequencies found in this sequence"</p>
+                      <button 
+                        onClick={() => setQueueSearch('')}
+                        className="mt-6 text-[9px] font-bold text-primary uppercase tracking-[0.2em] hover:text-white transition-colors"
+                      >
+                        Clear Filter
+                      </button>
                     </div>
                   ) : (
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
+                    <Reorder.Group 
+                      axis="y" 
+                      values={queue} 
+                      onReorder={reorderQueue}
+                      className="space-y-2"
                     >
-                      <SortableContext
-                        items={queue.filter(a => 
+                      {queue
+                        .filter(a => 
                           a.title.toLowerCase().includes(queueSearch.toLowerCase()) || 
                           a.artist.toLowerCase().includes(queueSearch.toLowerCase())
-                        ).map(a => a.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <div className="space-y-2">
-                          {queue
-                            .filter(a => 
-                              a.title.toLowerCase().includes(queueSearch.toLowerCase()) || 
-                              a.artist.toLowerCase().includes(queueSearch.toLowerCase())
-                            )
-                            .map((album, index) => (
-                              <SortableQueueItem 
-                                key={album.id}
-                                album={album}
-                                isActive={currentAlbum.id === album.id}
-                                onPlay={setAlbum}
-                                onRemove={removeFromQueue}
-                                index={index}
-                              />
-                            ))}
-                        </div>
-                      </SortableContext>
-                      
-                      <DragOverlay dropAnimation={{
-                        sideEffects: defaultDropAnimationSideEffects({
-                          styles: {
-                            active: {
-                              opacity: '0.4',
-                              filter: 'blur(4px)',
-                            },
-                          },
-                        }),
-                      }}>
-                        {activeDraggingAlbum ? (
-                          <motion.div 
-                            initial={{ scale: 1, rotate: 0 }}
-                            animate={{ scale: 1.05, rotate: -2, y: -10 }}
-                            className="flex items-center gap-3 p-3 rounded-xl bg-[#111] border border-primary/40 shadow-[0_40px_80px_rgba(0,0,0,0.9)] backdrop-blur-2xl z-[200] cursor-grabbing w-[calc(100%-2rem)] max-w-sm ring-2 ring-primary/20"
-                          >
-                            <div className="text-primary p-1">
-                              <GripVertical className="w-4 h-4" />
-                            </div>
-                            <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 shadow-2xl ring-1 ring-white/20">
-                              <img src={activeDraggingAlbum.coverUrl || undefined} className="w-full h-full object-cover" alt="" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-xs font-bold text-white truncate italic tracking-tight">{activeDraggingAlbum.title}</h4>
-                              <p className="text-[9px] text-primary line-clamp-1 italic mb-0.5 font-medium">
-                                Shifting Universe...
-                              </p>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                {activeDraggingAlbum.isDownloaded && (
-                                  <CheckCircle2 className="w-2.5 h-2.5 text-primary/80" />
-                                )}
-                                <p className="text-[10px] text-white/40 uppercase tracking-widest truncate">{activeDraggingAlbum.artist}</p>
-                              </div>
-                            </div>
-                            <div className="px-3 py-1.5 rounded-full bg-primary text-black">
-                              <span className="text-[8px] font-bold uppercase tracking-[0.2em] whitespace-nowrap">Relocating</span>
-                            </div>
-                          </motion.div>
-                        ) : null}
-                      </DragOverlay>
-                    </DndContext>
+                        )
+                        .map((album, index) => (
+                          <QueueItem 
+                            key={album.id}
+                            album={album}
+                            isActive={currentAlbum.id === album.id}
+                            onPlay={setAlbum}
+                            onRemove={removeFromQueue}
+                            index={index}
+                            canReorder={!queueSearch}
+                          />
+                        ))}
+                    </Reorder.Group>
                   )}
                 </section>
               </div>

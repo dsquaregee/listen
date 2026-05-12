@@ -20,16 +20,22 @@ export default function CategoryExplore() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
+        console.log(`Exploring Category: ${slug}`);
         // Try Firestore first
         const q = query(collection(db, 'categories'), where('slug', '==', slug));
         const sn = await getDocs(q);
         
         let activeCat: Category | undefined;
+        let fromMock = false;
+        
         if (!sn.empty) {
           activeCat = { id: sn.docs[0].id, ...sn.docs[0].data() } as Category;
+          console.log('Category found in Firestore:', activeCat.id);
         } else {
           // Fallback to mock
-          activeCat = MOCK_CATEGORIES.find(c => c.slug === slug);
+          activeCat = MOCK_CATEGORIES.find(c => c.slug?.toLowerCase() === slug?.toLowerCase());
+          fromMock = true;
+          console.log('Category fallback to Mock:', activeCat?.id);
         }
 
         if (activeCat) {
@@ -42,19 +48,28 @@ export default function CategoryExplore() {
           );
           const albumsSn = await getDocs(albumsQ);
           
+          // Also try fallback to mock ID if the slug matches a mock category
+          const mockCat = MOCK_CATEGORIES.find(c => c.slug?.toLowerCase() === slug?.toLowerCase());
+          
+          let combinedAlbums: Album[] = [];
+          
           if (!albumsSn.empty) {
-            setAlbums(albumsSn.docs.map(doc => ({ id: doc.id, ...doc.data() } as Album)));
-          } else {
-            // 2. Fallback to mock filtering - support both Firestore ID and Mock ID
-            const mockCat = MOCK_CATEGORIES.find(c => c.slug === slug);
-            const albumsToShow = MOCK_ALBUMS.filter(a => 
+            combinedAlbums = albumsSn.docs.map(doc => ({ id: doc.id, ...doc.data() } as Album));
+          }
+          
+          // If Firestore is empty for this category, or if we want to show mock data as well during dev/setup
+          if (combinedAlbums.length === 0) {
+            const mockAlbumsToShow = MOCK_ALBUMS.filter(a => 
               a.categoryId === activeCat?.id || (mockCat && a.categoryId === mockCat.id)
             );
-            setAlbums(albumsToShow);
+            combinedAlbums = [...combinedAlbums, ...mockAlbumsToShow];
           }
+          
+          console.log(`Found ${combinedAlbums.length} albums for category`);
+          setAlbums(combinedAlbums);
         }
       } catch (e) {
-        console.error(e);
+        console.error('CategoryExplore fetch error:', e);
       } finally {
         setIsLoading(false);
       }
@@ -69,8 +84,11 @@ export default function CategoryExplore() {
   );
 
   if (!category) return (
-    <div className="pt-32 text-center h-screen bg-black text-white/40">
-      Category not found
+    <div className="pt-32 text-center h-screen bg-black text-white/40 flex flex-col items-center justify-center gap-4">
+      <p className="text-xl font-serif italic">Category not found</p>
+      <Link to="/" className="text-primary uppercase text-[10px] font-bold tracking-widest hover:underline">
+        Return to Home
+      </Link>
     </div>
   );
 
@@ -90,28 +108,37 @@ export default function CategoryExplore() {
         Universe Active
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {albums.map((album) => (
-          <motion.div 
-            key={album.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="group cursor-pointer"
-            onClick={() => setAlbum(album)}
-          >
-            <div className="relative aspect-video rounded-2xl overflow-hidden mb-4 shadow-2xl">
-              <img src={album.coverUrl || undefined} alt={album.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Play className="w-12 h-12 text-white fill-current" />
+      {albums.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {albums.map((album) => (
+            <motion.div 
+              key={album.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="group cursor-pointer"
+              onClick={() => setAlbum(album)}
+            >
+              <div className="relative aspect-video rounded-2xl overflow-hidden mb-4 shadow-2xl">
+                <img src={album.coverUrl || undefined} alt={album.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Play className="w-12 h-12 text-white fill-current" />
+                </div>
               </div>
-            </div>
-            <h3 className="text-xl font-serif italic text-white group-hover:text-primary transition-colors">{album.title}</h3>
-            <p className="text-white/40 text-[10px] uppercase tracking-widest mt-1 font-mono italic">
-              {album.tier === 'premium' ? 'Premium Experience' : 'Standard journey'}
-            </p>
-          </motion.div>
-        ))}
-      </div>
+              <h3 className="text-xl font-serif italic text-white group-hover:text-primary transition-colors">{album.title}</h3>
+              <p className="text-white/40 text-[10px] uppercase tracking-widest mt-1 font-mono italic">
+                {album.tier === 'premium' ? 'Premium Experience' : 'Standard journey'}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="py-32 text-center border-t border-white/5">
+          <p className="text-white/20 italic font-serif text-lg mb-4">This cinematic universe is still being composed...</p>
+          <Link to="/" className="text-primary uppercase text-[10px] font-bold tracking-widest hover:underline">
+            Explore other worlds
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

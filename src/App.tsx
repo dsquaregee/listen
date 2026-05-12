@@ -17,6 +17,7 @@ import { InstallPrompt } from './components/InstallPrompt';
 
 // Pages
 import Home from './pages/Home';
+import Explore from './pages/Explore';
 import AlbumDetail from './pages/AlbumDetail';
 import CategoryExplore from './pages/CategoryExplore';
 import Profile from './pages/Profile';
@@ -108,6 +109,7 @@ export default function App() {
           <main className="flex-1 pb-32">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/explore" element={<Explore />} />
               <Route path="/album/:id" element={<AlbumDetail />} />
               <Route path="/category/:slug" element={<CategoryExplore />} />
               <Route path="/profile" element={<Profile />} />

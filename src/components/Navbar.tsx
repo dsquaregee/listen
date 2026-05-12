@@ -105,6 +105,7 @@ export default function Navbar() {
 
   const navItems = [
     { name: 'Home', path: '/', icon: Home },
+    { name: 'Explore', path: '/explore', icon: Search },
     { name: 'Playlists', path: '/playlists', icon: Library },
     { name: 'Subscribe', path: '/premium', icon: Crown },
   ];

@@ -50,7 +50,19 @@ export default function Home() {
   if (!featured) return null;
 
   const albumsByCategory = categories.reduce((acc, cat) => {
-    acc[cat.id] = albums.filter(album => album.categoryId === cat.id);
+    // 1. Get albums from Firestore that match this category
+    const dbAlbums = albums.filter(album => album.categoryId === cat.id);
+    
+    // 2. If Firestore is empty for this category, try to find matching mock albums
+    // This helps during transitions when categories are created but albums aren't yet
+    if (dbAlbums.length === 0) {
+      const mockCat = MOCK_CATEGORIES.find(c => c.slug?.toLowerCase() === cat.slug?.toLowerCase());
+      const mockAlbums = MOCK_ALBUMS.filter(a => a.categoryId === cat.id || (mockCat && a.categoryId === mockCat.id));
+      acc[cat.id] = mockAlbums;
+    } else {
+      acc[cat.id] = dbAlbums;
+    }
+    
     return acc;
   }, {} as Record<string, Album[]>);
 
@@ -129,7 +141,7 @@ export default function Home() {
                 <p className="text-[10px] uppercase font-bold tracking-[0.3em] text-white/30">{cat.description}</p>
               </div>
               <Link 
-                to={`/category/${cat.slug}`}
+                to={`/explore?category=${cat.id}`}
                 className="text-[10px] text-primary uppercase font-bold tracking-widest hover:underline mb-2"
               >
                 Explore All
@@ -189,6 +201,48 @@ export default function Home() {
           </motion.section>
         ))}
       </div>
+
+      {/* Global Explorer - Show all albums regardless of category */}
+      <section className="mt-32 max-w-7xl mx-auto px-4">
+        <div className="flex justify-between items-end mb-12 border-b border-primary/10 pb-6">
+          <div>
+            <h2 className="text-4xl sm:text-5xl font-serif font-bold italic text-white mb-3">Infinite Resonance</h2>
+            <p className="text-[10px] uppercase font-bold tracking-[0.4em] text-white/30">Exploring every frequency in the cinematic spectrum</p>
+          </div>
+          <div className="text-[10px] text-white/20 uppercase font-bold tracking-widest mb-3">
+            {albums.length} Manifestations
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {albums.map((album, idx) => (
+            <motion.div 
+              key={album.id + '-global'}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: (idx % 4) * 0.1 }}
+              className="group cursor-pointer"
+              onClick={() => setAlbum(album)}
+            >
+              <div className="relative aspect-square rounded-3xl overflow-hidden mb-4 shadow-xl group-hover:shadow-primary/5 transition-all">
+                <OptimizedImage 
+                  src={album.coverUrl} 
+                  alt={album.title} 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Play className="w-10 h-10 text-white fill-current" />
+                </div>
+              </div>
+              <h4 className="text-lg font-serif italic text-white group-hover:text-primary transition-colors truncate">{album.title}</h4>
+              <p className="text-[9px] uppercase tracking-widest text-white/30 font-bold mt-1">
+                {categories.find(c => c.id === album.categoryId)?.name || 'Unknown Cosmos'}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
 
       {/* Trending / Global - Sophisticated Footer section */}
       <section className="mt-32 max-w-7xl mx-auto px-4 mb-20 text-center">
