@@ -335,6 +335,25 @@ async function startServer() {
     logToFile(`Server actually listening on http://0.0.0.0:${PORT}`);
   });
   server.timeout = 600000; // 10 minutes
+
+  // Optional: Try to set CORS for the bucket if we have permissions
+  if (bucketName) {
+    try {
+      logToFile(`Attempting to ensure CORS for bucket: ${bucketName}`);
+      await storage.bucket(bucketName).setCorsConfiguration([
+        {
+          maxAgeSeconds: 3600,
+          method: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
+          origin: ['*'],
+          responseHeader: ['Content-Type', 'x-goog-resumable'],
+        },
+      ]);
+      logToFile('CORS configuration applied successfully.');
+    } catch (e) {
+      logToFile(`Warning: Could not automatically set CORS (this is common if the service account lacks storage.buckets.update): ${e instanceof Error ? e.message : String(e)}`);
+      logToFile('Manual tip: Ensure your GCS bucket has CORS allowed for your domain.');
+    }
+  }
 }
 
 startServer().catch(err => logToFile(`Startup Crash: ${err.message}`));

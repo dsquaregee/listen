@@ -99,13 +99,20 @@ export default function AlbumManager() {
             albumTitle: currentData.title || 'untitled-album'
           }),
         });
-        if (!response.ok) throw new Error('Failed to offload artwork to GCS');
+        
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to offload artwork to GCS');
+        }
+        
         const { url } = await response.json();
         addDebugLog('Artwork offloaded successfully.');
         return url;
       } catch (e) {
         console.error('Offload error:', e);
-        return currentData.coverUrl; // Fallback to base64 if upload fails, though this might still hit the limit
+        const errorMsg = e instanceof Error ? e.message : String(e);
+        addDebugLog(`Artwork upload failed: ${errorMsg}`);
+        throw new Error(`Artwork offload failed: ${errorMsg}. Cannot save large image directly to database.`);
       }
     }
     return currentData.coverUrl;
@@ -434,42 +441,47 @@ export default function AlbumManager() {
     let detectedBucket = '';
 
     try {
-      addDebugLog(`Uploading ${manualFiles.length} files...`);
+      addDebugLog(`Uploading ${manualFiles.length} files in batches...`);
       
-      const uploadPromises = manualFiles.map(async (file) => {
-        // 1. Get signed URL for this file in the final album directory
-        const urlResponse = await fetch('/api/get-upload-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName: file.name,
-            contentType: file.type || 'application/octet-stream',
-            albumId: albumId
-          }),
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < manualFiles.length; i += BATCH_SIZE) {
+        const batch = manualFiles.slice(i, i + BATCH_SIZE);
+        const batchPromises = batch.map(async (file) => {
+          // 1. Get signed URL for this file in the final album directory
+          const urlResponse = await fetch('/api/get-upload-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: file.name,
+              contentType: file.type || 'application/octet-stream',
+              albumId: albumId
+            }),
+          });
+
+          if (!urlResponse.ok) throw new Error(`Failed to get URL for ${file.name}`);
+          const { uploadUrl, gcsPath, bucketName } = await urlResponse.json();
+          detectedBucket = bucketName;
+
+          // 2. Upload to GCS
+          const gcsResponse = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': file.type || 'application/octet-stream' },
+            body: file,
+          });
+
+          if (!gcsResponse.ok) throw new Error(`Failed to upload ${file.name}`);
+
+          addDebugLog(`Uploaded: ${file.name}`);
+
+          // 3. Identify master playlist
+          if (file.name === 'index.m3u8' || file.name === 'playlist.m3u8') {
+            masterPlaylistUrl = `https://storage.googleapis.com/${bucketName}/${gcsPath}`;
+          }
         });
 
-        if (!urlResponse.ok) throw new Error(`Failed to get URL for ${file.name}`);
-        const { uploadUrl, gcsPath, bucketName } = await urlResponse.json();
-        detectedBucket = bucketName;
-
-        // 2. Upload to GCS
-        const gcsResponse = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': file.type || 'application/octet-stream' },
-          body: file,
-        });
-
-        if (!gcsResponse.ok) throw new Error(`Failed to upload ${file.name}`);
-
-        addDebugLog(`Uploaded: ${file.name}`);
-
-        // 3. Identify master playlist
-        if (file.name === 'index.m3u8' || file.name === 'playlist.m3u8') {
-          masterPlaylistUrl = `https://storage.googleapis.com/${bucketName}/${gcsPath}`;
-        }
-      });
-
-      await Promise.all(uploadPromises);
+        await Promise.all(batchPromises);
+        addDebugLog(`Progress: ${Math.min(i + BATCH_SIZE, manualFiles.length)}/${manualFiles.length}`);
+      }
 
       if (masterPlaylistUrl) {
         setFormData(prev => ({ ...prev, hlsUrl: masterPlaylistUrl }));
