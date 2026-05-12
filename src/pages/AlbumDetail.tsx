@@ -55,7 +55,7 @@ export default function AlbumDetail() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -103,8 +103,8 @@ export default function AlbumDetail() {
             animate={{ y: 0, opacity: 1 }}
             className="relative w-48 h-48 md:w-64 md:h-64 shrink-0 transition-transform hover:scale-105"
           >
-            <div className="absolute inset-2 blur-xl opacity-30 bg-primary/20 rounded-3xl" />
-            <div className="absolute -inset-4 blur-3xl opacity-20 bg-primary/10 rounded-full" />
+            <div className="absolute inset-2 blur-xl opacity-30 bg-accent/20 rounded-3xl" />
+            <div className="absolute -inset-4 blur-3xl opacity-20 bg-accent/10 rounded-full" />
             
             <div 
               className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 cursor-pointer group"
@@ -118,7 +118,7 @@ export default function AlbumDetail() {
               <img src={album.coverUrl || undefined} alt={album.title} className="w-full h-full object-cover" />
               {album.videoHlsUrl && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Play className="w-12 h-12 text-primary fill-current" />
+                  <Play className="w-12 h-12 text-accent fill-current" />
                 </div>
               )}
             </div>
@@ -134,10 +134,10 @@ export default function AlbumDetail() {
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl sm:text-5xl font-serif font-bold text-white italic tracking-tight">{album.title}</h1>
                 {album.tier === 'premium' && (
-                  <span className="px-2 py-0.5 rounded bg-primary text-black text-[8px] font-black uppercase tracking-widest">Premium</span>
+                  <span className="px-2 py-0.5 rounded bg-accent text-black text-[8px] font-black uppercase tracking-widest">Premium</span>
                 )}
               </div>
-              <p className="text-lg md:text-xl text-primary font-medium mb-6 uppercase tracking-[0.2em]">
+              <p className="text-lg md:text-xl text-accent font-medium mb-6 uppercase tracking-[0.2em]">
                 {album.tier === 'premium' ? 'Premium Experience' : 'Standard Journey'}
               </p>
               
@@ -147,7 +147,7 @@ export default function AlbumDetail() {
                     hapticFeedback.medium();
                     setAlbum(album);
                   }}
-                  className="flex items-center justify-center gap-3 px-6 md:px-8 py-3 bg-primary text-black font-bold rounded-full hover:scale-105 transition-transform uppercase text-[10px] md:text-xs tracking-widest shadow-lg shadow-primary/20"
+                  className="flex items-center justify-center gap-3 px-6 md:px-8 py-3 bg-accent text-black font-bold rounded-full hover:scale-105 transition-transform uppercase text-[10px] md:text-xs tracking-widest shadow-lg shadow-accent/20"
                 >
                   <Play className="w-4 h-4 fill-current" />
                   {isCurrent ? 'Now Playing' : 'Start Journey'}
@@ -221,7 +221,7 @@ export default function AlbumDetail() {
                       <p className="text-xs text-white/40 mb-4">No atmospheres initialized yet.</p>
                       <Link 
                         to="/playlists" 
-                        className="text-[10px] font-bold text-primary uppercase tracking-widest hover:text-white transition-colors"
+                        className="text-[10px] font-bold text-accent uppercase tracking-widest hover:text-white transition-colors"
                       >
                         Create Atmosphere
                       </Link>
@@ -242,19 +242,19 @@ export default function AlbumDetail() {
                             }}
                             className={cn(
                               "w-full flex items-center justify-between p-4 rounded-2xl transition-all group",
-                              isAdded ? "bg-primary/10 border border-primary/20" : "bg-white/5 hover:bg-white/10 border border-transparent"
+                              isAdded ? "bg-accent/10 border border-accent/20" : "bg-white/5 hover:bg-white/10 border border-transparent"
                             )}
                           >
                             <div className="flex flex-col items-start gap-1">
-                              <span className={cn("text-sm font-bold truncate", isAdded ? "text-primary" : "text-white")}>{pl.name}</span>
+                              <span className={cn("text-sm font-bold truncate", isAdded ? "text-accent" : "text-white")}>{pl.name}</span>
                               <span className="text-[10px] text-white/20 uppercase tracking-widest">{pl.albumIds.length} Experiences</span>
                             </div>
                             {isAdded ? (
-                              <Check className="w-4 h-4 text-primary" />
+                              <Check className="w-4 h-4 text-accent" />
                             ) : addingToPlaylistId === pl.id ? (
-                              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                             ) : (
-                              <Plus className="w-4 h-4 text-white/20 group-hover:text-primary transition-colors" />
+                              <Plus className="w-4 h-4 text-white/20 group-hover:text-accent transition-colors" />
                             )}
                           </button>
                         );
@@ -299,7 +299,7 @@ export default function AlbumDetail() {
                 </div>
                 <div className="flex flex-col justify-center overflow-hidden">
                   <h4 className="text-white font-medium truncate">{a.title}</h4>
-                  <p className="text-[10px] text-primary/40 uppercase tracking-widest">{formatTime(a.duration)}</p>
+                  <p className="text-[10px] text-accent/40 uppercase tracking-widest">{formatTime(a.duration)}</p>
                 </div>
               </Link>
             ))}

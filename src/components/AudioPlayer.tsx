@@ -71,7 +71,7 @@ function QueueItem({ album, onRemove, onPlay, isActive, index, canReorder }: Que
           >
             <div className="space-y-3">
               <div className="flex justify-between items-start gap-2">
-                <h5 className="text-[9px] font-bold text-primary uppercase tracking-[0.2em] opacity-80">Experience Intel</h5>
+                <h5 className="text-[9px] font-bold text-accent uppercase tracking-[0.2em] opacity-80">Experience Intel</h5>
                 <div className="flex items-center gap-1 text-[9px] text-white/40 font-mono">
                   <Clock className="w-2.5 h-2.5" />
                   {formatTime(album.duration)}
@@ -95,7 +95,7 @@ function QueueItem({ album, onRemove, onPlay, isActive, index, canReorder }: Que
         className={cn(
           "flex items-center gap-3 p-3 rounded-xl transition-all group relative border",
           isActive 
-            ? "bg-white/10 border-primary/30 shadow-[0_0_30px_rgba(153,102,204,0.15)] ring-1 ring-primary/20" 
+            ? "bg-white/10 border-accent/30 shadow-[0_0_30px_rgba(197,160,89,0.15)] ring-1 ring-accent/20" 
             : "bg-white/[0.02] border-white/[0.05] hover:bg-white/5 hover:border-white/10",
         )}
       >
@@ -122,7 +122,7 @@ function QueueItem({ album, onRemove, onPlay, isActive, index, canReorder }: Que
         </div>
         
         <div 
-          className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer shadow-lg group-hover:shadow-primary/10 transition-shadow"
+          className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer shadow-lg group-hover:shadow-accent/10 transition-shadow"
           onClick={() => onPlay(album)}
         >
           <img src={album.coverUrl || undefined} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
@@ -132,14 +132,14 @@ function QueueItem({ album, onRemove, onPlay, isActive, index, canReorder }: Que
         </div>
 
         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onPlay(album)}>
-          <h4 className={cn("text-xs font-bold truncate tracking-tight transition-colors flex items-center gap-2", isActive ? "text-primary" : "text-white group-hover:text-primary")}>
+          <h4 className={cn("text-xs font-bold truncate tracking-tight transition-colors flex items-center gap-2", isActive ? "text-accent" : "text-white group-hover:text-accent")}>
             {album.title}
             {isActive && (
               <motion.div
                 animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
               >
-                <Activity className="w-3 h-3 text-primary" />
+                <Activity className="w-3 h-3 text-accent" />
               </motion.div>
             )}
           </h4>

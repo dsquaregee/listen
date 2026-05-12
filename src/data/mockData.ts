@@ -100,5 +100,37 @@ export const MOCK_ALBUMS: Album[] = [
     isDownloaded: false,
     tier: 'free',
     createdAt: new Date().toISOString()
+  },
+  {
+    id: 'a5',
+    title: 'Ghatam Pulse',
+    artist: 'Percussion Project',
+    duration: 3600,
+    coverUrl: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&q=80&w=870',
+    hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    videoHlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    categoryId: '2',
+    description: 'Rhythmic exploration of the clay pot percussion in a fusion context.',
+    instruments: ['Ghatam', 'Electric Bass', 'Synthesizer'],
+    moodTags: ['Rhythmic', 'Driving', 'Modern'],
+    isDownloaded: false,
+    tier: 'free',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'a6',
+    title: 'Violin Horizons',
+    artist: 'Strings of Silk',
+    duration: 3600,
+    coverUrl: 'https://images.unsplash.com/photo-1465821508027-56738242295d?auto=format&fit=crop&q=80&w=870',
+    hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    videoHlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    categoryId: '1',
+    description: 'Sweeping Carnatic violin melodies over cinematic orchestral landscapes.',
+    instruments: ['Violin', 'Orchestra', 'Mridangam'],
+    moodTags: ['Sweeping', 'Cinematic', 'Emotional'],
+    isDownloaded: true,
+    tier: 'premium',
+    createdAt: new Date().toISOString()
   }
 ];

@@ -13,6 +13,7 @@ import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler
 // Layout & Components
 import Navbar from './components/Navbar';
 import AudioPlayer from './components/AudioPlayer';
+import PremiumGateway from './components/PremiumGateway';
 import { InstallPrompt } from './components/InstallPrompt';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { updateDoc } from 'firebase/firestore';
@@ -163,6 +164,7 @@ export default function App() {
           </main>
 
           <AudioPlayer />
+          <PremiumGateway />
           <InstallPrompt />
         </div>
       </Router>
