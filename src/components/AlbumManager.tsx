@@ -87,11 +87,38 @@ export default function AlbumManager() {
     fetchInitialData();
   }, []);
 
+  const uploadBase64IfNecessary = async (currentData: typeof formData): Promise<string> => {
+    if (currentData.coverUrl && currentData.coverUrl.startsWith('data:')) {
+      addDebugLog('Uploading artwork to GCS...');
+      try {
+        const response = await fetch('/api/upload-artwork', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base64: currentData.coverUrl,
+            albumTitle: currentData.title || 'untitled-album'
+          }),
+        });
+        if (!response.ok) throw new Error('Failed to offload artwork to GCS');
+        const { url } = await response.json();
+        addDebugLog('Artwork offloaded successfully.');
+        return url;
+      } catch (e) {
+        console.error('Offload error:', e);
+        return currentData.coverUrl; // Fallback to base64 if upload fails, though this might still hit the limit
+      }
+    }
+    return currentData.coverUrl;
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsProcessingAudio(true);
     try {
+      const coverUrl = await uploadBase64IfNecessary(formData);
       await firestoreAddDoc(collection(db, 'albums'), {
         ...formData,
+        coverUrl,
         createdAt: new Date().toISOString()
       });
       setIsAdding(false);
@@ -101,18 +128,27 @@ export default function AlbumManager() {
       console.error('ALBUM_PROPAGATION_ERROR:', error);
       alert('Failed to propagate album. Check console for details.');
       handleFirestoreError(error, OperationType.CREATE, 'albums');
+    } finally {
+      setIsProcessingAudio(false);
     }
   };
 
   const handleUpdate = async (id: string) => {
+    setIsProcessingAudio(true);
     try {
+      const coverUrl = await uploadBase64IfNecessary(formData);
       const albumRef = doc(db, 'albums', id);
-      await updateDoc(albumRef, formData);
+      await updateDoc(albumRef, {
+        ...formData,
+        coverUrl
+      });
       setEditingId(null);
       fetchInitialData();
     } catch (error) {
       alert('Failed to update matrix.');
       handleFirestoreError(error, OperationType.UPDATE, `albums/${id}`);
+    } finally {
+      setIsProcessingAudio(false);
     }
   };
 
@@ -250,7 +286,12 @@ export default function AlbumManager() {
       if (response.candidates?.[0]?.content?.parts) {
         for (const part of response.candidates[0].content.parts) {
           if (part.inlineData) {
-            setFormData(prev => ({ ...prev, coverUrl: `data:image/png;base64,${part.inlineData!.data}` }));
+            const base64Data = `data:image/png;base64,${part.inlineData!.data}`;
+            setFormData(prev => ({ ...prev, coverUrl: base64Data }));
+            
+            // Proactively upload to GCS to avoid keeping massive string in state/form if possible
+            const finalUrl = await uploadBase64IfNecessary({ ...formData, coverUrl: base64Data, title });
+            setFormData(prev => ({ ...prev, coverUrl: finalUrl }));
             return;
           }
         }

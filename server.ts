@@ -140,6 +140,45 @@ app.post('/api/get-upload-url', async (req, res) => {
   }
 });
 
+// Route to upload artwork (base64) to GCS
+app.post('/api/upload-artwork', async (req, res) => {
+  try {
+    const { base64, albumTitle } = req.body;
+    if (!base64 || !albumTitle) {
+      return res.status(400).json({ error: 'base64 and albumTitle are required' });
+    }
+
+    if (!bucketName) {
+      return res.status(500).json({ error: 'GCS_BUCKET_NAME is not configured' });
+    }
+
+    const matches = base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ error: 'Invalid base64 format' });
+    }
+
+    const type = matches[1];
+    const buffer = Buffer.from(matches[2], 'base64');
+    const extension = type.split('/')[1] || 'png';
+    const safeTitle = albumTitle.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const fileName = `artwork/${safeTitle}-${Date.now()}.${extension}`;
+
+    const file = storage.bucket(bucketName).file(fileName);
+    await file.save(buffer, {
+      metadata: { contentType: type },
+      public: true,
+    });
+
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+    logToFile(`Artwork uploaded to GCS: ${publicUrl}`);
+    res.json({ url: publicUrl });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logToFile(`Artwork Upload Failed: ${errMsg}`);
+    res.status(500).json({ error: 'Failed to upload artwork', details: errMsg });
+  }
+});
+
 // Audio Processing Route
 app.post('/api/process-audio', async (req, res) => {
   const { albumId, gcsPath } = req.body;
