@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -23,10 +22,18 @@ function getStripe() {
   return stripeClient;
 }
 
-// Unified __dirname and __filename for both ESM and CJS
-const _filename = fileURLToPath(import.meta.url);
-const _dirname = path.dirname(_filename);
-const logFile = path.resolve(_dirname, 'server.log');
+// Unified directory handling for both ESM and CJS
+// In bundled CJS, __dirname is available. In ESM (tsx), import.meta.url is used.
+let _dirname: string;
+try {
+  _dirname = __dirname;
+} catch (e) {
+  _dirname = path.dirname(fileURLToPath(import.meta.url));
+}
+
+// We prefer process.cwd() for persistent/generated files to keep them consistent
+// regardless of where the server script is located (root or dist/)
+const logFile = path.resolve(process.cwd(), 'server.log');
 function logToFile(message: string) {
   const timestamp = new Date().toISOString();
   const formattedMessage = `[${timestamp}] ${message}\n`;
@@ -34,7 +41,7 @@ function logToFile(message: string) {
   try {
     fs.appendFileSync(logFile, formattedMessage);
   } catch (e) {
-    console.error('Failed to write to log file:', e);
+    // Fallback if filesystem is read-only or error occurs
   }
 }
 
@@ -60,23 +67,29 @@ app.use((req, res, next) => {
   next();
 });
 
-// Setup GCS
-const privateKey = process.env.GCS_PRIVATE_KEY
-  ? process.env.GCS_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/^"(.*)"$/, '$1')
-  : undefined;
+let storage: Storage | null = null;
+function getStorage() {
+  if (!storage) {
+    const privateKey = process.env.GCS_PRIVATE_KEY
+      ? process.env.GCS_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/^"(.*)"$/, '$1')
+      : undefined;
 
-const storage = new Storage({
-  projectId: process.env.GCS_PROJECT_ID,
-  credentials: {
-    client_email: process.env.GCS_CLIENT_EMAIL,
-    private_key: privateKey,
-  },
-});
+    storage = new Storage({
+      projectId: process.env.GCS_PROJECT_ID,
+      credentials: {
+        client_email: process.env.GCS_CLIENT_EMAIL,
+        private_key: privateKey,
+      },
+    });
+  }
+  return storage;
+}
 
 const bucketName = process.env.GCS_BUCKET_NAME || '';
 
 if (!process.env.GCS_PRIVATE_KEY) logToFile('WARNING: GCS_PRIVATE_KEY is not defined in environment');
-if (!privateKey?.includes('BEGIN PRIVATE KEY')) logToFile('WARNING: GCS_PRIVATE_KEY does not appear to be a valid PEM key');
+const pk = process.env.GCS_PRIVATE_KEY || '';
+if (pk && !pk.includes('BEGIN PRIVATE KEY')) logToFile('WARNING: GCS_PRIVATE_KEY does not appear to be a valid PEM key');
 
 // Log retrieval for debugging
 app.get('/api/debug-logs', (req, res) => {
@@ -89,10 +102,14 @@ app.get('/api/debug-logs', (req, res) => {
 });
 
 // Ensure the uploads directory exists
-const uploadsBaseDir = path.resolve(_dirname, 'uploads');
+const uploadsBaseDir = path.resolve(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadsBaseDir)) {
   logToFile(`Creating uploads directory: ${uploadsBaseDir}`);
-  fs.mkdirSync(uploadsBaseDir, { recursive: true });
+  try {
+    fs.mkdirSync(uploadsBaseDir, { recursive: true });
+  } catch (e) {
+    logToFile(`Warning: Could not create uploads directory (might be read-only FS): ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 app.use(express.json({ limit: '10mb' }));
@@ -133,7 +150,7 @@ app.post('/api/get-upload-url', async (req, res) => {
       destination = `temp-uploads/${Date.now()}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     }
 
-    const file = storage.bucket(bucketName).file(destination);
+    const file = getStorage().bucket(bucketName).file(destination);
 
     const [url] = await file.getSignedUrl({
       version: 'v4',
@@ -181,7 +198,7 @@ app.post('/api/upload-artwork', async (req, res) => {
     const safeTitle = albumTitle.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const fileName = `artwork/${safeTitle}-${Date.now()}.${extension}`;
 
-    const file = storage.bucket(bucketName).file(fileName);
+    const file = getStorage().bucket(bucketName).file(fileName);
     await file.save(buffer, {
       metadata: { contentType: type },
       public: true,
@@ -224,7 +241,7 @@ app.post('/api/process-audio', async (req, res) => {
   try {
     // 1. Download from GCS
     logToFile(`Downloading ${gcsPath} from bucket ${bucketName}...`);
-    await storage.bucket(bucketName).file(gcsPath).download({
+    await getStorage().bucket(bucketName).file(gcsPath).download({
       destination: inputFile,
     });
     
@@ -281,7 +298,7 @@ app.post('/api/process-audio', async (req, res) => {
       const filePath = path.join(outputDir, file);
       const destination = `audio/${albumId}/${file}`;
       
-      await storage.bucket(bucketName).upload(filePath, {
+      await getStorage().bucket(bucketName).upload(filePath, {
         destination,
         public: true,
         metadata: {
@@ -299,7 +316,7 @@ app.post('/api/process-audio', async (req, res) => {
     logToFile('Cleaning up temporary local and cloud files...');
     fs.rmSync(outputDir, { recursive: true, force: true });
     if (fs.existsSync(inputFile)) fs.unlinkSync(inputFile);
-    await storage.bucket(bucketName).file(gcsPath).delete().catch(e => logToFile(`Warning: Failed to delete temp GCS file: ${e.message}`));
+    await getStorage().bucket(bucketName).file(gcsPath).delete().catch(e => logToFile(`Warning: Failed to delete temp GCS file: ${e.message}`));
 
     res.json({ success: true, m3u8Url });
 
@@ -382,6 +399,7 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_VITE !== 'true') {
     logToFile('Integrating Vite middleware (Development mode)');
     try {
+      const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({
         server: { middlewareMode: true },
         appType: 'spa',
@@ -435,7 +453,7 @@ async function startServer() {
   if (bucketName) {
     try {
       logToFile(`Attempting to ensure CORS for bucket: ${bucketName}`);
-      await storage.bucket(bucketName).setCorsConfiguration([
+      await getStorage().bucket(bucketName).setCorsConfiguration([
         {
           maxAgeSeconds: 3600,
           method: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS'],

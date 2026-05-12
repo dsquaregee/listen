@@ -1161,22 +1161,15 @@ export default function AudioPlayer() {
 
       // Trigger crossfade 2 seconds before end
       // Only if autoPlayNext is on OR repeatMode is on (to loop back to start/next)
-      // AND dur is reasonable (not a tiny error duration)
-      if (dur > 5 && dur - time < 2 && !isTransitioningRef.current && (autoPlayNext || repeatMode !== 'none')) {
+      // AND it's a NEW track (to allow crossfade). If it's the same track (repeatMode === 'one'),
+      // we let onEnded handle the simple loop to avoid crossfading with self.
+      const isRepeatOne = repeatMode === 'one';
+      if (!isRepeatOne && dur > 20 && time > 10 && dur - time < 2 && !isTransitioningRef.current && (autoPlayNext || repeatMode === 'all')) {
         console.log('Triggering auto-advance/repeat transition at time:', time, 'duration:', dur);
         next();
       }
     }
   };
-
-  // Sync currentTime from store (for loop/previous resets)
-  useEffect(() => {
-    const currentAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
-    if (currentAudio && currentTime === 0 && currentAudio.currentTime > 1) {
-      // Command from store: reset to 0 (repeat one or previous)
-      currentAudio.currentTime = 0;
-    }
-  }, [currentTime, activePlayer]);
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleSeekValue(parseFloat(e.target.value));
@@ -1197,6 +1190,21 @@ export default function AudioPlayer() {
     setPreferredQuality(level);
   };
 
+  // Explicit loop reset for repeatMode === 'one'
+  const handleAudioEnded = () => {
+    if (repeatMode === 'one') {
+      const activeAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
+      if (activeAudio) {
+        activeAudio.currentTime = 0;
+        activeAudio.play().catch(console.error);
+        setCurrentTime(0);
+        setProgress(0);
+      }
+    } else if (autoPlayNext || repeatMode === 'all') {
+      next();
+    }
+  };
+
   if (!isHydrated || !currentAlbum) return null;
 
   return (
@@ -1206,7 +1214,7 @@ export default function AudioPlayer() {
         crossOrigin="anonymous"
         preload="auto"
         onTimeUpdate={activePlayer === 1 ? handleTimeUpdate : undefined}
-        onEnded={activePlayer === 1 ? (() => (autoPlayNext || repeatMode !== 'none') && next()) : undefined}
+        onEnded={activePlayer === 1 ? handleAudioEnded : undefined}
         onLoadedMetadata={activePlayer === 1 ? ((e) => setDuration(e.currentTarget.duration)) : undefined}
         onError={(e) => console.error('Audio 1 Error:', e.currentTarget.error)}
       />
@@ -1215,7 +1223,7 @@ export default function AudioPlayer() {
         crossOrigin="anonymous"
         preload="auto"
         onTimeUpdate={activePlayer === 2 ? handleTimeUpdate : undefined}
-        onEnded={activePlayer === 2 ? (() => (autoPlayNext || repeatMode !== 'none') && next()) : undefined}
+        onEnded={activePlayer === 2 ? handleAudioEnded : undefined}
         onLoadedMetadata={activePlayer === 2 ? ((e) => setDuration(e.currentTarget.duration)) : undefined}
         onError={(e) => console.error('Audio 2 Error:', e.currentTarget.error)}
       />
