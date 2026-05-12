@@ -659,6 +659,8 @@ export default function AudioPlayer() {
     autoPlayNext, setAutoPlayNext, isShuffled, repeatMode, toggleShuffle, toggleRepeat
   } = usePlayerStore();
 
+  const { favorites, toggleLike } = useUserStore();
+
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [queueSearch, setQueueSearch] = useState('');
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
@@ -1503,11 +1505,23 @@ export default function AudioPlayer() {
                 </div>
               </div>
 
-              <button className="flex flex-col items-center gap-1 group">
-                <div className="text-primary group-hover:text-primary transition-colors">
-                   <Heart className="w-5 h-5" />
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleLike(currentAlbum.id);
+                  hapticFeedback.medium();
+                }}
+                className={cn(
+                  "flex flex-col items-center gap-1 group transition-colors",
+                  favorites.includes(currentAlbum.id) ? "text-accent" : "text-white/30 hover:text-white"
+                )}
+              >
+                <div className="transition-transform group-hover:scale-110 active:scale-95">
+                   <Heart className={cn("w-5 h-5", favorites.includes(currentAlbum.id) ? "fill-current" : "")} />
                 </div>
-                <span className="text-[8px] font-bold uppercase opacity-60">Like</span>
+                <span className="text-[8px] font-bold uppercase opacity-60">
+                  {favorites.includes(currentAlbum.id) ? 'Liked' : 'Like'}
+                </span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); handleDownload(); }}
@@ -1708,13 +1722,16 @@ export default function AudioPlayer() {
                 <button 
                   onClick={() => {
                     hapticFeedback.light();
-                    // toggleFavorite mechanism here if implemented
+                    toggleLike(currentAlbum.id);
                   }}
-                  className="text-white/40 hover:text-white transition-colors p-2"
+                  className={cn(
+                    "transition-colors p-2 hover:scale-110 active:scale-95",
+                    favorites.includes(currentAlbum.id) ? "text-accent" : "text-white/40 hover:text-white"
+                  )}
                   aria-label="Favorite"
                   title="Mark as Favorite"
                 >
-                  <Heart className="w-6 h-6" />
+                  <Heart className={cn("w-6 h-6", favorites.includes(currentAlbum.id) ? "fill-current" : "")} />
                 </button>
                 <button 
                   onClick={() => {

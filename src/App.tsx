@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { auth, db } from './lib/firebase';
 import { useAuthStore } from './store/useAuthStore';
@@ -120,6 +120,16 @@ export default function App() {
               isAdmin,
             };
             await setDoc(userDocRef, initialProfile);
+            
+            // Create default Liked playlist
+            await addDoc(collection(db, 'playlists'), {
+              userId: firebaseUser.uid,
+              name: 'Liked',
+              albumIds: [],
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            });
+
             setUser(initialProfile);
             setUserTier(tier);
           }

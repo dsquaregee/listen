@@ -1,9 +1,10 @@
 // src/pages/Home.tsx
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Play, TrendingUp, ChevronRight, Crown } from 'lucide-react';
+import { Play, TrendingUp, ChevronRight, Crown, ListMusic } from 'lucide-react';
 import { MOCK_CATEGORIES, MOCK_ALBUMS } from '../data/mockData';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { useUserStore } from '../store/useUserStore';
 import { Link } from 'react-router-dom';
 import { cn, formatTime } from '../lib/utils';
 import { OptimizedImage } from '../components/OptimizedImage';
@@ -13,6 +14,7 @@ import { Category, Album } from '../types';
 
 export default function Home() {
   const { setAlbum, recentlyPlayed } = usePlayerStore();
+  const { playlists } = useUserStore();
   const [categories, setCategories] = useState<Category[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [featured, setFeatured] = useState<Album | null>(null);
@@ -119,6 +121,38 @@ export default function Home() {
 
       {/* Categories with Horizontal Albums */}
       <div className="max-w-7xl mx-auto space-y-20">
+        {playlists.length > 0 && (
+          <section className="px-4">
+            <div className="flex justify-between items-end mb-8 border-b border-accent/10 pb-4">
+              <div>
+                <h2 className="text-3xl sm:text-4xl font-serif italic text-white mb-2">My Playlists</h2>
+                <p className="text-[10px] uppercase font-bold tracking-[0.3em] text-accent/40">Personal Soundscapes</p>
+              </div>
+              <Link 
+                to="/playlists"
+                className="text-[10px] text-accent uppercase font-bold tracking-widest hover:text-white transition-colors mb-2"
+              >
+                Manage All
+              </Link>
+            </div>
+            <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar">
+              {playlists.map(pl => (
+                <Link 
+                  key={pl.id} 
+                  to={`/playlist/${pl.id}`}
+                  className="flex-shrink-0 w-48 group"
+                >
+                  <div className="aspect-square bg-white/5 rounded-3xl border border-white/10 flex items-center justify-center mb-3 group-hover:border-accent/40 transition-colors">
+                    <ListMusic className="w-8 h-8 text-white/20 group-hover:text-accent transition-colors" />
+                  </div>
+                  <h4 className="text-sm font-serif italic text-white group-hover:text-accent transition-colors truncate">{pl.name}</h4>
+                  <p className="text-[9px] text-white/30 uppercase tracking-widest">{pl.albumIds.length} Experiences</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
         {categories.map((cat, catIdx) => (
           <motion.section 
             key={cat.id}
@@ -172,9 +206,6 @@ export default function Home() {
                         <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-xl group-hover:bg-accent transition-colors">
                           <Play className="w-4 h-4 text-black fill-current" />
                         </div>
-                        <span className="text-[10px] font-mono text-white/60 bg-black/40 backdrop-blur-md px-2 py-1 rounded">
-                          {formatTime(album.duration)}
-                        </span>
                       </div>
                     </div>
                     <h3 className="text-xl font-serif italic text-white group-hover:text-accent transition-colors mb-2 truncate">

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Library, Home, X, Crown } from 'lucide-react';
+import { Search, ListMusic, Home, X, Crown } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -106,12 +106,14 @@ export default function Navbar() {
   const navItems = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'Explore', path: '/explore', icon: Search },
-    { name: 'Playlists', path: '/playlists', icon: Library },
+    { name: 'Playlists', path: '/playlists', icon: ListMusic },
   ];
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <>
-    <nav className="h-16 flex items-center justify-between px-4 md:px-8 z-20 sticky top-0 bg-[#080808]/80 backdrop-blur-md border-b border-white/5">
+    <nav className="h-16 flex items-center justify-between px-4 md:px-8 z-20 sticky top-0 bg-[#080808]/90 backdrop-blur-md border-b border-accent/10">
     <div className="flex items-center gap-2 md:gap-4 shrink-0">
       <Link to="/" className="flex items-center gap-2 md:gap-3">
         <div className="relative group">
@@ -258,8 +260,8 @@ export default function Navbar() {
             key={item.path} 
             to={item.path}
             className={cn(
-              "text-[10px] font-bold uppercase tracking-[0.2em] transition-colors hover:text-primary",
-              location.pathname === item.path ? "text-primary" : "text-white/40"
+              "text-[11px] font-bold uppercase tracking-[0.15em] transition-colors hover:text-accent",
+              isActive(item.path) ? "text-accent" : "text-white/40"
             )}
           >
             {item.name}
@@ -268,10 +270,13 @@ export default function Navbar() {
         {(user?.tier !== 'premium') && (
           <Link 
             to="/premium"
-            className="flex items-center gap-2 bg-accent/10 hover:bg-accent/20 border border-accent/30 px-3 py-1.5 rounded-full transition-all group group-hover:scale-105 active:scale-95"
+            className={cn(
+              "flex items-center gap-2 bg-accent/10 hover:bg-accent/20 border border-accent/40 px-4 py-2 rounded-full transition-all group scale-110 shadow-lg shadow-accent/10",
+              isActive('/premium') ? "brightness-125 ring-2 ring-accent/20" : ""
+            )}
           >
-            <Crown className="w-3 h-3 text-accent animate-pulse" />
-            <span className="text-[9px] font-bold text-accent uppercase tracking-[0.2em]">Subscribe</span>
+            <Crown className="w-3.5 h-3.5 text-accent animate-pulse" />
+            <span className="text-[10px] font-bold text-accent uppercase tracking-[0.2em]">Subscribe</span>
           </Link>
         )}
         {user?.isAdmin && (
@@ -302,32 +307,34 @@ export default function Navbar() {
   </nav>
 
   {/* Mobile Bottom Navigation */}
-  <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#080808]/90 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 z-50">
-    {navItems.map((item) => (
-      <Link 
-        key={item.path} 
-        to={item.path}
-        className={cn(
-          "flex flex-col items-center gap-1 transition-all",
-          location.pathname === item.path ? "text-primary scale-110" : "text-white/40"
-        )}
-      >
-        <item.icon className="w-5 h-5" />
-        <span className="text-[8px] font-bold uppercase tracking-widest">{item.name}</span>
-      </Link>
-    ))}
-    {user?.tier !== 'premium' && (
-      <Link 
-        to="/premium"
-        className={cn(
-          "flex flex-col items-center gap-1 transition-all",
-          location.pathname === '/premium' ? "text-primary" : "text-white/40"
-        )}
-      >
-        <Crown className="w-5 h-5 animate-pulse" />
-        <span className="text-[8px] font-bold uppercase tracking-widest">Premium</span>
-      </Link>
-    )}
+  <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-surface/95 backdrop-blur-xl border-t border-accent/10 flex items-center justify-around px-4 z-50">
+    <div className="flex items-center justify-around w-full max-w-md mx-auto">
+      {navItems.map((item) => (
+        <Link 
+          key={item.path} 
+          to={item.path}
+          className={cn(
+            "flex flex-col items-center gap-1 transition-all px-2",
+            isActive(item.path) ? "text-accent scale-110" : "text-white/30"
+          )}
+        >
+          <item.icon className={cn("w-5 h-5", isActive(item.path) ? "drop-shadow-[0_0_8px_rgba(197,160,89,0.5)]" : "")} />
+          <span className="text-[7px] font-bold uppercase tracking-[0.1em]">{item.name}</span>
+        </Link>
+      ))}
+      {user?.tier !== 'premium' && (
+        <Link 
+          to="/premium"
+          className={cn(
+            "flex flex-col items-center gap-1 transition-all px-4 py-1.5 rounded-2xl",
+            isActive('/premium') ? "bg-accent/10 text-accent" : "bg-accent/5 text-accent/60"
+          )}
+        >
+          <Crown className="w-5 h-5 animate-pulse" />
+          <span className="text-[7px] font-bold uppercase tracking-[0.1em]">Subscribe</span>
+        </Link>
+      )}
+    </div>
   </div>
   </>
   );

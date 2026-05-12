@@ -35,6 +35,7 @@ interface UserState {
   setPlaylists: (playlists: Playlist[]) => void;
   recordListening: (albumId: string, timeInMinutes: number) => void;
   toggleFavorite: (albumId: string) => void;
+  toggleLike: (albumId: string) => Promise<void>;
   createPlaylist: (userId: string, name: string) => Promise<void>;
   addAlbumToPlaylist: (playlistId: string, albumId: string) => Promise<void>;
   removeAlbumFromPlaylist: (playlistId: string, albumId: string) => Promise<void>;
@@ -103,6 +104,41 @@ export const useUserStore = create<UserState>()(
           ? state.favorites.filter(id => id !== albumId)
           : [...state.favorites, albumId]
       })),
+
+      toggleLike: async (albumId) => {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const state = get();
+        let likedPlaylist = state.playlists.find(p => p.name === 'Liked');
+
+        if (!likedPlaylist) {
+          try {
+            const playlistData = {
+              userId: user.uid,
+              name: 'Liked',
+              albumIds: [albumId],
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            };
+            await addDoc(collection(db, 'playlists'), playlistData);
+            set((s) => ({ favorites: [...s.favorites, albumId] }));
+            return;
+          } catch (error) {
+            handleFirestoreError(error, OperationType.WRITE, 'playlists');
+            return;
+          }
+        }
+
+        const isLiked = likedPlaylist.albumIds.includes(albumId);
+        if (isLiked) {
+          await state.removeAlbumFromPlaylist(likedPlaylist.id, albumId);
+          set((s) => ({ favorites: s.favorites.filter(id => id !== albumId) }));
+        } else {
+          await state.addAlbumToPlaylist(likedPlaylist.id, albumId);
+          set((s) => ({ favorites: [...s.favorites, albumId] }));
+        }
+      },
 
       createPlaylist: async (userId, name) => {
         try {

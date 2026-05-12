@@ -19,7 +19,7 @@ import { HlsVideoPlayer } from '../components/HlsVideoPlayer';
 export default function AlbumDetail() {
   const { id } = useParams();
   const { user } = useAuthStore();
-  const { playlists, addAlbumToPlaylist } = useUserStore();
+  const { playlists, addAlbumToPlaylist, favorites, toggleLike } = useUserStore();
   const [album, setAlbumData] = useState<Album | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
@@ -164,10 +164,16 @@ export default function AlbumDetail() {
                 </button>
                 <div className="flex gap-2">
                   <button 
-                    onClick={() => hapticFeedback.light()}
-                    className="p-3 rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/10"
+                    onClick={() => {
+                      hapticFeedback.light();
+                      toggleLike(album.id);
+                    }}
+                    className={cn(
+                      "p-3 rounded-full bg-white/5 transition-all border border-white/10",
+                      favorites.includes(album.id) ? "text-accent border-accent/30 bg-accent/5" : "text-white/40 hover:text-white hover:bg-white/10"
+                    )}
                   >
-                    <Heart className="w-5 h-5" />
+                    <Heart className={cn("w-5 h-5", favorites.includes(album.id) ? "fill-current" : "")} />
                   </button>
                   <button 
                     onClick={() => hapticFeedback.light()}

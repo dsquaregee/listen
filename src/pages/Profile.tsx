@@ -6,6 +6,7 @@ import { LogOut, ShieldCheck, Mail, User, Crown, Settings, Clock, Music } from '
 import { motion } from 'motion/react';
 import { UserProfile } from '../types';
 import { cn } from '../lib/utils';
+import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 
 export default function Profile() {
@@ -94,6 +95,28 @@ export default function Profile() {
       </div>
 
       <div className="space-y-4">
+        {user.tier === 'free' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-6 rounded-[32px] bg-gradient-to-br from-accent/20 to-accent/5 border border-accent/30 mb-8 relative overflow-hidden group"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Crown className="w-24 h-24 text-accent -rotate-12" />
+            </div>
+            <h3 className="text-xl font-serif font-bold italic text-white mb-2">Elevate to Infinite Seeker</h3>
+            <p className="text-xs text-white/60 mb-6 leading-relaxed max-w-[80%]">
+              Unlock the full spectrum of sounds, including restricted premium experiences and unlimited atmospshere creation.
+            </p>
+            <Link 
+              to="/premium"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent text-black font-bold rounded-full text-[10px] uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-accent/20"
+            >
+              Learn More
+            </Link>
+          </motion.div>
+        )}
+
         <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Account Settings</h2>
         
         <SettingsItem icon={Crown} label="Subscription Plan" value={user.tier === 'premium' ? `Premium ($${user.subscriptionAmount || 0} / ${user.subscriptionCurrency || 'USD'})` : 'Free Tier'} highlight={user.tier === 'free'} />
