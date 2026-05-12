@@ -107,10 +107,10 @@ export default function Navbar() {
     { name: 'Home', path: '/', icon: Home },
     { name: 'Explore', path: '/explore', icon: Search },
     { name: 'Playlists', path: '/playlists', icon: Library },
-    { name: 'Subscribe', path: '/premium', icon: Crown },
   ];
 
   return (
+    <>
     <nav className="h-16 flex items-center justify-between px-4 md:px-8 z-20 sticky top-0 bg-[#080808]/80 backdrop-blur-md border-b border-white/5">
     <div className="flex items-center gap-2 md:gap-4 shrink-0">
       <Link to="/" className="flex items-center gap-2 md:gap-3">
@@ -126,7 +126,7 @@ export default function Navbar() {
         </div>
         <div className="flex flex-col">
           <span className="text-lg md:text-xl font-serif font-bold italic tracking-tighter text-white leading-none">DsquareGee</span>
-          <span className="text-[6px] md:text-[7px] font-bold uppercase tracking-[0.4em] text-primary leading-none mt-1 opacity-60">Seeker of Sounds</span>
+          <span className="text-[6px] md:text-[7px] font-bold uppercase tracking-[0.4em] text-accent leading-none mt-1 opacity-80">Seeker of Sounds</span>
         </div>
       </Link>
     </div>
@@ -253,7 +253,7 @@ export default function Navbar() {
       </div>
       
       <div className="hidden md:flex items-center gap-6">
-        {navItems.filter(item => item.name !== 'Subscribe').map((item) => (
+        {navItems.map((item) => (
           <Link 
             key={item.path} 
             to={item.path}
@@ -265,13 +265,13 @@ export default function Navbar() {
             {item.name}
           </Link>
         ))}
-        {user?.tier !== 'premium' && (
+        {(user?.tier !== 'premium') && (
           <Link 
             to="/premium"
-            className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 px-3 py-1.5 rounded-full transition-all group group-hover:scale-105 active:scale-95"
+            className="flex items-center gap-2 bg-accent/10 hover:bg-accent/20 border border-accent/30 px-3 py-1.5 rounded-full transition-all group group-hover:scale-105 active:scale-95"
           >
-            <Crown className="w-3 h-3 text-primary animate-pulse" />
-            <span className="text-[9px] font-bold text-primary uppercase tracking-[0.2em]">Subscribe</span>
+            <Crown className="w-3 h-3 text-accent animate-pulse" />
+            <span className="text-[9px] font-bold text-accent uppercase tracking-[0.2em]">Subscribe</span>
           </Link>
         )}
         {user?.isAdmin && (
@@ -287,12 +287,12 @@ export default function Navbar() {
         )}
       </div>
 
-      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-primary/30 p-0.5 shrink-0 overflow-hidden active:scale-95 transition-transform">
+      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-accent/20 p-0.5 shrink-0 overflow-hidden active:scale-95 transition-transform">
         <Link to="/profile" className="w-full h-full bg-[#0a0a0a] rounded-full flex items-center justify-center overflow-hidden">
           {user?.photoURL ? (
             <img src={user.photoURL || undefined} alt="" className="w-full h-full object-cover" />
           ) : (
-            <span className="text-[10px] text-primary">
+            <span className="text-[10px] text-accent">
               {user?.displayName ? user.displayName.substring(0, 2).toUpperCase() : 'Guest'}
             </span>
           )}
@@ -300,5 +300,35 @@ export default function Navbar() {
       </div>
     </div>
   </nav>
+
+  {/* Mobile Bottom Navigation */}
+  <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#080808]/90 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 z-50">
+    {navItems.map((item) => (
+      <Link 
+        key={item.path} 
+        to={item.path}
+        className={cn(
+          "flex flex-col items-center gap-1 transition-all",
+          location.pathname === item.path ? "text-primary scale-110" : "text-white/40"
+        )}
+      >
+        <item.icon className="w-5 h-5" />
+        <span className="text-[8px] font-bold uppercase tracking-widest">{item.name}</span>
+      </Link>
+    ))}
+    {user?.tier !== 'premium' && (
+      <Link 
+        to="/premium"
+        className={cn(
+          "flex flex-col items-center gap-1 transition-all",
+          location.pathname === '/premium' ? "text-primary" : "text-white/40"
+        )}
+      >
+        <Crown className="w-5 h-5 animate-pulse" />
+        <span className="text-[8px] font-bold uppercase tracking-widest">Premium</span>
+      </Link>
+    )}
+  </div>
+  </>
   );
 }

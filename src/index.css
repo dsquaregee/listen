@@ -7,33 +7,50 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --color-primary: #9966CC; /* Amethyst */
-  --color-accent: #6A4C93; /* Deep Amethyst */
+  --color-accent: #C5A059; /* Zari Gold - Carnatic Influence */
+  --color-secondary: #0B242B; /* Midnight Teal - Cinematic Depth */
+  --color-surface: #0A0807; /* Warm Dark Earth */
 }
 
 @layer base {
   body {
-    @apply bg-[#050505] text-[#E0D8D0] antialiased selection:bg-primary/30;
+    @apply bg-surface text-[#E0D8D0] antialiased selection:bg-primary/30;
+    background-image: 
+      radial-gradient(circle at 0% 0%, rgba(153, 102, 204, 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 100% 100%, rgba(197, 160, 89, 0.03) 0%, transparent 50%);
   }
+}
+
+/* Cinematic Transitions */
+.page-transition {
+  @apply transition-all duration-1000 ease-in-out;
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-[#050505];
+  @apply bg-surface;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+  @apply bg-accent/20 rounded-full hover:bg-accent/40 transition-all;
 }
 
-/* Cinematic Shadows */
+/* Cinematic Glows & Patterns */
 .cinematic-glow {
-  box-shadow: 0 0 50px -10px rgba(153, 102, 204, 0.25);
+  box-shadow: 0 0 40px -10px rgba(153, 102, 204, 0.2);
 }
 
-.cinematic-gradient-bg {
-  background: radial-gradient(circle at top right, rgba(153, 102, 204, 0.08), transparent),
-              radial-gradient(circle at bottom left, rgba(106, 76, 147, 0.08), transparent);
+.gold-glow {
+  box-shadow: 0 0 30px -15px rgba(197, 160, 89, 0.3);
+}
+
+.carnatic-border {
+  @apply border border-accent/10 hover:border-accent/30 transition-colors;
+}
+
+.glass-morphism {
+  @apply bg-black/40 backdrop-blur-xl border border-white/5;
 }
 

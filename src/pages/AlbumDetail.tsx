@@ -3,22 +3,28 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, Heart, Share2, Info, Music, Wind, 
-  Clock, ChevronLeft, ListMusic, X, Maximize2, PlayCircle
+  Clock, ChevronLeft, ListMusic, X, Maximize2, PlayCircle, FolderPlus, Check, Plus
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Album } from '../types';
 import { MOCK_ALBUMS } from '../data/mockData';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { useUserStore } from '../store/useUserStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { formatTime, cn } from '../lib/utils';
 import { hapticFeedback } from '../lib/haptics';
 import { HlsVideoPlayer } from '../components/HlsVideoPlayer';
 
 export default function AlbumDetail() {
   const { id } = useParams();
+  const { user } = useAuthStore();
+  const { playlists, addAlbumToPlaylist } = useUserStore();
   const [album, setAlbumData] = useState<Album | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [addingToPlaylistId, setAddingToPlaylistId] = useState<string | null>(null);
   const { setAlbum, currentAlbum, addToQueue } = usePlayerStore();
 
   useEffect(() => {
@@ -169,11 +175,106 @@ export default function AlbumDetail() {
                   >
                     <Share2 className="w-5 h-5" />
                   </button>
+                  <button 
+                    onClick={() => {
+                      hapticFeedback.light();
+                      if (!user) return alert('Please sign in to manage orbits.');
+                      setShowPlaylistModal(true);
+                    }}
+                    className="p-3 rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/10"
+                    title="Add to Atmosphere"
+                  >
+                    <FolderPlus className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
             </motion.div>
           </div>
         </div>
+
+        {/* Playlist Selection Modal */}
+        <AnimatePresence>
+          {showPlaylistModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowPlaylistModal(false)}
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl"
+              >
+                <div className="p-6 border-b border-white/5 flex justify-between items-center">
+                  <h3 className="text-lg font-serif font-bold italic text-white">Embed in Atmosphere</h3>
+                  <button onClick={() => setShowPlaylistModal(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                    <X className="w-4 h-4 text-white/40" />
+                  </button>
+                </div>
+                <div className="p-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                  {playlists.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <p className="text-xs text-white/40 mb-4">No atmospheres initialized yet.</p>
+                      <Link 
+                        to="/playlists" 
+                        className="text-[10px] font-bold text-primary uppercase tracking-widest hover:text-white transition-colors"
+                      >
+                        Create Atmosphere
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {playlists.map(pl => {
+                        const isAdded = pl.albumIds.includes(album.id);
+                        return (
+                          <button
+                            key={pl.id}
+                            disabled={isAdded || addingToPlaylistId === pl.id}
+                            onClick={async () => {
+                              setAddingToPlaylistId(pl.id);
+                              await addAlbumToPlaylist(pl.id, album.id);
+                              setAddingToPlaylistId(null);
+                              hapticFeedback.medium();
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between p-4 rounded-2xl transition-all group",
+                              isAdded ? "bg-primary/10 border border-primary/20" : "bg-white/5 hover:bg-white/10 border border-transparent"
+                            )}
+                          >
+                            <div className="flex flex-col items-start gap-1">
+                              <span className={cn("text-sm font-bold truncate", isAdded ? "text-primary" : "text-white")}>{pl.name}</span>
+                              <span className="text-[10px] text-white/20 uppercase tracking-widest">{pl.albumIds.length} Experiences</span>
+                            </div>
+                            {isAdded ? (
+                              <Check className="w-4 h-4 text-primary" />
+                            ) : addingToPlaylistId === pl.id ? (
+                              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Plus className="w-4 h-4 text-white/20 group-hover:text-primary transition-colors" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 bg-white/[0.02]">
+                   <Link 
+                    to="/playlists" 
+                    className="flex items-center justify-center gap-2 w-full py-3 text-[9px] font-bold text-white/40 uppercase tracking-[0.2em] hover:text-white transition-colors"
+                  >
+                    <ListMusic className="w-4 h-4" />
+                    Manage Soundscapes
+                  </Link>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Info Grid */}
         <div className="mb-16">

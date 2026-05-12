@@ -73,7 +73,7 @@ export default function Home() {
         initial={{ opacity: 0, scale: 1.05 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1.2, ease: "easeOut" }}
-        className="relative h-[60vh] sm:h-[70vh] rounded-3xl overflow-hidden mb-16 group shadow-2xl mx-auto max-w-7xl"
+        className="relative h-[45vh] sm:h-[55vh] rounded-3xl overflow-hidden mb-12 group shadow-2xl mx-auto max-w-7xl"
       >
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent z-10" />
         <OptimizedImage 
@@ -82,43 +82,36 @@ export default function Home() {
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-10000 group-hover:scale-110 opacity-80" 
         />
         
-        <div className="relative z-20 h-full flex flex-col justify-end p-8 sm:p-16 max-w-3xl">
+        <div className="relative z-20 h-full flex flex-col justify-end p-8 sm:p-12 max-w-3xl">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.8 }}
           >
-            <div className="flex gap-2 items-center mb-6">
-              <span className="bg-primary text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+            <div className="flex gap-2 items-center mb-4">
+              <span className="bg-accent text-black text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest">
                 Featured Experience
               </span>
               {featured.tier === 'premium' && (
-                <span className="bg-white/10 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-white/20 flex items-center gap-1.5">
-                  <Crown className="w-3 h-3 text-primary" /> Premium
+                <span className="bg-white/10 backdrop-blur-md text-white text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest border border-white/20 flex items-center gap-1.5">
+                  <Crown className="w-3 h-3 text-accent" /> Premium
                 </span>
               )}
             </div>
-            <h1 className="text-6xl sm:text-8xl font-serif italic text-white leading-[0.9] mb-6 drop-shadow-2xl">
+            <h1 className="text-4xl sm:text-6xl font-serif italic text-white leading-[1.1] mb-4 drop-shadow-2xl">
               {featured.title}
             </h1>
-            <p className="text-base sm:text-lg text-white/60 mt-2 line-clamp-2 leading-relaxed max-w-xl mb-10 font-light italic">
+            <p className="text-xs sm:text-sm text-white/60 mt-1 line-clamp-2 leading-relaxed max-w-xl mb-8 font-light italic">
               {featured.description}
             </p>
             
             <div className="flex items-center gap-6">
               <button 
                 onClick={() => setAlbum(featured)}
-                className="bg-white text-black px-10 py-4 rounded-full text-xs font-bold uppercase tracking-[0.2em] hover:bg-primary transition-colors shadow-lg active:scale-95 duration-200"
+                className="bg-white text-black px-8 py-3 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-primary transition-colors shadow-lg active:scale-95 duration-200"
               >
                 Immerse Now
               </button>
-              <Link 
-                to={`/album/${featured.id}`}
-                className="group flex items-center gap-2 text-white/80 hover:text-white transition-colors"
-              >
-                <span className="text-[10px] font-bold uppercase tracking-widest">Learn More</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
             </div>
           </motion.div>
         </div>
@@ -135,14 +128,14 @@ export default function Home() {
             transition={{ delay: catIdx * 0.1, duration: 0.8 }}
             className="px-4"
           >
-            <div className="flex justify-between items-end mb-8 border-b border-white/5 pb-4">
+            <div className="flex justify-between items-end mb-8 border-b border-accent/10 pb-4">
               <div>
                 <h2 className="text-3xl sm:text-4xl font-serif italic text-white mb-2">{cat.name}</h2>
-                <p className="text-[10px] uppercase font-bold tracking-[0.3em] text-white/30">{cat.description}</p>
+                <p className="text-[10px] uppercase font-bold tracking-[0.3em] text-accent/40">{cat.description}</p>
               </div>
               <Link 
                 to={`/explore?category=${cat.id}`}
-                className="text-[10px] text-primary uppercase font-bold tracking-widest hover:underline mb-2"
+                className="text-[10px] text-accent uppercase font-bold tracking-widest hover:text-white transition-colors mb-2"
               >
                 Explore All
               </Link>
@@ -161,7 +154,7 @@ export default function Home() {
                     className="flex-shrink-0 w-72 sm:w-80 group cursor-pointer"
                     onClick={() => setAlbum(album)}
                   >
-                    <div className="relative aspect-[4/5] bg-[#1a1a1a] rounded-[2rem] overflow-hidden mb-6 border border-white/5 shadow-2xl transition-all duration-500 group-hover:shadow-primary/10">
+                    <div className="relative aspect-[4/5] bg-[#1a1a1a] rounded-[2rem] overflow-hidden mb-6 border border-white/5 shadow-2xl transition-all duration-500 group-hover:shadow-accent/10 group-hover:border-accent/30">
                       <OptimizedImage 
                         src={album.coverUrl} 
                         alt={album.title} 
@@ -170,13 +163,13 @@ export default function Home() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
                       
                       {album.tier === 'premium' && (
-                        <div className="absolute top-4 right-4 p-2 bg-black/40 backdrop-blur-md rounded-full text-primary border border-white/10">
+                        <div className="absolute top-4 right-4 p-2 bg-black/40 backdrop-blur-md rounded-full text-accent border border-white/10">
                           <Crown className="w-3 h-3" />
                         </div>
                       )}
                       
                       <div className="absolute bottom-6 left-6 right-6 flex justify-between items-center transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-xl">
+                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-xl group-hover:bg-accent transition-colors">
                           <Play className="w-4 h-4 text-black fill-current" />
                         </div>
                         <span className="text-[10px] font-mono text-white/60 bg-black/40 backdrop-blur-md px-2 py-1 rounded">
@@ -184,7 +177,7 @@ export default function Home() {
                         </span>
                       </div>
                     </div>
-                    <h3 className="text-xl font-serif italic text-white group-hover:text-primary transition-colors mb-2 truncate">
+                    <h3 className="text-xl font-serif italic text-white group-hover:text-accent transition-colors mb-2 truncate">
                       {album.title}
                     </h3>
                     <p className="text-xs text-white/40 line-clamp-2 leading-relaxed font-light italic">
@@ -204,12 +197,12 @@ export default function Home() {
 
       {/* Global Explorer - Show all albums regardless of category */}
       <section className="mt-32 max-w-7xl mx-auto px-4">
-        <div className="flex justify-between items-end mb-12 border-b border-primary/10 pb-6">
+        <div className="flex justify-between items-end mb-12 border-b border-accent/10 pb-6">
           <div>
             <h2 className="text-4xl sm:text-5xl font-serif font-bold italic text-white mb-3">Infinite Resonance</h2>
-            <p className="text-[10px] uppercase font-bold tracking-[0.4em] text-white/30">Exploring every frequency in the cinematic spectrum</p>
+            <p className="text-[10px] uppercase font-bold tracking-[0.4em] text-accent/40">Exploring every frequency in the cinematic spectrum</p>
           </div>
-          <div className="text-[10px] text-white/20 uppercase font-bold tracking-widest mb-3">
+          <div className="text-[10px] text-accent/30 uppercase font-bold tracking-widest mb-3">
             {albums.length} Manifestations
           </div>
         </div>
@@ -225,7 +218,7 @@ export default function Home() {
               className="group cursor-pointer"
               onClick={() => setAlbum(album)}
             >
-              <div className="relative aspect-square rounded-3xl overflow-hidden mb-4 shadow-xl group-hover:shadow-primary/5 transition-all">
+              <div className="relative aspect-square rounded-3xl overflow-hidden mb-4 shadow-xl group-hover:shadow-accent/5 group-hover:border-accent/20 border border-transparent transition-all">
                 <OptimizedImage 
                   src={album.coverUrl} 
                   alt={album.title} 
@@ -235,8 +228,8 @@ export default function Home() {
                   <Play className="w-10 h-10 text-white fill-current" />
                 </div>
               </div>
-              <h4 className="text-lg font-serif italic text-white group-hover:text-primary transition-colors truncate">{album.title}</h4>
-              <p className="text-[9px] uppercase tracking-widest text-white/30 font-bold mt-1">
+              <h4 className="text-lg font-serif italic text-white group-hover:text-accent transition-colors truncate">{album.title}</h4>
+              <p className="text-[9px] uppercase tracking-widest text-accent/50 font-bold mt-1">
                 {categories.find(c => c.id === album.categoryId)?.name || 'Unknown Cosmos'}
               </p>
             </motion.div>
@@ -246,12 +239,12 @@ export default function Home() {
 
       {/* Trending / Global - Sophisticated Footer section */}
       <section className="mt-32 max-w-7xl mx-auto px-4 mb-20 text-center">
-        <div className="h-px w-24 bg-primary mx-auto mb-12 opacity-30" />
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/20 mb-8">Harmonizing the Future</h2>
+        <div className="h-px w-24 bg-accent mx-auto mb-12 opacity-30" />
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.5em] text-accent/20 mb-8">Harmonizing the Future</h2>
         <div className="flex flex-wrap justify-center gap-12 sm:gap-24 opacity-40 grayscale hover:grayscale-0 transition-all duration-1000">
-          <TrendingUp className="w-8 h-8" />
-          <Play className="w-8 h-8" />
-          <Crown className="w-8 h-8" />
+          <TrendingUp className="w-8 h-8 text-accent" />
+          <Play className="w-8 h-8 text-accent" />
+          <Crown className="w-8 h-8 text-accent" />
         </div>
       </section>
     </div>

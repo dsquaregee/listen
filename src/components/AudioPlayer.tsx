@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
 import { 
   Play, Pause, SkipBack, SkipForward, 
@@ -8,7 +8,7 @@ import {
   GripVertical, X, Trash2, CheckCircle2,
   Zap, Share2, Twitter, Facebook, Instagram, Link,
   PlusCircle, FolderPlus, ListPlus, Download,
-  Shuffle, Repeat, Repeat1, Search
+  Shuffle, Repeat, Repeat1, Search, ExternalLink
 } from 'lucide-react';
 import AudioVisualizer from './AudioVisualizer';
 import { usePlayerStore } from '../store/usePlayerStore';
@@ -183,6 +183,7 @@ interface WaveformSeekbarProps {
 
 function WaveformSeekbar({ progress, isPlaying, onSeek, albumId, frequencyValue = 0, duration = 0 }: WaveformSeekbarProps) {
   const [hoverProgress, setHoverProgress] = useState<number | null>(null);
+  const [localProgress, setLocalProgress] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Generate pseudo-random but consistent heights based on albumId with more organic variation
@@ -205,19 +206,24 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId, frequencyValue 
     });
   }, [albumId]);
 
+  const displayProgress = localProgress !== null ? localProgress : progress;
+
   return (
     <div 
       ref={containerRef}
-      className="relative w-full h-full flex items-center group touch-none select-none cursor-pointer"
+      className="relative w-full h-full flex items-center group select-none cursor-pointer"
       onMouseMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         setHoverProgress(p);
       }}
       onClick={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        onSeek(p);
+        // Only seek on click if we didn't just finish a drag
+        if (localProgress === null) {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+          onSeek(p);
+        }
       }}
       onMouseLeave={() => setHoverProgress(null)}
     >
@@ -241,7 +247,7 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId, frequencyValue 
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-30">
         <motion.div 
           className="absolute h-full w-48 blur-[80px] bg-gradient-to-r from-transparent via-[#9966CC]/20 to-transparent"
-          style={{ left: `${progress * 100}%`, x: '-50%' }}
+          style={{ left: `${displayProgress * 100}%`, x: '-50%' }}
         />
         {/* Frequency reactive glow */}
         {isPlaying && (
@@ -259,9 +265,9 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId, frequencyValue 
       <div className="absolute inset-x-0 bottom-12 top-12 flex items-center justify-between gap-[2px] z-10">
         {points.map((height, i) => {
           const pointProgress = i / points.length;
-          const isActive = progress >= pointProgress;
+          const isActive = displayProgress >= pointProgress;
           const isHovered = hoverProgress !== null && Math.abs(hoverProgress - pointProgress) < 0.03;
-          const distanceToPlayhead = Math.abs(progress - pointProgress);
+          const distanceToPlayhead = Math.abs(displayProgress - pointProgress);
           const isNearPlayhead = distanceToPlayhead < 0.1;
           
           // Audio Reactive Height
@@ -325,22 +331,42 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId, frequencyValue 
         min="0"
         max="1"
         step="0.0005"
-        value={progress}
-        onChange={(e) => onSeek(parseFloat(e.target.value))}
+        value={displayProgress}
+        onMouseDown={() => setLocalProgress(progress)}
+        onTouchStart={() => setLocalProgress(progress)}
+        onMouseUp={() => {
+          if (localProgress !== null) {
+            onSeek(localProgress);
+            setLocalProgress(null);
+          }
+        }}
+        onTouchEnd={() => {
+          if (localProgress !== null) {
+            onSeek(localProgress);
+            setLocalProgress(null);
+          }
+        }}
+        onChange={(e) => {
+          const val = parseFloat(e.target.value);
+          setLocalProgress(val);
+          // Optional: seek live if user wants to hear while dragging, 
+          // but many players only seek on release to avoid buffer issues.
+          // Let's do it on release to be safe.
+        }}
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-40"
       />
 
       {/* Playhead Indicator with Custom Glow */}
       <motion.div 
-        className="absolute top-0 bottom-0 w-[3px] bg-primary z-30 pointer-events-none"
-        style={{ left: `${progress * 100}%`, x: '-50%' }}
+        className="absolute top-0 bottom-0 w-[3px] bg-accent z-30 pointer-events-none"
+        style={{ left: `${displayProgress * 100}%`, x: '-50%' }}
       >
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 -translate-y-1/2 bg-primary blur-xl opacity-40 rounded-full" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-8 translate-y-1/2 bg-primary blur-xl opacity-40 rounded-full" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 -translate-y-1/2 bg-accent blur-xl opacity-40 rounded-full" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-8 translate-y-1/2 bg-accent blur-xl opacity-40 rounded-full" />
         
         {/* Playhead Bead */}
         <motion.div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_15px_rgba(153,102,204,0.8)] ring-4 ring-primary/30"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_15px_rgba(197,160,89,0.8)] ring-4 ring-accent/30"
           animate={{ scale: isPlaying ? [1, 1.3, 1] : 1 }}
           transition={isPlaying ? { repeat: Infinity, duration: 2 } : { duration: 0.3 }}
         />
@@ -645,6 +671,12 @@ export default function AudioPlayer() {
   const [isMainVolumeHovered, setIsMainVolumeHovered] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isQueueOpen) {
+      setQueueSearch('');
+    }
+  }, [isQueueOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1202,7 +1234,7 @@ export default function AudioPlayer() {
             {/* Progress Bar Over the Player */}
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/10">
               <motion.div 
-                className="h-full bg-primary shadow-[0_0_10px_rgba(153,102,204,0.5)]"
+                className="h-full bg-accent shadow-[0_0_10px_rgba(197,160,89,0.5)]"
                 style={{ width: `${progress * 100}%` }}
               />
             </div>
@@ -1216,14 +1248,14 @@ export default function AudioPlayer() {
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1.2 }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      className="absolute inset-0 bg-primary/20 blur-md rounded-lg"
+                      className="absolute inset-0 bg-accent/20 blur-md rounded-lg"
                       transition={{ duration: 1, repeat: Infinity, repeatType: "reverse" }}
                     />
                   )}
                 </AnimatePresence>
                 <div className={cn(
                   "relative w-full h-full bg-white/10 rounded-lg overflow-hidden border transition-all duration-500",
-                  isPlaying ? "border-primary/40 shadow-[0_0_15px_rgba(153,102,204,0.3)]" : "border-white/5"
+                  isPlaying ? "border-accent/40 shadow-[0_0_15px_rgba(197,160,89,0.3)]" : "border-white/5"
                 )}>
                   <motion.img 
                     src={currentAlbum.coverUrl || undefined} 
@@ -1242,13 +1274,23 @@ export default function AudioPlayer() {
               </div>
               <div className="flex flex-col overflow-hidden">
                 <span className="text-xs md:text-sm font-medium truncate text-white">{currentAlbum.title}</span>
-                <div className="flex items-center gap-1.5 overflow-hidden">
-                  {currentAlbum.isDownloaded && (
-                    <CheckCircle2 className="w-2 md:w-2.5 h-2 md:h-2.5 text-primary/60" />
-                  )}
-                  <span className="text-[8px] md:text-[10px] text-white/40 uppercase tracking-tighter truncate">
-                    {currentAlbum.tier === 'premium' ? 'Premium Experience' : 'Standard Journey'}
-                  </span>
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <div className="flex items-center gap-1.5 overflow-hidden">
+                    {currentAlbum.isDownloaded && (
+                      <CheckCircle2 className="w-2 md:w-2.5 h-2 md:h-2.5 text-accent/60" />
+                    )}
+                    <span className="text-[8px] md:text-[10px] text-white/40 uppercase tracking-tighter truncate">
+                      {currentAlbum.tier === 'premium' ? 'Premium Experience' : 'Standard Journey'}
+                    </span>
+                  </div>
+                  <RouterLink 
+                    to={`/album/${currentAlbum.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1 rounded-md bg-white/5 hover:bg-white/10 text-accent hover:text-white transition-all transform hover:scale-110"
+                    title="Go to Album"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                  </RouterLink>
                 </div>
               </div>
             </div>
@@ -1263,7 +1305,7 @@ export default function AudioPlayer() {
                   }}
                   className={cn(
                     "transition-all p-2 transform hover:scale-110 active:scale-95",
-                    isShuffled ? "text-primary" : "text-white/20 hover:text-white"
+                    isShuffled ? "text-accent" : "text-white/20 hover:text-white"
                   )}
                   aria-label="Shuffle"
                   title="Shuffle"
@@ -1291,12 +1333,12 @@ export default function AudioPlayer() {
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 0.4, scale: 1.4 }}
                         exit={{ opacity: 0, scale: 0.8 }}
-                        className="absolute inset-0 bg-primary rounded-full blur-md"
+                        className="absolute inset-0 bg-accent rounded-full blur-md"
                         transition={{ duration: 1.5, repeat: Infinity }}
                       />
                     )}
                   </AnimatePresence>
-                  <div className="relative w-10 h-10 bg-primary rounded-full flex items-center justify-center text-black shadow-lg shadow-primary/20 hover:scale-110 active:scale-95 transition-all">
+                  <div className="relative w-10 h-10 bg-accent rounded-full flex items-center justify-center text-black shadow-lg shadow-accent/20 hover:scale-110 active:scale-95 transition-all">
                     {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-1" />}
                   </div>
                 </button>
@@ -1316,14 +1358,14 @@ export default function AudioPlayer() {
                   }}
                   className={cn(
                     "transition-all p-2 transform hover:scale-110 active:scale-95 relative group/repeat-mini",
-                    repeatMode !== 'none' ? "text-primary" : "text-white/20 hover:text-white"
+                    repeatMode !== 'none' ? "text-accent" : "text-white/20 hover:text-white"
                   )}
                   aria-label={`Repeat: ${repeatMode}`}
                   title={`Repeat: ${repeatMode}`}
                 >
                   {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
                   {repeatMode !== 'none' && (
-                    <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(153,102,204,0.8)]" />
+                    <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-accent rounded-full shadow-[0_0_8px_rgba(197,160,89,0.8)]" />
                   )}
                 </button>
               </div>
@@ -1619,7 +1661,18 @@ export default function AudioPlayer() {
                 </motion.div>
 
                 <div className="max-w-md w-full">
-                  <h2 className="text-4xl sm:text-6xl font-serif font-bold text-white mb-6 italic leading-tight">{currentAlbum.title}</h2>
+                  <h2 className="text-4xl sm:text-6xl font-serif font-bold text-white mb-4 italic leading-tight">{currentAlbum.title}</h2>
+                  
+                  <div className="flex justify-center mb-6">
+                    <RouterLink 
+                      to={`/album/${currentAlbum.id}`}
+                      onClick={() => setMinimized(true)}
+                      className="flex items-center gap-2 px-6 py-2 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary transition-all group hover:scale-105 active:scale-95"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Go to Experience Hub</span>
+                    </RouterLink>
+                  </div>
                   
                   <div className="w-full px-8">
                     <p className="text-sm text-white/50 leading-relaxed italic font-light line-clamp-3">
@@ -2518,22 +2571,39 @@ export default function AudioPlayer() {
                         Explore Universes
                       </motion.button>
                     </>
-                  ) : queue.filter(a => 
-                      a.title.toLowerCase().includes(queueSearch.toLowerCase()) || 
-                      a.artist.toLowerCase().includes(queueSearch.toLowerCase())
-                    ).length === 0 ? (
-                    <div className="py-20 text-center px-6">
-                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4 border border-white/10">
-                        <Search className="w-5 h-5 text-white/10" />
+                  ) : queue.filter(a => {
+                      const query = queueSearch.toLowerCase();
+                      return a.title.toLowerCase().includes(query) || 
+                             a.artist.toLowerCase().includes(query) ||
+                             a.description.toLowerCase().includes(query) ||
+                             a.moodTags.some(tag => tag.toLowerCase().includes(query));
+                    }).length === 0 ? (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="py-20 text-center px-6"
+                    >
+                      <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mx-auto mb-6 border border-primary/10 relative">
+                        <Search className="w-6 h-6 text-primary/20" />
+                        <motion.div 
+                          animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                          transition={{ duration: 4, repeat: Infinity }}
+                          className="absolute -top-1 -right-1 text-primary"
+                        >
+                          <X className="w-4 h-4" />
+                        </motion.div>
                       </div>
-                      <p className="text-xs text-white/40 italic font-serif">"No matching frequencies found in this sequence"</p>
+                      <p className="text-sm text-white font-serif italic mb-2">No matching tracks found</p>
+                      <p className="text-[10px] text-white/30 uppercase tracking-widest leading-relaxed">
+                        Adjust your search frequency <br/> to find your destination.
+                      </p>
                       <button 
                         onClick={() => setQueueSearch('')}
-                        className="mt-6 text-[9px] font-bold text-primary uppercase tracking-[0.2em] hover:text-white transition-colors"
+                        className="mt-8 px-6 py-2 rounded-full border border-primary/20 text-[9px] font-bold text-primary uppercase tracking-[0.2em] hover:bg-primary hover:text-black transition-all"
                       >
                         Clear Filter
                       </button>
-                    </div>
+                    </motion.div>
                   ) : (
                     <Reorder.Group 
                       axis="y" 
@@ -2542,10 +2612,13 @@ export default function AudioPlayer() {
                       className="space-y-2"
                     >
                       {queue
-                        .filter(a => 
-                          a.title.toLowerCase().includes(queueSearch.toLowerCase()) || 
-                          a.artist.toLowerCase().includes(queueSearch.toLowerCase())
-                        )
+                        .filter(a => {
+                          const query = queueSearch.toLowerCase();
+                          return a.title.toLowerCase().includes(query) || 
+                                 a.artist.toLowerCase().includes(query) ||
+                                 a.description.toLowerCase().includes(query) ||
+                                 a.moodTags.some(tag => tag.toLowerCase().includes(query));
+                        })
                         .map((album, index) => (
                           <QueueItem 
                             key={album.id}

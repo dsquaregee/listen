@@ -27,36 +27,31 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
     const dataArray = new Uint8Array(analyzer?.frequencyBinCount || 0);
 
     const particles: { x: number; y: number; size: number; speedX: number; speedY: number; opacity: number; color: string }[] = [];
-    const particleColors = ['#9966CC', '#B57EDC', '#ffffff'];
-    for (let i = 0; i < 60; i++) {
+    const particleColors = ['#9966CC', '#C5A059', '#0B242B', '#ffffff'];
+    for (let i = 0; i < 70; i++) {
       particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        size: Math.random() * 1.5 + 0.5,
-        speedX: (Math.random() - 0.5) * 0.3,
-        speedY: (Math.random() - 0.5) * 0.3,
-        opacity: Math.random() * 0.3 + 0.05,
+        size: Math.random() * 1.8 + 0.4,
+        speedX: (Math.random() - 0.5) * 0.25,
+        speedY: (Math.random() - 0.5) * 0.25,
+        opacity: Math.random() * 0.4 + 0.05,
         color: particleColors[Math.floor(Math.random() * particleColors.length)]
       });
     }
 
     let hue = 270; // Start with Amethyst hue
+    let targetHue = 270;
 
     const draw = () => {
       if (!analyzer || !isPlaying) {
-        // Stop the animation loop immediately when paused or analyzer is missing.
-        // We don't call requestAnimationFrame(draw) here, effectively "freezing" the last frame.
         return;
       }
 
       analyzer.getByteFrequencyData(dataArray);
       
-      // Fine-tuned mapping for 256 fftSize (128 bins)
-      // Bass: 0-4 bins (~0-860Hz)
       const lowEnergy = dataArray.slice(0, 5).reduce((a, b) => a + b, 0) / 5;
-      // Mids: 5-30 bins (~860Hz-5kHz)
       const midEnergy = dataArray.slice(5, 31).reduce((a, b) => a + b, 0) / 26;
-      // Highs: 31-127 bins (~5kHz-22kHz)
       const highEnergy = dataArray.slice(31, 128).reduce((a, b) => a + b, 0) / 97;
       
       const normalizedLow = lowEnergy / 255;
@@ -65,92 +60,83 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Low Frequencies -> Dynamic movement & background pulsing
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
       
-      // Mid Frequencies -> Glow Intensity
-      const gradientOpacity = 0.05 + normalizedMid * 0.15;
-      const gradRadius = canvas.width * (0.8 + normalizedLow * 0.4);
+      // Gradually shift between Amethyst (270) and Gold (45) based on energy
+      targetHue = normalizedHigh > 0.4 ? 45 : 270;
+      hue = hue + (targetHue - hue) * 0.02;
+
+      const gradientOpacity = 0.03 + normalizedMid * 0.12;
+      const gradRadius = canvas.width * (0.7 + normalizedLow * 0.5);
       
       const gradient1 = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, gradRadius);
-      gradient1.addColorStop(0, `hsla(${hue}, 80%, 60%, ${gradientOpacity})`);
-      gradient1.addColorStop(0.5, `hsla(${hue}, 40%, 30%, ${gradientOpacity * 0.4})`);
+      gradient1.addColorStop(0, `hsla(${hue}, 70%, 50%, ${gradientOpacity})`);
+      gradient1.addColorStop(0.6, `hsla(${hue + 20}, 40%, 20%, ${gradientOpacity * 0.3})`);
       gradient1.addColorStop(1, 'rgba(0, 0, 0, 0)');
       
       ctx.fillStyle = gradient1;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // High Frequencies -> Subtle Color Shifts
-      const hueShift = normalizedHigh * 2;
-      hue = (hue + 0.05 + hueShift) % 360;
-
-      // Reacting particles with flow
+      // Reacting particles
       particles.forEach((p, i) => {
-        // Individual particle bounce/reactivity based on local dataArray segment
         const segmentData = dataArray[i % dataArray.length] / 255;
-        
-        // Low energy influences global chaos and particle speed
-        const speedMultiplier = 1 + normalizedLow * 8;
-        const flowX = Math.sin(Date.now() * 0.001 + p.y * 0.01) * 0.2;
+        const speedMultiplier = 0.8 + normalizedLow * 6;
+        const flowX = Math.sin(Date.now() * 0.0008 + p.y * 0.012) * 0.15;
         
         p.x += (p.speedX + flowX) * speedMultiplier;
         p.y += p.speedY * speedMultiplier;
 
-        // Wrap around edges
         if (p.x < 0) p.x = canvas.width;
         if (p.x > canvas.width) p.x = 0;
         if (p.y < 0) p.y = canvas.height;
         if (p.y > canvas.height) p.y = 0;
 
-        // Draw particle
-        const sizeMultipier = 1 + segmentData * 2 + normalizedLow * 2;
+        const sizeMultipier = 1 + segmentData * 1.5 + normalizedLow * 1.5;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size * sizeMultipier, 0, Math.PI * 2);
         
-        // Mid energy influences per-particle halo/glow
-        if (normalizedMid > 0.4 || segmentData > 0.7) {
-          ctx.shadowBlur = 15 * normalizedMid * (segmentData + 0.5);
-          ctx.shadowColor = `hsla(${hue + 40}, 100%, 70%, 1)`;
+        if (normalizedMid > 0.45 || segmentData > 0.75) {
+          ctx.shadowBlur = 12 * normalizedMid * (segmentData + 0.4);
+          ctx.shadowColor = i % 2 === 0 ? `hsla(45, 100%, 70%, 0.8)` : `hsla(270, 100%, 70%, 0.8)`;
         } else {
           ctx.shadowBlur = 0;
         }
 
-        // Color shifts influenced by high frequencies
-        const pColorHue = (hue + (i * 2) + (normalizedHigh * 60)) % 360;
-        ctx.fillStyle = `hsla(${pColorHue}, 70%, 70%, ${p.opacity * (0.4 + segmentData * 0.6)})`;
+        const pColorHue = i % 2 === 0 ? 45 : (hue + (i * 1.5)) % 360;
+        ctx.fillStyle = `hsla(${pColorHue}, 60%, 75%, ${p.opacity * (0.3 + segmentData * 0.7)})`;
         ctx.fill();
 
-        // Subtle connection lines (reactive to mids/highs)
-        if (i % 4 === 0 && normalizedMid > 0.2) {
+        if (i % 5 === 0 && normalizedMid > 0.25) {
            particles.slice(i + 1, i + 3).forEach(p2 => {
             const dx = p.x - p2.x;
             const dy = p.y - p2.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance < 150) {
+            if (distance < 120) {
               ctx.beginPath();
               ctx.moveTo(p.x, p.y);
               ctx.lineTo(p2.x, p2.y);
-              ctx.strokeStyle = `hsla(${pColorHue}, 50%, 50%, ${0.08 * (1 - distance / 150) * (normalizedMid + 0.2)})`;
-              ctx.lineWidth = 0.4 * (normalizedHigh + 0.5);
+              ctx.strokeStyle = `hsla(${pColorHue}, 40%, 60%, ${0.06 * (1 - distance / 120) * (normalizedMid + 0.1)})`;
+              ctx.lineWidth = 0.3 * (normalizedHigh + 0.4);
               ctx.stroke();
             }
           });
         }
       });
 
-      // Ambient light streaks
+      // Ambient cinematic light streaks using accent color
       ctx.shadowBlur = 0;
-      for (let i = 0; i < 3; i++) {
-        const y = (Date.now() * 0.05 + i * canvas.height / 3) % canvas.height;
-        const streakAlpha = 0.02 * (1 + normalizedLow);
+      for (let i = 0; i < 2; i++) {
+        const y = (Date.now() * 0.03 + i * canvas.height / 2) % canvas.height;
+        const streakAlpha = 0.015 * (1 + normalizedLow);
+        const streakColor = i === 0 ? '197, 160, 89' : '153, 102, 204'; // Gold vs Amethyst
         const streakGradient = ctx.createLinearGradient(0, y, canvas.width, y);
-        streakGradient.addColorStop(0, 'rgba(153, 102, 204, 0)');
-        streakGradient.addColorStop(0.5, `rgba(153, 102, 204, ${streakAlpha})`);
-        streakGradient.addColorStop(1, 'rgba(153, 102, 204, 0)');
+        streakGradient.addColorStop(0, `rgba(${streakColor}, 0)`);
+        streakGradient.addColorStop(0.5, `rgba(${streakColor}, ${streakAlpha})`);
+        streakGradient.addColorStop(1, `rgba(${streakColor}, 0)`);
         ctx.fillStyle = streakGradient;
-        ctx.fillRect(0, y - 50, canvas.width, 100);
+        ctx.fillRect(0, y - 40, canvas.width, 80);
       }
 
       animationRef.current = requestAnimationFrame(draw);
