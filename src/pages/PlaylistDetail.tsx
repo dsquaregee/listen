@@ -5,6 +5,8 @@ import {
   Play, Music, ChevronLeft, Trash2, Clock, 
   MoreVertical, Share2, ListPlus, FolderPlus
 } from 'lucide-react';
+import { collection, getDocs, query } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useUserStore } from '../store/useUserStore';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { MOCK_ALBUMS } from '../data/mockData';
@@ -19,16 +21,52 @@ export default function PlaylistDetail() {
   
   const playlist = playlists.find(p => p.id === id);
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (playlist) {
-      // Map IDs to actual album data
-      const playlistAlbums = playlist.albumIds.map(aid => 
-        MOCK_ALBUMS.find(a => a.id === aid)
-      ).filter((a): a is Album => !!a);
-      setAlbums(playlistAlbums);
-    }
+    const fetchPlaylistAlbums = async () => {
+      if (playlist && playlist.albumIds.length > 0) {
+        setIsLoading(true);
+        try {
+          // Fetch all albums from Firestore (usually short list for this app)
+          const albumSn = await getDocs(query(collection(db, 'albums')));
+          const firestoreAlbums = albumSn.docs.map(d => ({ id: d.id, ...d.data() } as Album));
+          
+          // Combine with mock albums as fallback
+          const allAvailableAlbums = [...firestoreAlbums, ...MOCK_ALBUMS];
+          
+          // Map IDs to actual album objects
+          const filtered = playlist.albumIds.map(aid => 
+            allAvailableAlbums.find(a => a.id === aid)
+          ).filter((a): a is Album => !!a);
+          
+          setAlbums(filtered);
+        } catch (error) {
+          console.error("Error fetching playlist albums:", error);
+          // Fallback to mock only if Firestore fails
+          const filtered = playlist.albumIds.map(aid => 
+            MOCK_ALBUMS.find(a => a.id === aid)
+          ).filter((a): a is Album => !!a);
+          setAlbums(filtered);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setAlbums([]);
+        setIsLoading(false);
+      }
+    };
+
+    fetchPlaylistAlbums();
   }, [playlist]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!playlist) {
     return (

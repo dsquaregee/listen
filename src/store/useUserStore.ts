@@ -52,7 +52,11 @@ export const useUserStore = create<UserState>()(
       favorites: [],
       playlists: [],
 
-      setPlaylists: (playlists) => set({ playlists }),
+      setPlaylists: (playlists) => {
+        const likedPlaylist = playlists.find(p => p.name === 'Liked');
+        const favorites = likedPlaylist ? likedPlaylist.albumIds : [];
+        set({ playlists, favorites });
+      },
 
       recordListening: async (albumId, timeInMinutes) => {
         const today = new Date().toDateString();
