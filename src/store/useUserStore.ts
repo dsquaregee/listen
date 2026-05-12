@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { db } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { 
   collection, 
   addDoc, 
@@ -9,7 +9,8 @@ import {
   deleteDoc, 
   serverTimestamp, 
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  increment
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 
@@ -78,7 +79,6 @@ export const useUserStore = create<UserState>()(
         });
 
         // Sync to Firestore if authenticated
-        const { auth } = await import('../lib/firebase');
         if (auth.currentUser) {
           try {
             const userRef = doc(db, 'users', auth.currentUser.uid);
@@ -90,7 +90,7 @@ export const useUserStore = create<UserState>()(
             // Also increment album play count
             const albumRef = doc(db, 'albums', albumId);
             await updateDoc(albumRef, {
-              playCount: (await import('firebase/firestore')).increment(1)
+              playCount: increment(1)
             });
           } catch (e) {
             console.error('Failed to sync metrics:', e);
