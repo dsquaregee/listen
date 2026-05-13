@@ -49,7 +49,10 @@ export default function Premium() {
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: amount * 100 }), // Stripe expects amounts in cents
+        body: JSON.stringify({ 
+          userId: user.uid,
+          amount: amount * 100 
+        }), // Stripe expects amounts in cents
       });
 
       if (!response.ok) {

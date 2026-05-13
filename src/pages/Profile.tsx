@@ -32,6 +32,25 @@ export default function Profile() {
     }
   };
 
+  const handleManageSubscription = async () => {
+    if (!user?.stripeCustomerId) return alert('No active billing record found.');
+    
+    try {
+      const response = await fetch('/api/create-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: user.stripeCustomerId }),
+      });
+      
+      if (!response.ok) throw new Error('Portal redirect failed');
+      const { url } = await response.json();
+      window.location.href = url;
+    } catch (error) {
+      console.error('Portal error:', error);
+      alert('Could not open billing portal. Please try again later.');
+    }
+  };
+
   const handleLogout = async () => {
     await signOut(auth);
     setUser(null);
@@ -104,9 +123,34 @@ export default function Profile() {
 
         <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Account Settings</h2>
         
-        <SettingsItem icon={Crown} label="Subscription Plan" value={user.tier === 'premium' ? `Premium ($${user.subscriptionAmount || 0} / ${user.subscriptionCurrency || 'USD'})` : 'Free Tier'} highlight={user.tier === 'free'} />
+        <div onClick={user.tier === 'premium' ? handleManageSubscription : undefined} className={user.tier === 'premium' ? "cursor-pointer" : ""}>
+          <SettingsItem 
+            icon={Crown} 
+            label="Subscription Plan" 
+            value={user.tier === 'premium' ? 'Infinite Seeker (Active)' : 'Free Tier'} 
+            highlight={user.tier === 'free'} 
+          />
+        </div>
         <SettingsItem icon={ShieldCheck} label="Security & Privacy" value="Connected via Google" />
         <SettingsItem icon={Settings} label="App Preferences" value="Default" />
+
+        <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Support & Legal</h2>
+        
+        <SettingsItem icon={Mail} label="Contact Support" value="support@dsquaregee.com" />
+        
+        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5">
+          <p className="text-[10px] text-white/30 font-medium uppercase tracking-wider mb-2">Policies</p>
+          <div className="flex gap-4 text-xs font-medium">
+            <a href="#" className="text-primary hover:underline transition-all">Terms of Service</a>
+            <a href="#" className="text-primary hover:underline transition-all">Privacy Policy</a>
+            <a href="#" className="text-primary hover:underline transition-all">Refund Policy</a>
+          </div>
+        </div>
+
+        <p className="text-[10px] text-center text-white/20 mt-8 px-8 leading-relaxed">
+          Subscription manifests are managed by Stripe. You can cancel at any time via the billing portal. 
+          For refund manifestations, please contact support within 14 days of the transaction.
+        </p>
 
         <button 
           onClick={handleLogout}

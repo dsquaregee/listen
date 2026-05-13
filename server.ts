@@ -7,8 +7,30 @@ import ffmpegInstaller from 'ffmpeg-static';
 import { Storage } from '@google-cloud/storage';
 import dotenv from 'dotenv';
 import Stripe from 'stripe';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 dotenv.config();
+
+// Initialize Firebase Admin
+const privateKey = process.env.GCS_PRIVATE_KEY
+  ? process.env.GCS_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/^"(.*)"$/, '$1')
+  : undefined;
+
+if (process.env.GCS_PROJECT_ID && process.env.GCS_CLIENT_EMAIL && privateKey) {
+  try {
+    initializeApp({
+      credential: cert({
+        projectId: process.env.GCS_PROJECT_ID,
+        clientEmail: process.env.GCS_CLIENT_EMAIL,
+        privateKey: privateKey,
+      }),
+    });
+    console.log('Firebase Admin initialized successfully');
+  } catch (e) {
+    console.error('Failed to initialize Firebase Admin:', e);
+  }
+}
 
 let stripeClient: Stripe | null = null;
 function getStripe() {
@@ -111,6 +133,73 @@ if (!fs.existsSync(uploadsBaseDir)) {
     logToFile(`Warning: Could not create uploads directory (might be read-only FS): ${e instanceof Error ? e.message : String(e)}`);
   }
 }
+
+// STRIPE WEBHOOK (Must be before general express.json middleware)
+app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const stripe = getStripe();
+  const sig = req.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  let event: Stripe.Event;
+
+  try {
+    if (!sig || !webhookSecret) {
+      throw new Error('Missing stripe-signature or webhook secret');
+    }
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    logToFile(`Webhook Error: ${errMsg}`);
+    return res.status(400).send(`Webhook Error: ${errMsg}`);
+  }
+
+  logToFile(`Stripe Event received: ${event.type}`);
+
+  try {
+    const db = getFirestore();
+    
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const userId = session.client_reference_id;
+      const customerId = session.customer as string;
+
+      if (userId) {
+        logToFile(`Updating user ${userId} to premium tier (Session)`);
+        await db.collection('users').doc(userId).set({
+          tier: 'premium',
+          stripeCustomerId: customerId,
+          subscriptionId: session.subscription,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+      }
+    }
+
+    if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated') {
+      const subscription = event.data.object as Stripe.Subscription;
+      const customerId = subscription.customer as string;
+      const status = subscription.status;
+
+      const usersSnapshot = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+      
+      if (!usersSnapshot.empty) {
+        const userDoc = usersSnapshot.docs[0];
+        const tier = (status === 'active' || status === 'trialing') ? 'premium' : 'free';
+        
+        logToFile(`Updating user ${userDoc.id} tier to ${tier} (Sub Update)`);
+        await userDoc.ref.update({
+          tier: tier,
+          subscriptionId: subscription.id,
+          updatedAt: FieldValue.serverTimestamp()
+        });
+      }
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    logToFile(`Firestore Update Error (Webhook): ${error instanceof Error ? error.message : String(error)}`);
+    res.status(500).send('Webhook Processing Failed');
+  }
+});
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -335,28 +424,32 @@ app.post('/api/process-audio', async (req, res) => {
 // Stripe Checkout Session Route
 app.post('/api/create-checkout-session', async (req, res) => {
   try {
-    const { priceId, amount } = req.body;
-    logToFile(`Creating checkout session for amount: ${amount}`);
+    const { userId, priceId } = req.body;
+    logToFile(`Creating subscription session for user: ${userId}`);
     
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
     const stripe = getStripe();
+    const finalPriceId = priceId || process.env.STRIPE_PRICE_ID;
+    
+    if (!finalPriceId) {
+      return res.status(400).json({ error: 'No Price ID provided or configured' });
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
+      client_reference_id: userId,
       line_items: [
         {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: 'Premium Subscription',
-              description: 'Access to premium features and unlimited high-quality audio experiences.',
-            },
-            unit_amount: amount || 300, // Default to $3.00 if not provided
-          },
+          price: finalPriceId,
           quantity: 1,
         },
       ],
-      mode: 'payment',
-      success_url: `${req.headers.origin}/?payment=success`,
-      cancel_url: `${req.headers.origin}/?payment=cancelled`,
+      mode: 'subscription',
+      success_url: process.env.STRIPE_SUCCESS_URL || `${req.headers.origin}/profile?payment=success`,
+      cancel_url: process.env.STRIPE_CANCEL_URL || `${req.headers.origin}/premium?payment=cancelled`,
     });
 
     logToFile(`Checkout session created: ${session.id}`);
@@ -365,6 +458,28 @@ app.post('/api/create-checkout-session', async (req, res) => {
     const errMsg = error instanceof Error ? error.message : String(error);
     logToFile(`Checkout Session Failure: ${errMsg}`);
     res.status(500).json({ error: 'Failed to create checkout session', details: errMsg });
+  }
+});
+
+// Stripe Customer Portal Session
+app.post('/api/create-portal-session', async (req, res) => {
+  try {
+    const { customerId } = req.body;
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    const stripe = getStripe();
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${req.headers.origin}/profile`,
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logToFile(`Portal Session Failure: ${errMsg}`);
+    res.status(500).json({ error: 'Failed to create portal session', details: errMsg });
   }
 });
 

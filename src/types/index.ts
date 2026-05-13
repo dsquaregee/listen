@@ -42,6 +42,8 @@ export interface UserProfile {
   totalMinutesStreamed?: number;
   topAlbumId?: string;
   updatedAt?: string;
+  stripeCustomerId?: string;
+  subscriptionId?: string | null;
 }
 
 export interface Favorite {
