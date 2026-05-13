@@ -53,14 +53,15 @@ export default function Premium() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create checkout session');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.details || 'Failed to create checkout session');
       }
 
       const { url } = await response.json();
       window.location.href = url; // Redirect to Stripe Checkout
     } catch (error) {
       console.error('Subscription error:', error);
-      alert('Failed to start checkout. Please try again.');
+      alert(`Failed to start checkout: ${error instanceof Error ? error.message : 'Unknown error'}. Please ensure Stripe is configured in the environment.`);
     } finally {
       setIsSubscribing(false);
     }
@@ -88,52 +89,15 @@ export default function Premium() {
           <span className="text-accent drop-shadow-[0_0_20px_rgba(197,160,89,0.3)]">Infinite Resonance</span>
         </h1>
         <p className="text-white/40 text-lg sm:text-xl font-light italic">
-          Choose your depth. From the Discovery foundation to the Infinite spectrum.
+          Choose your manifestation intensity. Unlock the full cinematic spectrum.
         </p>
       </header>
 
-      <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8">
-        {/* Discovery Tier */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="bg-white/5 border border-white/10 p-10 rounded-[40px] relative overflow-hidden backdrop-blur-sm"
-        >
-          <div className="relative z-10 flex flex-col h-full">
-            <div className="mb-8">
-              <h3 className="text-2xl font-serif font-bold italic text-white">Discovery</h3>
-              <p className="text-accent/40 text-[10px] uppercase tracking-widest mt-1">Foundational Frequencies</p>
-            </div>
-            
-            <div className="text-5xl font-bold italic text-white mb-10">
-              Free
-            </div>
-
-            <ul className="space-y-4 mb-12 flex-grow">
-              <li className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-white/60">
-                <Check className="w-4 h-4 text-accent/40" />
-                <span>3 Discovery Albums</span>
-              </li>
-              <li className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-white/60">
-                <Check className="w-4 h-4 text-accent/40" />
-                <span>Standard Quality Audio</span>
-              </li>
-              <li className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-white/60">
-                <Check className="w-4 h-4 text-accent/40" />
-                <span>Community Access</span>
-              </li>
-            </ul>
-
-            <div className="p-4 bg-white/5 rounded-2xl text-center border border-white/5">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-white/40">Current Plan</span>
-            </div>
-          </div>
-        </motion.div>
-
+      <div className="max-w-2xl mx-auto">
         {/* Infinite Resonance Tier */}
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           className="bg-white/5 border border-accent/30 p-10 rounded-[40px] shadow-2xl relative overflow-hidden cinematic-glow"
         >
           {/* Decorative backdrop */}
@@ -178,10 +142,10 @@ export default function Premium() {
 
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { icon: Zap, label: 'High Fidelity 2.0' },
-                  { icon: Shield, label: 'Infinite Cache' },
                   { icon: Infinity, label: 'Full Library' },
-                  { icon: Headphones, label: 'Immersive Atmos' }
+                  { icon: Smartphone, label: 'Offline Listening' },
+                  { icon: Shield, label: 'Infinite Cache' },
+                  { icon: Zap, label: 'Seamless Flow' }
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-xl">
                     <item.icon className="w-4 h-4 text-accent" />
