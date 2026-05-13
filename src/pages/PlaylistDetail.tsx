@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { 
-  Play, Music, ChevronLeft, Trash2, Clock, 
+  Play, Music, ChevronLeft, Trash2, 
   MoreVertical, Share2, ListPlus, FolderPlus
 } from 'lucide-react';
 import { collection, getDocs, query } from 'firebase/firestore';
@@ -10,7 +10,7 @@ import { db } from '../lib/firebase';
 import { useUserStore } from '../store/useUserStore';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { MOCK_ALBUMS } from '../data/mockData';
-import { formatTime, cn } from '../lib/utils';
+import { cn } from '../lib/utils';
 import { hapticFeedback } from '../lib/haptics';
 import { Album } from '../types';
 
@@ -161,11 +161,6 @@ export default function PlaylistDetail() {
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-bold text-white group-hover:text-primary transition-colors truncate">{album.title}</h3>
               <p className="text-[10px] text-white/30 uppercase tracking-widest mt-1">{album.artist}</p>
-            </div>
-
-            <div className="hidden md:flex flex-col items-end gap-1 px-8 border-x border-white/5 h-10 justify-center">
-              <span className="text-[10px] text-white/20 uppercase tracking-[0.2em] font-bold">Duration</span>
-              <span className="text-xs font-mono text-white/40">{formatTime(album.duration)}</span>
             </div>
 
             <div className="flex items-center gap-2">

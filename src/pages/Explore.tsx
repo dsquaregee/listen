@@ -71,7 +71,7 @@ export default function Explore() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-primary transition-colors" />
           <input 
             type="text"
-            placeholder="Search titles, artists, souls..."
+            placeholder="Search titles, souls..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:border-primary/40 transition-all text-white"

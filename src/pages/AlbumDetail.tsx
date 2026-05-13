@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, Heart, Share2, Info, Music, Wind, 
-  Clock, ChevronLeft, ListMusic, X, Maximize2, PlayCircle, FolderPlus, Check, Plus
+  ChevronLeft, ListMusic, X, Maximize2, PlayCircle, FolderPlus, Check, Plus
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -12,7 +12,7 @@ import { MOCK_ALBUMS } from '../data/mockData';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useUserStore } from '../store/useUserStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { formatTime, cn } from '../lib/utils';
+import { cn } from '../lib/utils';
 import { hapticFeedback } from '../lib/haptics';
 import { HlsVideoPlayer } from '../components/HlsVideoPlayer';
 
@@ -305,7 +305,6 @@ export default function AlbumDetail() {
                 </div>
                 <div className="flex flex-col justify-center overflow-hidden">
                   <h4 className="text-white font-medium truncate">{a.title}</h4>
-                  <p className="text-[10px] text-accent/40 uppercase tracking-widest">{formatTime(a.duration)}</p>
                 </div>
               </Link>
             ))}
