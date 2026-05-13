@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
@@ -24,6 +25,18 @@ export default function Profile() {
     }
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('simulated_portal') === 'true') {
+      toast.success('Simulation Complete: In a real environment, you would now be in the Stripe Customer Portal managing your invoices and cards.', {
+        duration: 8000,
+        icon: '💎'
+      });
+      // Clean up URL
+      window.history.replaceState({}, '', '/profile');
+    }
+  }, []);
+
   const handleManageSubscription = async () => {
     if (!user?.stripeCustomerId) {
       if (user?.tier === 'premium' && !user.stripeCustomerId) {
@@ -39,30 +52,31 @@ export default function Profile() {
       const response = await fetch('/api/create-portal-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerId: user.stripeCustomerId }),
+        body: JSON.stringify({ customerId: user.stripeCustomerId })
       });
       
-      if (!response.ok) throw new Error('Portal redirect failed');
-      const { url } = await response.json();
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Portal redirect failed');
+      
       toast.dismiss(toastId);
-      window.location.href = url;
+      window.location.href = data.url;
     } catch (error) {
       console.error('Portal error:', error);
-      toast.error('Could not open billing portal.', { id: toastId });
+      toast.error(error instanceof Error ? error.message : 'Could not open billing portal.', { id: toastId });
     }
   };
 
   const handleSimulateLink = async () => {
     if (!user) return;
-    const toastId = toast.loading('Simulating billing link...');
+    const toastId = toast.loading('Syncing simulated billing identity...');
     try {
       await setDoc(doc(db, 'users', user.uid), {
         stripeCustomerId: 'cus_test_simulate_' + Math.random().toString(36).substring(7),
         tier: 'premium'
       }, { merge: true });
-      toast.success('Billing linked! You can now test the Manage button.', { id: toastId });
+      toast.success('Identity Synced! You can now use the Manage button to test the billing flow.', { id: toastId });
     } catch (err) {
-      toast.error('Simulation failed.', { id: toastId });
+      toast.error('Sync failed.', { id: toastId });
     }
   };
 
