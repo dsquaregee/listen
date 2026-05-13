@@ -141,7 +141,7 @@ export default function Premium() {
               disabled={isSubscribing || user?.tier === 'premium'}
               className={cn(
                 "w-full py-5 rounded-2xl font-bold uppercase tracking-[0.3em] text-[10px] transition-all relative overflow-hidden group",
-                isSubscribing ? "opacity-50 cursor-wait" : "bg-accent text-black hover:scale-[1.02] active:scale-95 shadow-[0_20px_40px_rgba(197,160,89,0.2)]"
+                isSubscribing ? "opacity-50 cursor-wait" : "bg-accent text-black hover:scale-[1.02] active:scale-95 shadow-[0_20px_40px_rgba(153,102,204,0.3)]"
               )}
             >
               {isSubscribing ? 'Manifesting...' : user?.tier === 'premium' ? 'Currently Infinite' : 'Unlock The Universe'}

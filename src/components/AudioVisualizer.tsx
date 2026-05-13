@@ -27,7 +27,7 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
     const dataArray = new Uint8Array(analyzer?.frequencyBinCount || 0);
 
     const particles: { x: number; y: number; size: number; speedX: number; speedY: number; opacity: number; color: string }[] = [];
-    const particleColors = ['#9966CC', '#C5A059', '#0B242B', '#ffffff'];
+    const particleColors = ['#9966CC', '#D4BBFF', '#2D1B4D', '#ffffff'];
     for (let i = 0; i < 70; i++) {
       particles.push({
         x: Math.random() * canvas.width,
@@ -63,8 +63,8 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
       
-      // Gradually shift between Amethyst (270) and Gold (45) based on energy
-      targetHue = normalizedHigh > 0.4 ? 45 : 270;
+      // Gradually shift between Amethyst (270) and Deep Amethyst (310) based on energy
+      targetHue = normalizedHigh > 0.4 ? 310 : 270;
       hue = hue + (targetHue - hue) * 0.02;
 
       const gradientOpacity = 0.03 + normalizedMid * 0.12;
@@ -98,12 +98,12 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
         
         if (normalizedMid > 0.45 || segmentData > 0.75) {
           ctx.shadowBlur = 12 * normalizedMid * (segmentData + 0.4);
-          ctx.shadowColor = i % 2 === 0 ? `hsla(45, 100%, 70%, 0.8)` : `hsla(270, 100%, 70%, 0.8)`;
+          ctx.shadowColor = i % 2 === 0 ? `hsla(300, 100%, 70%, 0.8)` : `hsla(270, 100%, 70%, 0.8)`;
         } else {
           ctx.shadowBlur = 0;
         }
 
-        const pColorHue = i % 2 === 0 ? 45 : (hue + (i * 1.5)) % 360;
+        const pColorHue = i % 2 === 0 ? 300 : (hue + (i * 1.5)) % 360;
         ctx.fillStyle = `hsla(${pColorHue}, 60%, 75%, ${p.opacity * (0.3 + segmentData * 0.7)})`;
         ctx.fill();
 
@@ -130,7 +130,7 @@ export default function AudioVisualizer({ analyzer, isPlaying }: AudioVisualizer
       for (let i = 0; i < 2; i++) {
         const y = (Date.now() * 0.03 + i * canvas.height / 2) % canvas.height;
         const streakAlpha = 0.015 * (1 + normalizedLow);
-        const streakColor = i === 0 ? '197, 160, 89' : '153, 102, 204'; // Gold vs Amethyst
+        const streakColor = i === 0 ? '212, 187, 255' : '153, 102, 204'; // Light Amethyst vs Amethyst
         const streakGradient = ctx.createLinearGradient(0, y, canvas.width, y);
         streakGradient.addColorStop(0, `rgba(${streakColor}, 0)`);
         streakGradient.addColorStop(0.5, `rgba(${streakColor}, ${streakAlpha})`);

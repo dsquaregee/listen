@@ -95,7 +95,7 @@ function QueueItem({ album, onRemove, onPlay, isActive, index, canReorder }: Que
         className={cn(
           "flex items-center gap-3 p-3 rounded-xl transition-all group relative border",
           isActive 
-            ? "bg-white/10 border-accent/30 shadow-[0_0_30px_rgba(197,160,89,0.15)] ring-1 ring-accent/20" 
+            ? "bg-white/10 border-accent/30 shadow-[0_0_30px_rgba(153,102,204,0.25)] ring-1 ring-accent/20" 
             : "bg-white/[0.02] border-white/[0.05] hover:bg-white/5 hover:border-white/10",
         )}
       >
@@ -366,7 +366,7 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId, frequencyValue 
         
         {/* Playhead Bead */}
         <motion.div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_15px_rgba(197,160,89,0.8)] ring-4 ring-accent/30"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_15px_rgba(212,187,255,0.8)] ring-4 ring-accent/30"
           animate={{ scale: isPlaying ? [1, 1.3, 1] : 1 }}
           transition={isPlaying ? { repeat: Infinity, duration: 2 } : { duration: 0.3 }}
         />
@@ -1242,7 +1242,7 @@ export default function AudioPlayer() {
             {/* Progress Bar Over the Player */}
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/10">
               <motion.div 
-                className="h-full bg-accent shadow-[0_0_10px_rgba(197,160,89,0.5)]"
+                className="h-full bg-accent shadow-[0_0_10px_rgba(153,102,204,0.5)]"
                 style={{ width: `${progress * 100}%` }}
               />
             </div>
@@ -1263,7 +1263,7 @@ export default function AudioPlayer() {
                 </AnimatePresence>
                 <div className={cn(
                   "relative w-full h-full bg-white/10 rounded-lg overflow-hidden border transition-all duration-500",
-                  isPlaying ? "border-accent/40 shadow-[0_0_15px_rgba(197,160,89,0.3)]" : "border-white/5"
+                  isPlaying ? "border-accent/40 shadow-[0_0_15px_rgba(153,102,204,0.3)]" : "border-white/5"
                 )}>
                   <motion.img 
                     src={currentAlbum.coverUrl || undefined} 
@@ -1373,7 +1373,7 @@ export default function AudioPlayer() {
                 >
                   {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
                   {repeatMode !== 'none' && (
-                    <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-accent rounded-full shadow-[0_0_8px_rgba(197,160,89,0.8)]" />
+                    <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-accent rounded-full shadow-[0_0_8px_rgba(212,187,255,0.8)]" />
                   )}
                 </button>
               </div>

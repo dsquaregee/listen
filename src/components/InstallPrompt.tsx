@@ -72,7 +72,7 @@ export function InstallPrompt() {
               <div className="flex flex-col gap-2">
                 <button
                   onClick={handleInstall}
-                  className="bg-primary hover:bg-accent text-black text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-[0_0_15px_rgba(0,242,255,0.3)]"
+                  className="bg-primary hover:bg-accent text-black text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-[0_0_15px_rgba(153,102,204,0.3)]"
                 >
                   Install Now
                 </button>

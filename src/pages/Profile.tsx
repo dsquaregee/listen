@@ -25,7 +25,12 @@ export default function Profile() {
   };
 
   const handleManageSubscription = async () => {
-    if (!user?.stripeCustomerId) return toast.error('No active billing record found.');
+    if (!user?.stripeCustomerId) {
+      if (user?.isAdmin) {
+        return toast.info('Admin accounts use internal privileges and do not have Stripe billing records.');
+      }
+      return toast.error('No active billing record found. If you just subscribed, please wait a moment.');
+    }
     
     const toastId = toast.loading('Connecting to Stripe Billing...');
     try {
@@ -70,6 +75,8 @@ export default function Profile() {
       </div>
     );
   }
+
+  const canManage = !!user.stripeCustomerId || user.tier === 'premium';
 
   return (
     <div className="pt-24 px-6 max-w-2xl mx-auto">
@@ -117,13 +124,13 @@ export default function Profile() {
 
         <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Account Settings</h2>
         
-        <div onClick={user.stripeCustomerId ? handleManageSubscription : undefined} className={user.stripeCustomerId ? "cursor-pointer" : ""}>
+        <div onClick={canManage ? handleManageSubscription : undefined} className={canManage ? "cursor-pointer" : ""}>
           <SettingsItem 
             icon={Crown} 
             label="Subscription Plan" 
             value={user.tier === 'premium' ? 'Infinite Seeker (Active)' : 'Free Tier'} 
             highlight={user.tier === 'free'} 
-            badge={user.stripeCustomerId ? "Manage" : undefined}
+            badge={canManage ? "Manage" : undefined}
           />
         </div>
         <SettingsItem icon={ShieldCheck} label="Security & Privacy" value="Connected via Google" />

@@ -318,7 +318,7 @@ export default function Navbar() {
             isActive(item.path) ? "text-accent scale-110" : "text-white/30"
           )}
         >
-          <item.icon className={cn("w-5 h-5", isActive(item.path) ? "drop-shadow-[0_0_8px_rgba(197,160,89,0.5)]" : "")} />
+          <item.icon className={cn("w-5 h-5", isActive(item.path) ? "drop-shadow-[0_0_8px_rgba(153,102,204,0.6)]" : "")} />
           <span className="text-[7px] font-bold uppercase tracking-[0.1em]">{item.name}</span>
         </Link>
       ))}
