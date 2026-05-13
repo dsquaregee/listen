@@ -26,15 +26,7 @@ export default function Profile() {
   };
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('simulated_portal') === 'true') {
-      toast.success('Simulation Complete: In a real environment, you would now be in the Stripe Customer Portal managing your invoices and cards.', {
-        duration: 8000,
-        icon: '💎'
-      });
-      // Clean up URL
-      window.history.replaceState({}, '', '/profile');
-    }
+    // Analytics or other initialization could go here
   }, []);
 
   const handleManageSubscription = async () => {
@@ -66,19 +58,6 @@ export default function Profile() {
     }
   };
 
-  const handleSimulateLink = async () => {
-    if (!user) return;
-    const toastId = toast.loading('Syncing simulated billing identity...');
-    try {
-      await setDoc(doc(db, 'users', user.uid), {
-        stripeCustomerId: 'cus_test_simulate_' + Math.random().toString(36).substring(7),
-        tier: 'premium'
-      }, { merge: true });
-      toast.success('Identity Synced! You can now use the Manage button to test the billing flow.', { id: toastId });
-    } catch (err) {
-      toast.error('Sync failed.', { id: toastId });
-    }
-  };
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -168,16 +147,7 @@ export default function Profile() {
           />
         </div>
 
-        {!canManage && (
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            onClick={handleSimulateLink}
-            className="w-full py-3 border border-dashed border-white/10 rounded-xl text-[10px] text-white/20 uppercase font-black tracking-widest hover:border-primary/30 hover:text-primary transition-all mb-4"
-          >
-            [Dev] Simulate Subscription Link
-          </motion.button>
-        )}
+
         <SettingsItem icon={ShieldCheck} label="Security & Privacy" value="Connected via Google" />
         <SettingsItem icon={Settings} label="App Preferences" value="Default" />
 

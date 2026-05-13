@@ -469,11 +469,6 @@ app.post('/api/create-portal-session', async (req, res) => {
       return res.status(400).json({ error: 'Customer ID is required' });
     }
 
-    if (customerId.startsWith('cus_test_simulate_')) {
-      logToFile(`Simulating portal session for mock customer: ${customerId}`);
-      return res.json({ url: `${req.headers.origin}/profile?simulated_portal=true` });
-    }
-
     const stripe = getStripe();
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,

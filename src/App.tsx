@@ -115,7 +115,7 @@ export default function App() {
           userUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
             if (docSnap.exists()) {
               const userData = docSnap.data() as UserProfile;
-              const adminEmails = ['dsquaregee@gmail.com', 'gd4fam@gmail.com'];
+              const adminEmails = ['dsquaregee@gmail.com'];
               const isAdmin = adminEmails.includes(firebaseUser.email || '');
               const finalTier = isAdmin && !userData.stripeCustomerId ? 'premium' : userData.tier;
               setUser({ ...userData, isAdmin, tier: finalTier });

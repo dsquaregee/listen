@@ -44,7 +44,6 @@ export default function Premium() {
 
   const handleSubscribe = async () => {
     if (!user) return toast.error('Please sign in to subscribe.');
-    if (amount < 3) return toast.error('Minimum subscription is $3');
 
     setIsSubscribing(true);
     try {
@@ -52,9 +51,8 @@ export default function Premium() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          userId: user.uid,
-          amount: amount * 100 
-        }), // Stripe expects amounts in cents
+          userId: user.uid
+        }), 
       });
 
       if (!response.ok) {
@@ -66,13 +64,11 @@ export default function Premium() {
       window.location.href = url; // Redirect to Stripe Checkout
     } catch (error) {
       console.error('Subscription error:', error);
-      toast.error(`Failed to start checkout: ${error instanceof Error ? error.message : 'Unknown error'}. Please ensure Stripe is configured in the environment.`);
+      toast.error(`Subscription failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your Stripe configuration.`);
     } finally {
       setIsSubscribing(false);
     }
   };
-
-  const localPrice = Math.round(amount * (exchangeRates[currency] || 1));
 
   return (
     <div className="min-h-screen pt-24 px-6 pb-20 relative overflow-hidden bg-black flex flex-col items-center justify-center">
@@ -98,35 +94,23 @@ export default function Premium() {
             </div>
 
             <div className="flex items-baseline gap-2 mb-10">
-              <span className="text-5xl font-bold italic text-white">{getCurrencySymbol(currency)}{localPrice}</span>
-              <span className="text-white/40 text-xs italic">/ monthly</span>
+              <span className="text-5xl font-bold italic text-white">Unlock Full Access</span>
             </div>
 
             <div className="space-y-8 mb-12 flex-grow">
               <div className="space-y-4">
-                <div className="flex justify-between text-[10px] uppercase font-bold tracking-[0.2em] text-white/40">
-                  <span>Manifestation Contribution</span>
-                  <span className="text-accent">${amount} USD</span>
-                </div>
-                <input 
-                  type="range"
-                  min="3"
-                  max="100"
-                  step="1"
-                  value={amount}
-                  onChange={(e) => setAmount(parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-white/10 rounded-full appearance-none accent-accent cursor-pointer"
-                />
-                <div className="flex justify-between text-[8px] uppercase tracking-widest text-white/20">
-                  <span>$3 Minimum</span>
-                  <span>Unlimited Support</span>
-                </div>
+                <p className="text-white/60 text-sm leading-relaxed">
+                  Support the creation of cinematic, atmospheric audio experiences. 
+                  Gain early access to all new manifesting soundscapes and offline listening.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { icon: Infinity, label: 'Full Library' },
                   { icon: Smartphone, label: 'Offline Listening' },
+                  { icon: Headphones, label: 'Lossless Audio' },
+                  { icon: Sparkles, label: 'Ad-Free' },
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-xl">
                     <item.icon className="w-4 h-4 text-accent" />
