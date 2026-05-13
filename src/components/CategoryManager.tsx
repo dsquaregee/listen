@@ -159,6 +159,8 @@ function SortableCategoryItem({
   );
 }
 
+import { Toaster, toast } from 'sonner';
+
 export default function CategoryManager() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -215,7 +217,7 @@ export default function CategoryManager() {
       });
       fetchCategories();
     } catch (error) {
-      alert('Failed to initialize category. Check console for details.');
+      toast.error('Failed to initialize category. Check console for details.');
       handleFirestoreError(error, OperationType.CREATE, 'categories');
     }
   };
@@ -227,7 +229,7 @@ export default function CategoryManager() {
       setEditingId(null);
       fetchCategories();
     } catch (error) {
-      alert('Failed to update category.');
+      toast.error('Failed to update category.');
       handleFirestoreError(error, OperationType.UPDATE, `categories/${id}`);
     }
   };

@@ -8,6 +8,8 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 
+import { Toaster, toast } from 'sonner';
+
 export default function Premium() {
   const { setUserTier } = usePlayerStore();
   const { user, setUser } = useAuthStore();
@@ -41,8 +43,8 @@ export default function Premium() {
   };
 
   const handleSubscribe = async () => {
-    if (!user) return alert('Please sign in to subscribe.');
-    if (amount < 3) return alert('Minimum subscription is $3');
+    if (!user) return toast.error('Please sign in to subscribe.');
+    if (amount < 3) return toast.error('Minimum subscription is $3');
 
     setIsSubscribing(true);
     try {
@@ -64,7 +66,7 @@ export default function Premium() {
       window.location.href = url; // Redirect to Stripe Checkout
     } catch (error) {
       console.error('Subscription error:', error);
-      alert(`Failed to start checkout: ${error instanceof Error ? error.message : 'Unknown error'}. Please ensure Stripe is configured in the environment.`);
+      toast.error(`Failed to start checkout: ${error instanceof Error ? error.message : 'Unknown error'}. Please ensure Stripe is configured in the environment.`);
     } finally {
       setIsSubscribing(false);
     }

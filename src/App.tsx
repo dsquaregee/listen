@@ -28,6 +28,11 @@ import AdminDashboard from './pages/AdminDashboard';
 import Premium from './pages/Premium';
 import Playlists from './pages/Playlists';
 import PlaylistDetail from './pages/PlaylistDetail';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import Refund from './pages/Refund';
+
+import { Toaster, toast } from 'sonner';
 
 const queryClient = new QueryClient();
 
@@ -56,7 +61,7 @@ function PaymentHandler() {
           
           // Clear query params
           navigate('/', { replace: true });
-          alert('Welcome to Premium! Your payment was successful.');
+          toast.success('Welcome to Premium! Your payment was successful.');
         } catch (e) {
           console.error('Failed to update tier after payment:', e);
         }
@@ -64,7 +69,7 @@ function PaymentHandler() {
       updateTier();
     } else if (paymentStatus === 'cancelled') {
        navigate('/', { replace: true });
-       alert('Payment was cancelled.');
+       toast.error('Payment was cancelled.');
     }
   }, [location.search, user, setUser, setUserTier, navigate]);
 
@@ -78,8 +83,13 @@ export default function App() {
 
   useEffect(() => {
     let playlistsUnsubscribe: (() => void) | null = null;
+    let userUnsubscribe: (() => void) | null = null;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Clear previous listeners if any (shouldn't happen with standard onAuthStateChanged but for safety)
+      if (playlistsUnsubscribe) playlistsUnsubscribe();
+      if (userUnsubscribe) userUnsubscribe();
+
       if (firebaseUser) {
         try {
           // Playlists Listener
@@ -100,50 +110,43 @@ export default function App() {
           });
 
           const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
-          const adminEmail = 'dsquaregee@gmail.com';
-          const isAdmin = firebaseUser.email === adminEmail;
-          const tier = isAdmin ? 'premium' : 'free';
-  
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as UserProfile;
-            const finalTier = isAdmin ? 'premium' : userData.tier;
-            setUser({ ...userData, isAdmin, tier: finalTier });
-            setUserTier(finalTier);
-          } else {
-            // New user profile - Sync to Firestore
-            const initialProfile: UserProfile = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || 'Listener',
-              photoURL: firebaseUser.photoURL || '',
-              tier,
-              isAdmin,
-            };
-            await setDoc(userDocRef, initialProfile);
-            
-            // Create default Liked playlist
-            await addDoc(collection(db, 'playlists'), {
-              userId: firebaseUser.uid,
-              name: 'Liked',
-              albumIds: [],
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
+          
+          // User Profile Listener
+          userUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+              const userData = docSnap.data() as UserProfile;
+              const adminEmail = 'dsquaregee@gmail.com';
+              const isAdmin = firebaseUser.email === adminEmail;
+              const finalTier = isAdmin ? 'premium' : userData.tier;
+              setUser({ ...userData, isAdmin, tier: finalTier });
+              setUserTier(finalTier);
+            } else {
+              // Create default profile if missing
+              const adminEmail = 'dsquaregee@gmail.com';
+              const isAdmin = firebaseUser.email === adminEmail;
+              const tier = isAdmin ? 'premium' : 'free';
+              
+              const initialProfile: UserProfile = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || '',
+                displayName: firebaseUser.displayName || 'Listener',
+                photoURL: firebaseUser.photoURL || '',
+                tier,
+                isAdmin,
+                createdAt: new Date().toISOString()
+              };
+              setDoc(userDocRef, initialProfile);
+            }
+          }, (err) => {
+            handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
+          });
 
-            setUser(initialProfile);
-            setUserTier(tier);
-          }
         } catch (error) {
           handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
         }
       } else {
         setUser(null);
         setPlaylists([]);
-        if (playlistsUnsubscribe) {
-          playlistsUnsubscribe();
-          playlistsUnsubscribe = null;
-        }
       }
       setLoading(false);
     });
@@ -151,12 +154,14 @@ export default function App() {
     return () => {
       unsubscribe();
       if (playlistsUnsubscribe) playlistsUnsubscribe();
+      if (userUnsubscribe) userUnsubscribe();
     };
   }, [setUser, setLoading, setPlaylists, setUserTier]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
+        <Toaster position="top-center" theme="dark" closeButton richColors />
         <PaymentHandler />
         <div className="flex flex-col min-h-screen bg-black text-slate-100 cinematic-gradient-bg">
           <Navbar />
@@ -172,6 +177,9 @@ export default function App() {
               <Route path="/playlists" element={<Playlists />} />
               <Route path="/playlist/:id" element={<PlaylistDetail />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/refund" element={<Refund />} />
             </Routes>
           </main>
 

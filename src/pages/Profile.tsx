@@ -9,32 +9,25 @@ import { cn } from '../lib/utils';
 import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 
+import { Toaster, toast } from 'sonner';
+
 export default function Profile() {
   const { user, setUser } = useAuthStore();
 
   const handleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      
-      const userProfile: UserProfile = {
-        uid: result.user.uid,
-        email: result.user.email || '',
-        displayName: result.user.displayName || 'Listener',
-        photoURL: result.user.photoURL || '',
-        tier: 'free',
-      };
-
-      await setDoc(doc(db, 'users', result.user.uid), userProfile, { merge: true });
-      setUser(userProfile);
+      await signInWithPopup(auth, provider);
+      // Profile creation and store update is handled by the real-time listener in App.tsx
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `users/${user?.uid || 'new_user'}`);
+      handleFirestoreError(error, OperationType.WRITE, 'auth/login');
     }
   };
 
   const handleManageSubscription = async () => {
-    if (!user?.stripeCustomerId) return alert('No active billing record found.');
+    if (!user?.stripeCustomerId) return toast.error('No active billing record found.');
     
+    const toastId = toast.loading('Connecting to Stripe Billing...');
     try {
       const response = await fetch('/api/create-portal-session', {
         method: 'POST',
@@ -44,10 +37,11 @@ export default function Profile() {
       
       if (!response.ok) throw new Error('Portal redirect failed');
       const { url } = await response.json();
+      toast.dismiss(toastId);
       window.location.href = url;
     } catch (error) {
       console.error('Portal error:', error);
-      alert('Could not open billing portal. Please try again later.');
+      toast.error('Could not open billing portal.', { id: toastId });
     }
   };
 
@@ -123,12 +117,13 @@ export default function Profile() {
 
         <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Account Settings</h2>
         
-        <div onClick={user.tier === 'premium' ? handleManageSubscription : undefined} className={user.tier === 'premium' ? "cursor-pointer" : ""}>
+        <div onClick={user.stripeCustomerId ? handleManageSubscription : undefined} className={user.stripeCustomerId ? "cursor-pointer" : ""}>
           <SettingsItem 
             icon={Crown} 
             label="Subscription Plan" 
             value={user.tier === 'premium' ? 'Infinite Seeker (Active)' : 'Free Tier'} 
             highlight={user.tier === 'free'} 
+            badge={user.stripeCustomerId ? "Manage" : undefined}
           />
         </div>
         <SettingsItem icon={ShieldCheck} label="Security & Privacy" value="Connected via Google" />
@@ -141,9 +136,9 @@ export default function Profile() {
         <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5">
           <p className="text-[10px] text-white/30 font-medium uppercase tracking-wider mb-2">Policies</p>
           <div className="flex gap-4 text-xs font-medium">
-            <a href="#" className="text-primary hover:underline transition-all">Terms of Service</a>
-            <a href="#" className="text-primary hover:underline transition-all">Privacy Policy</a>
-            <a href="#" className="text-primary hover:underline transition-all">Refund Policy</a>
+            <Link to="/terms" className="text-primary hover:underline transition-all">Terms of Service</Link>
+            <Link to="/privacy" className="text-primary hover:underline transition-all">Privacy Policy</Link>
+            <Link to="/refund" className="text-primary hover:underline transition-all">Refund Policy</Link>
           </div>
         </div>
 
@@ -164,13 +159,14 @@ export default function Profile() {
   );
 }
 
-function SettingsItem({ icon: Icon, label, value, highlight }: { icon: any, label: string, value: string, highlight?: boolean }) {
+function SettingsItem({ icon: Icon, label, value, highlight, badge }: { icon: any, label: string, value: string, highlight?: boolean, badge?: string }) {
   return (
     <div className={cn(
       "flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-2xl bg-white/[0.02] border border-white/5 gap-4 transition-all hover:bg-white/[0.04]",
-      highlight && "border-primary/20 bg-primary/[0.02]"
+      highlight && "border-primary/20 bg-primary/[0.02]",
+      badge && "cursor-pointer"
     )}>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-1">
         <div className="w-10 h-10 rounded-xl bg-white/[0.03] flex items-center justify-center shrink-0 border border-white/5 shadow-inner">
           <Icon className={cn("w-5 h-5", highlight ? "text-primary" : "text-white/40")} />
         </div>
@@ -179,6 +175,11 @@ function SettingsItem({ icon: Icon, label, value, highlight }: { icon: any, labe
           <p className="text-white font-medium text-sm md:text-base tracking-tight">{value}</p>
         </div>
       </div>
+      {badge && (
+        <span className="self-start sm:self-center px-2 py-1 bg-white/10 text-white/60 text-[10px] font-bold uppercase rounded border border-white/5">
+          {badge}
+        </span>
+      )}
     </div>
   );
 }

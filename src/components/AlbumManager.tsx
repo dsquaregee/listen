@@ -22,6 +22,8 @@ import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandle
 import { GoogleGenAI } from "@google/genai";
 import { usePlayerStore } from '../store/usePlayerStore';
 
+import { Toaster, toast } from 'sonner';
+
 export default function AlbumManager() {
   const { setAlbum } = usePlayerStore();
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -133,7 +135,7 @@ export default function AlbumManager() {
       fetchInitialData();
     } catch (error) {
       console.error('ALBUM_PROPAGATION_ERROR:', error);
-      alert('Failed to propagate album. Check console for details.');
+      toast.error('Failed to propagate album. Check console for details.');
       handleFirestoreError(error, OperationType.CREATE, 'albums');
     } finally {
       setIsProcessingAudio(false);
@@ -152,7 +154,7 @@ export default function AlbumManager() {
       setEditingId(null);
       fetchInitialData();
     } catch (error) {
-      alert('Failed to update matrix.');
+      toast.error('Failed to update matrix.');
       handleFirestoreError(error, OperationType.UPDATE, `albums/${id}`);
     } finally {
       setIsProcessingAudio(false);
@@ -209,7 +211,7 @@ export default function AlbumManager() {
   };
 
   const runAiMagic = async () => {
-    if (!formData.description) return alert('Please paste a description first.');
+    if (!formData.description) return toast.error('Please paste a description first.');
     setIsGeneratingMagic(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -267,12 +269,12 @@ export default function AlbumManager() {
           
         } catch (e) {
           console.error('JSON Parse Error:', e, text);
-          alert('Magic happened, but I couldn\'t parse the vision perfectly. Some fields might be missing.');
+          toast.warning('Magic happened, but I couldn\'t parse the vision perfectly. Some fields might be missing.');
         }
       }
     } catch (error) {
       console.error('Error in AI Magic:', error);
-      alert('AI Magic failed to initiate.');
+      toast.error('AI Magic failed to initiate.');
     } finally {
       setIsGeneratingMagic(false);
     }
@@ -309,14 +311,14 @@ export default function AlbumManager() {
   };
 
   const generateArtwork = async () => {
-    if (!formData.title) return alert('Please enter a title first.');
+    if (!formData.title) return toast.error('Please enter a title first.');
     setIsGeneratingMagic(true); // Reuse magic loading state for art only
     await generateArtworkForTitle(formData.title, formData.artist, formData.moodTags);
     setIsGeneratingMagic(false);
   };
 
   const generatePreview = async () => {
-    if (!formData.title) return alert('Please enter a title first.');
+    if (!formData.title) return toast.error('Please enter a title first.');
     setIsGeneratingPreview(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -341,18 +343,18 @@ export default function AlbumManager() {
       const randomPreview = ambientPreviews[Math.floor(Math.random() * ambientPreviews.length)];
       
       setFormData(prev => ({ ...prev, videoHlsUrl: randomPreview }));
-      alert('AI Preview Vision generated successfully. Preview video updated with a cinematic ambient placeholder matching the mood.');
+      toast.success('AI Preview Vision generated successfully.');
     } catch (error) {
       console.error('Error generating preview:', error);
-      alert('Failed to generate preview.');
+      toast.error('Failed to generate preview.');
     } finally {
       setIsGeneratingPreview(false);
     }
   };
 
   const handleProcessAudio = async () => {
-    if (!audioFile) return alert('Please select a .wav file first.');
-    if (!formData.title) return alert('Please enter a title first (used for organizing files).');
+    if (!audioFile) return toast.error('Please select a .wav file first.');
+    if (!formData.title) return toast.error('Please enter a title first (used for organizing files).');
 
     setIsProcessingAudio(true);
     setDebugLog(['Starting...']);
@@ -414,7 +416,7 @@ export default function AlbumManager() {
       if (data.m3u8Url) {
         setFormData(prev => ({ ...prev, hlsUrl: data.m3u8Url }));
         addDebugLog('Success!');
-        alert('Audio processed successfully!');
+        toast.success('Audio processed successfully!');
         setAudioFile(null);
       } else {
         throw new Error(data.error || 'Processing orchestration failure');
@@ -423,15 +425,15 @@ export default function AlbumManager() {
       console.error('Advanced Orchestration failed:', error);
       const msg = error instanceof Error ? error.message : String(error);
       addDebugLog(`Error: ${msg}`);
-      alert('Orchestration failed: ' + msg);
+      toast.error('Orchestration failed: ' + msg);
     } finally {
       setIsProcessingAudio(false);
     }
   };
 
   const handleManualUpload = async () => {
-    if (manualFiles.length === 0) return alert('Please select HLS files first.');
-    if (!formData.title) return alert('Please enter a title first to define the directory.');
+    if (manualFiles.length === 0) return toast.error('Please select HLS files first.');
+    if (!formData.title) return toast.error('Please enter a title first to define the directory.');
 
     setIsProcessingAudio(true);
     setDebugLog(['Checking files...']);
@@ -486,7 +488,7 @@ export default function AlbumManager() {
       if (masterPlaylistUrl) {
         setFormData(prev => ({ ...prev, hlsUrl: masterPlaylistUrl }));
         addDebugLog('Success! Master playlist found.');
-        alert('Manual HLS upload successful!');
+        toast.success('Manual HLS upload successful!');
         setManualFiles([]);
       } else {
         // Try to find ANY m3u8 if index or playlist wasn't found
@@ -495,11 +497,11 @@ export default function AlbumManager() {
            addDebugLog('Playlist found (non-standard name).');
            const path = `audio/${albumId}/${firstM3u8.name}`;
            setFormData(prev => ({ ...prev, hlsUrl: `https://storage.googleapis.com/${detectedBucket}/${path}` }));
-           alert('Manual HLS upload successful (used detected .m3u8)!');
+           toast.success('Manual HLS upload successful (used detected .m3u8)!');
            setManualFiles([]);
         } else {
            addDebugLog('Warning: No .m3u8 file found in selection.');
-           alert('Files uploaded, but no .m3u8 playlist found to set as master.');
+           toast.warning('Files uploaded, but no .m3u8 playlist found to set as master.');
         }
       }
     } catch (error) {

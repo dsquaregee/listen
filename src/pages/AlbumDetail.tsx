@@ -16,6 +16,8 @@ import { cn } from '../lib/utils';
 import { hapticFeedback } from '../lib/haptics';
 import { HlsVideoPlayer } from '../components/HlsVideoPlayer';
 
+import { Toaster, toast } from 'sonner';
+
 export default function AlbumDetail() {
   const { id } = useParams();
   const { user } = useAuthStore();
@@ -184,7 +186,7 @@ export default function AlbumDetail() {
                   <button 
                     onClick={() => {
                       hapticFeedback.light();
-                      if (!user) return alert('Please sign in to manage orbits.');
+                      if (!user) return toast.error('Please sign in to manage orbits.');
                       setShowPlaylistModal(true);
                     }}
                     className="p-3 rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all border border-white/10"
