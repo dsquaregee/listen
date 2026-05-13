@@ -6,16 +6,28 @@ import { cn } from '../lib/utils';
 export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Detect iOS
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(isIOSDevice);
+
+    // Check if app is already installed
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+
     const handler = (e: any) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
-      // Update UI notify the user they can install the PWA
-      setIsVisible(true);
+      if (!isStandalone) {
+        setIsVisible(true);
+      }
     };
+
+    // For iOS, we show the prompt if it's not already installed
+    if (isIOSDevice && !isStandalone) {
+      setIsVisible(true);
+    }
 
     window.addEventListener('beforeinstallprompt', handler);
 
@@ -25,21 +37,20 @@ export function InstallPrompt() {
   }, []);
 
   const handleInstall = async () => {
+    if (isIOS) {
+      // For iOS, we just show instructions (the UI is already there, maybe just scroll to top or alert)
+      return;
+    }
+
     if (!deferredPrompt) return;
 
-    // Show the install prompt
     deferredPrompt.prompt();
-
-    // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
     
     if (outcome === 'accepted') {
       console.log('User accepted the install prompt');
-    } else {
-      console.log('User dismissed the install prompt');
     }
 
-    // We've used the prompt, and can't use it again, throw it away
     setDeferredPrompt(null);
     setIsVisible(false);
   };
@@ -65,18 +76,24 @@ export function InstallPrompt() {
               </div>
               
               <div className="flex-1 min-w-0">
-                <h4 className="text-white font-bold text-sm tracking-tight leading-tight">Install DsquareGee</h4>
-                <p className="text-white/50 text-[10px] uppercase font-bold tracking-[0.1em] mt-0.5">Offline Cinematic Audio Experience</p>
+                <h4 className="text-white font-bold text-sm tracking-tight leading-tight">
+                  {isIOS ? 'Install DsquareGee' : 'Install DsquareGee'}
+                </h4>
+                <p className="text-white/50 text-[10px] uppercase font-bold tracking-[0.1em] mt-0.5">
+                  {isIOS ? 'Tap Share and "Add to Home Screen"' : 'Offline Cinematic Audio Experience'}
+                </p>
               </div>
               
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={handleInstall}
-                  className="bg-primary hover:bg-accent text-black text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-[0_0_15px_rgba(153,102,204,0.3)]"
-                >
-                  Install Now
-                </button>
-              </div>
+              {!isIOS && (
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={handleInstall}
+                    className="bg-primary hover:bg-accent text-black text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-[0_0_15px_rgba(153,102,204,0.3)]"
+                  >
+                    Install
+                  </button>
+                </div>
+              )}
             </div>
 
             <button 
