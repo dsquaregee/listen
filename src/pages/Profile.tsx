@@ -26,10 +26,12 @@ export default function Profile() {
 
   const handleManageSubscription = async () => {
     if (!user?.stripeCustomerId) {
-      if (user?.isAdmin) {
-        return toast.info('Admin accounts use internal privileges and do not have Stripe billing records.');
+      if (user?.tier === 'premium' && !user.stripeCustomerId) {
+        return toast.info('This account has Administrative Premium access, which does not use Stripe billing.', {
+          duration: 5000
+        });
       }
-      return toast.error('No active billing record found. If you just subscribed, please wait a moment.');
+      return toast.error('No active billing record found.');
     }
     
     const toastId = toast.loading('Connecting to Stripe Billing...');
@@ -47,6 +49,20 @@ export default function Profile() {
     } catch (error) {
       console.error('Portal error:', error);
       toast.error('Could not open billing portal.', { id: toastId });
+    }
+  };
+
+  const handleSimulateLink = async () => {
+    if (!user) return;
+    const toastId = toast.loading('Simulating billing link...');
+    try {
+      await setDoc(doc(db, 'users', user.uid), {
+        stripeCustomerId: 'cus_test_simulate_' + Math.random().toString(36).substring(7),
+        tier: 'premium'
+      }, { merge: true });
+      toast.success('Billing linked! You can now test the Manage button.', { id: toastId });
+    } catch (err) {
+      toast.error('Simulation failed.', { id: toastId });
     }
   };
 
@@ -76,26 +92,30 @@ export default function Profile() {
     );
   }
 
-  const canManage = !!user.stripeCustomerId || user.tier === 'premium';
+  const canManage = !!user.stripeCustomerId;
 
   return (
-    <div className="pt-24 px-6 max-w-2xl mx-auto">
+    <div className="pt-24 px-6 max-w-2xl mx-auto pb-32">
       <div className="flex items-center gap-6 mb-12">
-        <div className="w-24 h-24 rounded-full bg-slate-800 border-2 border-primary overflow-hidden shadow-2xl">
-          <img src={user.photoURL || undefined} alt={user.displayName} className="w-full h-full object-cover" />
+        <div className="relative group">
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+          <img 
+            src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} 
+            alt="Profile" 
+            className="relative w-24 h-24 rounded-full border-2 border-white/10 shadow-2xl"
+          />
+          {user.tier === 'premium' && (
+            <div className="absolute -bottom-1 -right-1 bg-primary text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-surface shadow-lg">
+              Infinite
+            </div>
+          )}
         </div>
         <div>
           <h1 className="text-3xl font-serif font-bold text-white">{user.displayName}</h1>
-          <div className="flex items-center gap-2 text-slate-400 mt-1">
+          <div className="flex items-center gap-2 text-white/40 mt-1">
             <Mail className="w-4 h-4" />
             {user.email}
           </div>
-          {user.tier === 'premium' && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary text-black text-[10px] font-bold uppercase rounded-full mt-3 shadow-lg shadow-primary/20">
-              <Crown className="w-3 h-3 fill-current" />
-              Premium Subscriber
-            </span>
-          )}
         </div>
       </div>
 
@@ -104,10 +124,10 @@ export default function Profile() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-6 rounded-[32px] bg-gradient-to-br from-accent/20 to-accent/5 border border-accent/30 mb-8 relative overflow-hidden group"
+            className="p-6 rounded-[32px] bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 mb-8 relative overflow-hidden group shadow-[0_0_40px_rgba(153,102,204,0.1)]"
           >
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Crown className="w-24 h-24 text-accent -rotate-12" />
+              <Crown className="w-24 h-24 text-primary -rotate-12" />
             </div>
             <h3 className="text-xl font-serif font-bold italic text-white mb-2">Elevate to Infinite Seeker</h3>
             <p className="text-xs text-white/60 mb-6 leading-relaxed max-w-[80%]">
@@ -115,7 +135,7 @@ export default function Profile() {
             </p>
             <Link 
               to="/premium"
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent text-black font-bold rounded-full text-[10px] uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-accent/20"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-black font-bold rounded-full text-[10px] uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-primary/20"
             >
               Subscribe
             </Link>
@@ -128,11 +148,22 @@ export default function Profile() {
           <SettingsItem 
             icon={Crown} 
             label="Subscription Plan" 
-            value={user.tier === 'premium' ? 'Infinite Seeker (Active)' : 'Free Tier'} 
+            value={user.tier === 'premium' ? "Infinite Seeker (Active)" : "Free Listener"} 
             highlight={user.tier === 'free'} 
             badge={canManage ? "Manage" : undefined}
           />
         </div>
+
+        {!canManage && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={handleSimulateLink}
+            className="w-full py-3 border border-dashed border-white/10 rounded-xl text-[10px] text-white/20 uppercase font-black tracking-widest hover:border-primary/30 hover:text-primary transition-all mb-4"
+          >
+            [Dev] Simulate Subscription Link
+          </motion.button>
+        )}
         <SettingsItem icon={ShieldCheck} label="Security & Privacy" value="Connected via Google" />
         <SettingsItem icon={Settings} label="App Preferences" value="Default" />
 
