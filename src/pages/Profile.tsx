@@ -97,7 +97,7 @@ export default function Profile() {
               to="/premium"
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent text-black font-bold rounded-full text-[10px] uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-accent/20"
             >
-              Learn More
+              Subscribe
             </Link>
           </motion.div>
         )}

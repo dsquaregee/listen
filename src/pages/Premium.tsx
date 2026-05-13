@@ -70,30 +70,8 @@ export default function Premium() {
   const localPrice = Math.round(amount * (exchangeRates[currency] || 1));
 
   return (
-    <div className="min-h-screen pt-24 px-6 pb-20 relative overflow-hidden bg-black">
-      {/* Immersive background elements */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-accent/5 blur-[120px] rounded-full -z-10 animate-pulse" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-secondary/20 blur-[150px] rounded-full -z-10" />
-
-      <header className="text-center max-w-3xl mx-auto mb-16">
-        <motion.div
-           initial={{ y: 20, opacity: 0 }}
-           animate={{ y: 0, opacity: 1 }}
-           className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-6"
-        >
-          <Crown className="w-3 h-3 text-accent" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">Subscription Selection</span>
-        </motion.div>
-        <h1 className="text-5xl sm:text-7xl font-serif font-bold italic text-white mb-6 leading-tight">
-          Manifesting <br />
-          <span className="text-accent drop-shadow-[0_0_20px_rgba(197,160,89,0.3)]">Infinite Resonance</span>
-        </h1>
-        <p className="text-white/40 text-lg sm:text-xl font-light italic">
-          Choose your manifestation intensity. Unlock the full cinematic spectrum.
-        </p>
-      </header>
-
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen pt-24 px-6 pb-20 relative overflow-hidden bg-black flex flex-col items-center justify-center">
+      <div className="max-w-2xl w-full mx-auto">
         {/* Infinite Resonance Tier */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -144,8 +122,6 @@ export default function Premium() {
                 {[
                   { icon: Infinity, label: 'Full Library' },
                   { icon: Smartphone, label: 'Offline Listening' },
-                  { icon: Shield, label: 'Infinite Cache' },
-                  { icon: Zap, label: 'Seamless Flow' }
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-xl">
                     <item.icon className="w-4 h-4 text-accent" />
@@ -169,12 +145,6 @@ export default function Premium() {
           </div>
         </motion.div>
       </div>
-
-        <div className="mt-12 grid grid-cols-4 gap-4 text-center opacity-20 pb-20">
-            {[Globe, Shield, Headphones, DollarSign].map((Icon, i) => (
-              <Icon key={i} className="w-5 h-5 mx-auto" />
-            ))}
-        </div>
     </div>
   );
 }
