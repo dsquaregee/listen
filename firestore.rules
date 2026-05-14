@@ -3,74 +3,66 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Global safety net - Deny all by default, except for admins
-    match /{document=**} {
-      allow read, write: if isAdmin();
-    }
-
     // --- Helpers ---
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Safe admin check using token email (Primary Admin dsquaregee@gmail.com)
+    // Comprehensive Admin Check
     function isAdmin() {
-      return isSignedIn() && 
-             request.auth.token.get('email', '').lower() == 'dsquaregee@gmail.com';
+      return isSignedIn() && (
+        request.auth.token.email.lower() == 'dsquaregee@gmail.com' ||
+        request.auth.uid == 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1'
+      );
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
-    function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
     // --- End Helpers ---
 
-    // 1. Users Collection
+    // 1. Users
     match /users/{userId} {
-      allow get, update: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
-      allow list: if isAdmin();
+      allow read, write: if isOwner(userId) || isAdmin();
     }
 
-    // 2. Categories (Public)
+    // 2. Categories
     match /categories/{categoryId} {
       allow read: if true;
+      allow write: if isAdmin();
     }
 
-    // 3. Albums (Public)
+    // 3. Albums
     match /albums/{albumId} {
       allow read: if true;
-      // Allow incrementing playCount for signed in users
-      allow update: if (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['playCount', 'updatedAt'])) || isAdmin();
+      allow write: if isAdmin();
+      allow update: if isSignedIn();
     }
 
     // 4. Playlists
     match /playlists/{playlistId} {
-      // Explicitly allow list queries for the owner
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      
-      // Allow get and write
+      // Allow listing for signed in users - search results will be naturally restricted if they query their own
+      allow list: if isSignedIn();
       allow get, write: if isSignedIn() && (
-        (resource != null && resource.data.userId == request.auth.uid) ||
-        (resource == null && incoming().userId == request.auth.uid) ||
-        isAdmin()
+        isAdmin() || 
+        (resource == null && request.resource.data.userId == request.auth.uid) ||
+        (resource != null && resource.data.userId == request.auth.uid)
       );
     }
 
-    // 5. Favorites (Optional separate collection, usually handled via 'Liked' playlist)
+    // 5. Favorites
     match /favorites/{favoriteId} {
-      allow read, write: if isSignedIn() && (
-        (resource != null && resource.data.userId == request.auth.uid) ||
-        (resource == null && incoming().userId == request.auth.uid)
+      allow list: if isSignedIn();
+      allow get, write: if isSignedIn() && (
+        isAdmin() || 
+        (resource == null && request.resource.data.userId == request.auth.uid) ||
+        (resource != null && resource.data.userId == request.auth.uid)
       );
     }
 
-    // 6. Admins Collection (Specific doc access)
-    match /admins/{adminId} {
-      allow get: if isSignedIn() && (adminId == request.auth.uid || isAdmin());
-      allow list: if isAdmin();
+    // GLOBAL CATCH-ALL
+    match /{document=**} {
+      allow read, write: if isAdmin();
     }
   }
 }

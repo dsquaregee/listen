@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc, collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { auth, db } from './lib/firebase';
 import { useAuthStore } from './store/useAuthStore';
@@ -135,10 +135,19 @@ export default function App() {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       // Clear previous listeners if any (shouldn't happen with standard onAuthStateChanged but for safety)
-      if (playlistsUnsubscribe) playlistsUnsubscribe();
-      if (userUnsubscribe) userUnsubscribe();
+      if (playlistsUnsubscribe) {
+        playlistsUnsubscribe();
+        playlistsUnsubscribe = null;
+      }
+      if (userUnsubscribe) {
+        userUnsubscribe();
+        userUnsubscribe = null;
+      }
 
       if (firebaseUser) {
+        const adminEmail = 'dsquaregee@gmail.com';
+        const isMasterAdmin = firebaseUser.email?.toLowerCase() === adminEmail;
+
         try {
           // Playlists Listener
           const plQuery = query(
@@ -154,7 +163,8 @@ export default function App() {
             })) as any[];
             setPlaylists(plys);
           }, (err) => {
-            handleFirestoreError(err, OperationType.GET, 'playlists');
+            console.error('Playlists listener error:', err);
+            // Don't toast here as it might be an index issue or just temporary
           });
 
           const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -163,16 +173,12 @@ export default function App() {
           userUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
             if (docSnap.exists()) {
               const userData = docSnap.data() as UserProfile;
-              const adminEmails = ['dsquaregee@gmail.com'];
-              const isAdmin = adminEmails.includes(firebaseUser.email || '');
-              const finalTier = isAdmin && !userData.stripeCustomerId ? 'premium' : userData.tier;
-              setUser({ ...userData, isAdmin, tier: finalTier });
+              const finalTier = isMasterAdmin && !userData.stripeCustomerId ? 'premium' : userData.tier;
+              setUser({ ...userData, isAdmin: isMasterAdmin || userData.isAdmin, tier: finalTier });
               setUserTier(finalTier);
             } else {
               // Create default profile if missing
-              const adminEmail = 'dsquaregee@gmail.com';
-              const isAdmin = firebaseUser.email === adminEmail;
-              const tier = isAdmin ? 'premium' : 'free';
+              const tier = isMasterAdmin ? 'premium' : 'free';
               
               const initialProfile: UserProfile = {
                 uid: firebaseUser.uid,
@@ -180,16 +186,32 @@ export default function App() {
                 displayName: firebaseUser.displayName || 'Listener',
                 photoURL: firebaseUser.photoURL || '',
                 tier,
-                isAdmin,
+                isAdmin: isMasterAdmin,
               };
-              setDoc(userDocRef, { ...initialProfile, createdAt: new Date().toISOString() });
+              setDoc(userDocRef, { ...initialProfile, createdAt: serverTimestamp() }, { merge: true })
+                .catch(err => console.error('Failed to create initial profile:', err));
+              
+              setUser({ ...initialProfile, isAdmin: isMasterAdmin });
+              setUserTier(tier);
             }
           }, (err) => {
-            handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
+            console.error('User listener error:', err);
+            // Fallback for master admin if doc fetch fails (e.g. initial setup)
+            if (isMasterAdmin) {
+              setUser({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || '',
+                displayName: firebaseUser.displayName || 'Admin',
+                photoURL: firebaseUser.photoURL || '',
+                tier: 'premium',
+                isAdmin: true
+              });
+              setUserTier('premium');
+            }
           });
 
         } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+          console.error('Auth post-processing error:', error);
         }
       } else {
         setUser(null);
