@@ -152,8 +152,7 @@ export default function App() {
           // Playlists Listener
           const plQuery = query(
             collection(db, 'playlists'),
-            where('userId', '==', firebaseUser.uid),
-            orderBy('createdAt', 'desc')
+            where('userId', '==', firebaseUser.uid)
           );
 
           playlistsUnsubscribe = onSnapshot(plQuery, (snapshot) => {
@@ -176,9 +175,9 @@ export default function App() {
               const finalTier = isMasterAdmin && !userData.stripeCustomerId ? 'premium' : userData.tier;
               setUser({ ...userData, isAdmin: isMasterAdmin || userData.isAdmin, tier: finalTier });
               setUserTier(finalTier);
-            } else {
-              // Create default profile if missing
-              const tier = isMasterAdmin ? 'premium' : 'free';
+            } else if (isMasterAdmin) {
+              // Create default profile if missing for admin
+              const tier = 'premium';
               
               const initialProfile: UserProfile = {
                 uid: firebaseUser.uid,

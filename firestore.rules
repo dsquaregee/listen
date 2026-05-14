@@ -8,41 +8,39 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Comprehensive Admin Check
+    // robust admin check using both UID and email (defensive)
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email.lower() == 'dsquaregee@gmail.com' ||
-        request.auth.uid == 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1'
+        request.auth.uid == 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1' ||
+        request.auth.token.get('email', '') == 'dsquaregee@gmail.com' ||
+        request.auth.token.email == 'dsquaregee@gmail.com'
       );
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
     }
     // --- End Helpers ---
 
-    // 1. Users
+    // USERS - Full access for owner or admin
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
     }
 
-    // 2. Categories
+    // CATEGORIES - Publicly readable
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // 3. Albums
+    // ALBUMS - Publicly readable
     match /albums/{albumId} {
       allow read: if true;
       allow write: if isAdmin();
-      allow update: if isSignedIn();
+      allow update: if isSignedIn(); // Allow updating playCount
     }
 
-    // 4. Playlists
+    // PLAYLISTS - Owner or admin
     match /playlists/{playlistId} {
-      // Allow listing for signed in users - search results will be naturally restricted if they query their own
-      allow list: if isSignedIn();
+      // allow list for the owner/admin
+      allow list: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      
       allow get, write: if isSignedIn() && (
         isAdmin() || 
         (resource == null && request.resource.data.userId == request.auth.uid) ||
@@ -50,9 +48,10 @@ service cloud.firestore {
       );
     }
 
-    // 5. Favorites
+    // FAVORITES - Owner or admin
     match /favorites/{favoriteId} {
-      allow list: if isSignedIn();
+      allow list: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      
       allow get, write: if isSignedIn() && (
         isAdmin() || 
         (resource == null && request.resource.data.userId == request.auth.uid) ||
@@ -60,7 +59,7 @@ service cloud.firestore {
       );
     }
 
-    // GLOBAL CATCH-ALL
+    // GLOBAL CATCH-ALL FOR ADMIN
     match /{document=**} {
       allow read, write: if isAdmin();
     }
