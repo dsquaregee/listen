@@ -551,6 +551,10 @@ async function startServer() {
       if (fs.existsSync(distPath)) {
         logToFile('Vite failed, falling back to static dist in dev mode');
         app.use(express.static(distPath));
+        app.get('*', (req, res, next) => {
+          if (req.path.startsWith('/api')) return next();
+          res.sendFile(path.join(distPath, 'index.html'));
+        });
       }
     }
   } else {
@@ -560,37 +564,33 @@ async function startServer() {
     
     if (fs.existsSync(distPath)) {
       app.use(express.static(distPath));
+      app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api')) return next();
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
       logToFile('Production static serving active');
     } else {
       logToFile(`ERROR: Dist path not found at ${distPath}. Did build run?`);
     }
   }
 
-  const server = app.listen(PORT, '0.0.0.0', () => {
-    logToFile(`Server actually listening on http://0.0.0.0:${PORT}`);
-  });
-
-  // Global SPA Catch-all (Must be last)
-  // This ensures that even if Vite or static serving falls through, 
-  // we attempt to serve index.html for unknown paths to support SPA routing.
   app.get('*', (req, res, next) => {
+    // Skip API routes
     if (req.path.startsWith('/api')) return next();
     
+    // Attempt to serve index.html from dist for SPA routing
     const distPath = path.join(process.cwd(), 'dist');
     const indexPath = path.join(distPath, 'index.html');
 
     if (fs.existsSync(indexPath)) {
       res.sendFile(indexPath);
-    } else if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_VITE !== 'true') {
-      // In development, the request should have been caught by Vite middlewares.
-      // If we are here, it means Vite didn't handle it. This might happen if the path
-      // has an extension that Vite thinks is a static file but doesn't exist.
-      // We log it to help debug.
-      logToFile(`Dev Fallthrough: ${req.method} ${req.url}`);
-      next();
     } else {
       next();
     }
+  });
+
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    logToFile(`Server actually listening on http://0.0.0.0:${PORT}`);
   });
 
   server.timeout = 600000; // 10 minutes
