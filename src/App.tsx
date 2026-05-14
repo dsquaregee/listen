@@ -33,8 +33,56 @@ import Privacy from './pages/Privacy';
 import Refund from './pages/Refund';
 
 import { Toaster, toast } from 'sonner';
+import { MOCK_CATEGORIES, MOCK_ALBUMS } from './data/mockData';
 
 const queryClient = new QueryClient();
+
+function UniverseRestorer() {
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    const checkAndRestore = async () => {
+      if (!user || !user.isAdmin) return;
+
+      try {
+        const catSn = await getDocs(collection(db, 'categories'));
+        const albSn = await getDocs(collection(db, 'albums'));
+
+        if (catSn.empty || albSn.empty) {
+          console.log('Database universe incomplete, restoring data...');
+          const toastId = toast.loading('Synchronizing Atmosphere Universe...');
+          
+          // Seed Categories
+          for (const cat of MOCK_CATEGORIES) {
+            await setDoc(doc(db, 'categories', cat.id), {
+              ...cat,
+              updatedAt: serverTimestamp()
+            }, { merge: true });
+          }
+          
+          // Seed Albums
+          for (const album of MOCK_ALBUMS) {
+            await setDoc(doc(db, 'albums', album.id), {
+              ...album,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              playCount: 0
+            }, { merge: true });
+          }
+          
+          toast.success('Universe Data Restored Successfully!', { id: toastId });
+          window.location.reload(); // Refresh to show data
+        }
+      } catch (err) {
+        console.error('Auto-restoration failed:', err);
+      }
+    };
+
+    checkAndRestore();
+  }, [user]);
+
+  return null;
+}
 
 function PaymentHandler() {
   const { user, setUser } = useAuthStore();
@@ -160,6 +208,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
+        <UniverseRestorer />
         <Toaster position="top-center" theme="dark" closeButton richColors />
         <PaymentHandler />
         <div className="flex flex-col min-h-screen bg-black text-slate-100 cinematic-gradient-bg">
