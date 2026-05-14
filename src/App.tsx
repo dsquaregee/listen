@@ -60,17 +60,17 @@ function PaymentHandler() {
           setUser({ ...user, ...updateData });
           setUserTier('premium');
           
-          // Clear query params
-          navigate('/', { replace: true });
           toast.success('Welcome to Premium! Your payment was successful.');
+          navigate('/profile', { replace: true });
         } catch (e) {
           console.error('Failed to update tier after payment:', e);
+          toast.error('Resonance synchronization failed. Please refresh.');
         }
       };
       updateTier();
     } else if (paymentStatus === 'cancelled') {
-       navigate('/', { replace: true });
-       toast.error('Payment was cancelled.');
+       toast.info('Manifestation paused. You can continue exploring at any time.');
+       navigate('/premium', { replace: true });
     }
   }, [location.search, user, setUser, setUserTier, navigate]);
 

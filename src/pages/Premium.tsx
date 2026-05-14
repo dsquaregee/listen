@@ -46,6 +46,7 @@ export default function Premium() {
     if (!user) return toast.error('Please sign in to subscribe.');
 
     setIsSubscribing(true);
+    const toastId = toast.loading('Preparing checkout...');
     try {
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
@@ -61,10 +62,11 @@ export default function Premium() {
       }
 
       const { url } = await response.json();
+      toast.dismiss(toastId);
       window.location.href = url; // Redirect to Stripe Checkout
     } catch (error) {
       console.error('Subscription error:', error);
-      toast.error(`Subscription failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your Stripe configuration.`);
+      toast.error(`Subscription failed: ${error instanceof Error ? error.message : 'Unknown error'}.`, { id: toastId });
     } finally {
       setIsSubscribing(false);
     }
@@ -115,6 +117,13 @@ export default function Premium() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="mb-8 p-4 rounded-2xl bg-white/[0.03] border border-white/10">
+              <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-2">Manifestation Tip</p>
+              <p className="text-[10px] text-white/60 italic leading-relaxed">
+                Applying a promo code? You can enter it on the secure payment page in the next step.
+              </p>
             </div>
 
             <button 
