@@ -473,6 +473,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
         },
       ],
       mode: 'subscription',
+      allow_promotion_codes: true,
       success_url: process.env.STRIPE_SUCCESS_URL || `${baseUrl}/profile?payment=success`,
       cancel_url: process.env.STRIPE_CANCEL_URL || `${baseUrl}/premium?payment=cancelled`,
     };
@@ -550,11 +551,12 @@ async function startServer() {
   // Robust path resolution for both local and container environments
   const rootDir = process.cwd();
   const distPath = path.resolve(rootDir, 'dist');
-  const indexPath = path.resolve(distPath, 'index.html');
+  const prodIndex = path.resolve(distPath, 'index.html');
+  const devIndex = path.resolve(rootDir, 'index.html');
 
-  logToFile(`Path Check: Root=${rootDir}, Dist=${distPath}, Index=${fs.existsSync(indexPath)}`);
+  logToFile(`Path Check: Root=${rootDir}, Dist=${distPath}, ProdIndex=${fs.existsSync(prodIndex)}`);
 
-  if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_VITE !== 'true') {
+  if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_VITE !== 'true' && process.env.DISABLE_VITE !== '1') {
     logToFile('Integrating Vite middleware (Development mode)');
     try {
       const { createServer: createViteServer } = await import('vite');
@@ -565,58 +567,59 @@ async function startServer() {
       app.use(vite.middlewares);
       logToFile('Vite middleware integrated successfully');
     } catch (e) {
-      logToFile(`Error integrating Vite fallback: ${e instanceof Error ? e.message : String(e)}`);
+      logToFile(`Error integrating Vite: ${e instanceof Error ? e.message : String(e)}`);
       if (fs.existsSync(distPath)) {
-        logToFile('Vite failed, falling back to static dist in dev mode');
+        logToFile('Vite failed, falling back to static dist');
         app.use(express.static(distPath, { index: false }));
       }
     }
   } else {
     logToFile('Starting Production mode (Static Serving)');
     if (fs.existsSync(distPath)) {
-      // Use express.static WITHOUT 'index: true' automatically to prevent it from greedily
-      // intercepting directories that should be handled by the SPA catch-all
       app.use(express.static(distPath, { index: false }));
       logToFile('Production static serving active');
     } else {
-      logToFile(`ERROR: Dist path not found at ${distPath}. Did build run?`);
+      logToFile(`WARNING: Dist path not found at ${distPath}. Continuing with root index fallback.`);
     }
   }
 
-  // Dedicated route for Premium to handle Stripe redirects robustly
+  // Explicit route for Premium to handle Stripe redirects reliably
   app.get('/premium', (req, res) => {
-    logToFile(`Explicit /premium route hit: ${req.url}`);
-    res.sendFile(indexPath, (err) => {
-      if (err) {
-        // Fallback to searching root if dist fails
-        const rootIndex = path.resolve(rootDir, 'index.html');
-        res.sendFile(rootIndex);
-      }
-    });
+    const target = (process.env.NODE_ENV === 'production') ? prodIndex : devIndex;
+    logToFile(`Explicit /premium hit: ${req.url} -> serving ${target}`);
+    res.sendFile(fs.existsSync(target) ? target : devIndex);
   });
 
   // Global SPA Catch-all - MUST be after all other routes and static middleware
   app.get('*', (req, res, next) => {
-    // 1. Skip API routes
+    // 1. Skip API routes - let them 404 naturally
     if (req.path.startsWith('/api')) {
-      logToFile(`API 404 skip: ${req.url}`);
       return next();
     }
     
-    // 2. Resolve index.html target
-    // In dev mode with Vite, index.html is in root. In prod, it's in dist.
-    let targetIndex = indexPath;
-    if (process.env.NODE_ENV !== 'production' && !fs.existsSync(indexPath)) {
-      targetIndex = path.resolve(rootDir, 'index.html');
+    // 2. IMPORTANT: Skip anything that looks like a static asset/file
+    // If it has an extension, it should have been caught by vite.middlewares or express.static
+    // If it reaches here, it means the file is MISSING. We should 404, not send index.html.
+    if (path.extname(req.path)) {
+      logToFile(`404 Asset Missing: ${req.url}`);
+      return res.status(404).send('Resource not found');
+    }
+
+    // 3. Resolve index.html target for navigation
+    // Prefer production index if in production, otherwise root index
+    let targetIndex = (process.env.NODE_ENV === 'production') ? prodIndex : devIndex;
+    
+    // Safety check: if our choice doesn't exist, try the other one
+    if (!fs.existsSync(targetIndex)) {
+      targetIndex = (targetIndex === prodIndex) ? devIndex : prodIndex;
     }
 
     logToFile(`SPA Routing Navigation: ${req.url} -> ${targetIndex}`);
     
     res.sendFile(targetIndex, (err) => {
       if (err) {
-        logToFile(`Error sending index.html (${targetIndex}) for ${req.url}: ${err.message}`);
-        // Fallback or explicit 404
-        res.status(404).send(`Application build missing. Please wait. (File: ${targetIndex})`);
+        logToFile(`Error sending index.html for ${req.url}: ${err.message}`);
+        res.status(404).send('Application temporarily unavailable. Please refresh.');
       }
     });
   });
