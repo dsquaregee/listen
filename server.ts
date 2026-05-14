@@ -534,6 +534,11 @@ async function startServer() {
     }
   }
 
+  // Resolve paths robustly
+  const rootDir = process.cwd();
+  const distPath = path.resolve(rootDir, 'dist');
+  const indexPath = path.resolve(distPath, 'index.html');
+
   if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_VITE !== 'true') {
     logToFile('Integrating Vite middleware (Development mode)');
     try {
@@ -545,47 +550,36 @@ async function startServer() {
       app.use(vite.middlewares);
       logToFile('Vite middleware integrated successfully');
     } catch (e) {
-      logToFile(`Error integrating Vite: ${e instanceof Error ? e.message : String(e)}`);
-      // Fallback to static in case Vite fails even in dev
-      const distPath = path.join(process.cwd(), 'dist');
+      logToFile(`Error integrating Vite fallback: ${e instanceof Error ? e.message : String(e)}`);
       if (fs.existsSync(distPath)) {
         logToFile('Vite failed, falling back to static dist in dev mode');
         app.use(express.static(distPath));
-        app.get('*', (req, res, next) => {
-          if (req.path.startsWith('/api')) return next();
-          res.sendFile(path.join(distPath, 'index.html'));
-        });
       }
     }
   } else {
     logToFile('Starting Production mode (Static Serving)');
-    const distPath = path.join(process.cwd(), 'dist');
     logToFile(`Static assets path: ${distPath}`);
     
     if (fs.existsSync(distPath)) {
       app.use(express.static(distPath));
-      app.get('*', (req, res, next) => {
-        if (req.path.startsWith('/api')) return next();
-        res.sendFile(path.join(distPath, 'index.html'));
-      });
       logToFile('Production static serving active');
     } else {
       logToFile(`ERROR: Dist path not found at ${distPath}. Did build run?`);
     }
   }
 
+  // Global SPA Catch-all - MUST be after all other routes and static middleware
   app.get('*', (req, res, next) => {
     // Skip API routes
     if (req.path.startsWith('/api')) return next();
     
-    // Attempt to serve index.html from dist for SPA routing
-    const distPath = path.join(process.cwd(), 'dist');
-    const indexPath = path.join(distPath, 'index.html');
-
+    // For any other GET request, send index.html to support SPA routing
     if (fs.existsSync(indexPath)) {
       res.sendFile(indexPath);
     } else {
-      next();
+      // If index.html is missing, we can't do much
+      logToFile(`404 Fallthrough: ${req.url} - index.html missing at ${indexPath}`);
+      res.status(404).send('404 - Source index not found');
     }
   });
 
