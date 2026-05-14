@@ -37,104 +37,52 @@ import { MOCK_CATEGORIES, MOCK_ALBUMS } from './data/mockData';
 
 const queryClient = new QueryClient();
 
-function UniverseRestorer() {
+// Quiet seeding - no toasts, just background attempt
+const UniverseRestorer = () => {
   const { user } = useAuthStore();
 
   useEffect(() => {
-    const checkAndRestore = async () => {
-      // Use auth.currentUser as a backup to the store state for quicker detection
+    const restore = async () => {
       const firebaseUser = auth.currentUser;
-      const isAdminEmail = firebaseUser?.email?.toLowerCase() === 'dsquaregee@gmail.com';
-      const isUidAdmin = firebaseUser?.uid === 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1';
+      const isAdmin = firebaseUser?.email === 'dsquaregee@gmail.com' || firebaseUser?.uid === 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1' || user?.isAdmin;
       
-      console.log('UniverseRestorer logic check:', { 
-        hasFirebaseUser: !!firebaseUser, 
-        isAdminEmail, 
-        isUidAdmin,
-        storeUserIsAdmin: user?.isAdmin 
-      });
-
-      if (!isAdminEmail && !isUidAdmin && (!user || !user.isAdmin)) {
-        console.log('UniverseRestorer: User is not an admin, skipping.');
-        return;
-      }
+      if (!isAdmin) return;
 
       try {
-        console.log('UniverseRestorer: Checking universe health...');
-        let catSn;
-        try {
-          catSn = await getDocs(collection(db, 'categories'));
-          console.log('UniverseRestorer: Health check read success. Categories found:', catSn.size);
-        } catch (readErr: any) {
-          console.error('UniverseRestorer: Health check read failed. Error:', readErr.message);
-          // If we are admin, we assume emptiness if we can't read, to try and fix it with a write
-          catSn = { empty: true, size: 0 }; 
-        }
-
+        const catSn = await getDocs(collection(db, 'categories'));
         if (catSn.empty) {
-          console.warn('UniverseRestorer: Database empty or unreachable. Attempting force-seed...');
-          toast.loading('Initializing database...', { id: 'seeding' });
-          
-          try {
-            // Seed Categories
-            console.log('UniverseRestorer: Seeding categories...');
-            for (const cat of MOCK_CATEGORIES) {
-              await setDoc(doc(db, 'categories', cat.id), {
-                ...cat,
-                updatedAt: serverTimestamp()
-              }, { merge: true });
-            }
-            
-            // Seed Albums
-            console.log('UniverseRestorer: Seeding albums...');
-            for (const album of MOCK_ALBUMS) {
-              await setDoc(doc(db, 'albums', album.id), {
-                ...album,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-                playCount: 0
-              }, { merge: true });
-            }
-            
-            toast.success('Database seeded successfully!', { id: 'seeding' });
-            console.log('UniverseRestorer: Seeding complete.');
-            // Brief delay to allow Firestore to propagate before reload
-            setTimeout(() => window.location.reload(), 1500); 
-          } catch (writeErr: any) {
-            console.error('UniverseRestorer: Force-seed write failed:', writeErr.message);
-            handleFirestoreError(writeErr, OperationType.WRITE, 'categories/albums');
+          console.log('UniverseRestorer: Seeding universe in background...');
+          // Attempt seeding
+          for (const cat of MOCK_CATEGORIES) {
+            await setDoc(doc(db, 'categories', cat.id), { ...cat, updatedAt: serverTimestamp() }, { merge: true });
           }
-        } else {
-          console.log('UniverseRestorer: Universe is already healthy.');
+          for (const album of MOCK_ALBUMS) {
+            await setDoc(doc(db, 'albums', album.id), { ...album, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), playCount: 0 }, { merge: true });
+          }
+          console.log('UniverseRestorer: Background seeding successful!');
         }
-      } catch (err: any) {
-        console.error('UniverseRestorer: Fatal error:', err);
-        if (err.message?.includes('permission')) {
-          toast.error('Permission denied. Please ensure you are logged in as dsquaregee@gmail.com', { id: 'seeding-error' });
-        }
+      } catch (e) {
+        // Silently fail, Home.tsx will use mock data
+        console.warn('UniverseRestorer: Background seeding failed (likely permissions). Using local data fallback.');
       }
     };
 
-    // Check immediately if auth is ready, or wait for it
-    const checkOnAuth = () => {
-      if (auth.currentUser) {
-        checkAndRestore();
-      } else {
-        const unsub = onAuthStateChanged(auth, (u) => {
-          if (u) {
-            checkAndRestore();
-            unsub();
-          }
-        });
-        setTimeout(unsub, 5000); // Stop waiting after 5s
-      }
-    };
-
-    checkOnAuth();
+    if (auth.currentUser) {
+      restore();
+    } else {
+      const unsub = onAuthStateChanged(auth, (u) => {
+        if (u) {
+          restore();
+          unsub();
+        }
+      });
+      return unsub;
+    }
   }, [user]);
 
   return null;
-}
+};
+
 
 function PaymentHandler() {
   const { user, setUser } = useAuthStore();
