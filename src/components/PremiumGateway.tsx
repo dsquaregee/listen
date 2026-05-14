@@ -93,7 +93,7 @@ export default function PremiumGateway() {
             </div>
 
             <p className="mt-8 text-[9px] uppercase tracking-widest text-white/20 font-bold">
-              Support the artist • Unlock the full library • Higher Fidelity
+              Full Library • Offline Listening
             </p>
           </div>
         </motion.div>

@@ -100,8 +100,7 @@ export default function Premium() {
             <div className="space-y-8 mb-12 flex-grow">
               <div className="space-y-4">
                 <p className="text-white/60 text-sm leading-relaxed">
-                  Support the creation of cinematic, atmospheric audio experiences. 
-                  Gain early access to all new manifesting soundscapes and offline listening.
+                  Unlock the complete vibrational spectrum with unlimited library access and offline resonance capabilities.
                 </p>
               </div>
 
@@ -109,8 +108,6 @@ export default function Premium() {
                 {[
                   { icon: Infinity, label: 'Full Library' },
                   { icon: Smartphone, label: 'Offline Listening' },
-                  { icon: Headphones, label: 'Lossless Audio' },
-                  { icon: Sparkles, label: 'Ad-Free' },
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-xl">
                     <item.icon className="w-4 h-4 text-accent" />
