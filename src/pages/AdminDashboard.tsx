@@ -5,17 +5,20 @@ import { useAuthStore } from '../store/useAuthStore';
 import { 
   BarChart3, Users, Clock, Activity, 
   TrendingUp, Wallet, ShieldCheck, ChevronRight,
-  Layers, Music
+  Layers, Music, RefreshCw, Database
 } from 'lucide-react';
 import CategoryManager from '../components/CategoryManager';
 import AlbumManager from '../components/AlbumManager';
-import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { MOCK_ALBUMS, MOCK_CATEGORIES } from '../data/mockData';
+import { toast } from 'sonner';
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'metrics' | 'content'>('metrics');
-  const [activeContent, setActiveContent] = useState<'categories' | 'albums'>('categories');
+  const [activeContent, setActiveContent] = useState<'categories' | 'albums' | 'system'>('categories');
+  const [isSeeding, setIsSeeding] = useState(false);
   const [metrics, setMetrics] = useState({
     totalUsers: 0,
     totalHours: 0,
@@ -68,6 +71,40 @@ export default function AdminDashboard() {
     { label: 'Top Experience', value: metrics.topAlbum, icon: Music, diff: 'Most Resonated', color: 'text-primary' },
     { label: 'Retention Rate', value: '84%', icon: TrendingUp, diff: '+2.4%', color: 'text-purple-400' },
   ];
+
+  const seedUniverse = async () => {
+    if (!confirm('This will populate the database with default categories and albums from mock data. Continue?')) return;
+    
+    setIsSeeding(true);
+    const toastId = toast.loading('Restoring Universe Data...');
+    
+    try {
+      // 1. Seed Categories
+      for (const cat of MOCK_CATEGORIES) {
+        await setDoc(doc(db, 'categories', cat.id), {
+          ...cat,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+      
+      // 2. Seed Albums
+      for (const album of MOCK_ALBUMS) {
+        await setDoc(doc(db, 'albums', album.id), {
+          ...album,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          playCount: 0
+        }, { merge: true });
+      }
+      
+      toast.success('Universe Data Restored Successfully!', { id: toastId });
+    } catch (error) {
+      console.error('Seeding failed:', error);
+      toast.error('Restoration failed. Check console for details.', { id: toastId });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   return (
     <div className="min-h-screen pt-24 px-4 md:px-8 pb-12 bg-[#050505] text-white">
@@ -170,6 +207,7 @@ export default function AdminDashboard() {
               {[
                 { id: 'categories', label: 'Categories', icon: Layers, count: 'Manage Collections' },
                 { id: 'albums', label: 'Universe Albums', icon: Music, count: 'Manage Experiences' },
+                { id: 'system', label: 'System Health', icon: RefreshCw, count: 'Database Tools' },
               ].map(item => (
                 <button 
                   key={item.id}
@@ -188,8 +226,33 @@ export default function AdminDashboard() {
 
 
           <main className="lg:col-span-3">
-            <div className="p-4 md:p-8 rounded-[32px] md:rounded-[40px] bg-white/10 border border-white/10 backdrop-blur-md overflow-x-auto">
-              {activeContent === 'categories' ? <CategoryManager /> : <AlbumManager />}
+            <div className="p-4 md:p-8 rounded-[32px] md:rounded-[40px] bg-white/10 border border-white/10 backdrop-blur-md overflow-x-auto min-h-[400px]">
+              {activeContent === 'categories' && <CategoryManager />}
+              {activeContent === 'albums' && <AlbumManager />}
+              {activeContent === 'system' && (
+                <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+                  <div className="p-4 rounded-3xl bg-primary/10 border border-primary/20 mb-6">
+                    <Database className="w-12 h-12 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-serif italic mb-4">Universe Restoration</h3>
+                  <p className="text-white/40 text-sm max-w-md mb-8">
+                    If your database was recently reset or is empty, use this tool to restore 
+                    all default Categories and Music Albums from the system blueprints.
+                  </p>
+                  <button
+                    onClick={seedUniverse}
+                    disabled={isSeeding}
+                    className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-primary text-black font-bold uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100"
+                  >
+                    {isSeeding ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Database className="w-4 h-4" />
+                    )}
+                    Restore Universe Data
+                  </button>
+                </div>
+              )}
             </div>
           </main>
         </div>

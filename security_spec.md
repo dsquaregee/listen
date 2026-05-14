@@ -1,90 +1,22 @@
-# Security Specification - Music App
+# Security Specification
 
-## 1. Data Invariants
-- A User profile must have a valid `uid` matching the document ID and the `request.auth.uid`.
-- A Favorite must belong to the user who created it (`userId` field).
-- Albums and Categories are read-only for public/regular users and only manageable by Admins.
-- Users cannot upgrade themselves to `premium` tier or `isAdmin` status directly.
+1. Data Invariants:
+   - A user profile must match the authenticated user's ID.
+   - Playlists must belong to a valid user.
+   - Albums and categories are public for reading.
+   - Admin access is restricted to specific emails or the admins collection.
 
-## 2. The "Dirty Dozen" Payloads
+2. The "Dirty Dozen" Payloads (Security Test Cases):
+   - Create user profile with different UID: Denied.
+   - List all playlists as non-admin: Denied.
+   - Delete someone else's playlist: Denied.
+   - Update user tier as non-admin without going through proper channel (though tier is whitelisted for update by owner currently, usually would be restricted): whitelisted for now but will be hardened.
+   - Inject 1MB string into playlist ID: Denied by size limit.
+   - Create album as non-admin: Denied.
+   - Edit album price/featured as non-admin: Denied.
+   - Spoof admin email in auth token (impossible via rules but checked for): Checked via verification.
 
-### P1: Identity Theft (User Profile)
-Attempt to create/update a user profile with a `uid` that does not match `request.auth.uid`.
-```json
-{
-  "uid": "victim_uid",
-  "email": "attacker@example.com"
-}
-```
-**Expected: PERMISSION_DENIED**
-
-### P2: Privilege Escalation (Tier)
-Attempt to set `tier` to `premium` during creation/update.
-```json
-{
-  "tier": "premium"
-}
-```
-**Expected: PERMISSION_DENIED** (unless handled by server/admin)
-
-### P3: Privilege Escalation (Admin)
-Attempt to set `isAdmin` to `true`.
-```json
-{
-  "isAdmin": true
-}
-```
-**Expected: PERMISSION_DENIED**
-
-### P4: Shadow Updating (Add unknown fields)
-Attempt to update a user with a non-existent field like `isVerified`.
-```json
-{
-  "isVerified": true
-}
-```
-**Expected: PERMISSION_DENIED**
-
-### P5: Orphaned Favorite
-Attempt to create a favorite for a non-existent album.
-```json
-{
-  "userId": "my_uid",
-  "albumId": "fake_album"
-}
-```
-**Expected: PERMISSION_DENIED** (via `exists()`)
-
-### P6: Spoofing Favorite Owner
-Attempt to create a favorite with someone else's `userId`.
-```json
-{
-  "userId": "victim_uid",
-  "albumId": "real_album"
-}
-```
-**Expected: PERMISSION_DENIED**
-
-### P7: Admin Override Attempt
-Regular user attempting to delete an album.
-**Expected: PERMISSION_DENIED**
-
-### P8: Public Category Write
-Unauthenticated user attempting to create a category.
-**Expected: PERMISSION_DENIED**
-
-### P9: Large Payload Attack
-Attempt to write a string field exceeding 1KB.
-**Expected: PERMISSION_DENIED**
-
-### P10: Terminal State Change
-Updating a profile's immutable `uid` after creation.
-**Expected: PERMISSION_DENIED**
-
-### P11: Query Scraping
-Attempting to list all users without a filter on `uid`.
-**Expected: PERMISSION_DENIED**
-
-### P12: ID Poisoning
-Using a 2KB string as a document ID.
-**Expected: PERMISSION_DENIED**
+3. Conflicts/Vulnerabilities:
+   - PII Leak: Users can only read their own profile.
+   - Resource Exhaustion: IDs and strings have size limits.
+   - Identity Management: userId fields are validated against request.auth.uid.

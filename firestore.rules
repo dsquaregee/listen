@@ -3,9 +3,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 0. Default Deny - Global Safety Net
+    // Global safety net - Deny all by default, except for admins
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if isAdmin();
     }
 
     // --- Helpers ---
@@ -13,22 +13,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Safe admin check using token email (fallback to metadata if needed)
+    function isAdmin() {
+      return isSignedIn() && 
+             request.auth.token.get('email', '').lower() == 'dsquaregee@gmail.com' &&
+             request.auth.token.get('email_verified', false) == true;
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // Pillar 8 constraint: No exists() inside allow list
-    function isAdminToken() {
-      return isSignedIn() && request.auth.token.get('email', '').lower() == 'dsquaregee@gmail.com';
-    }
-
-    // DB-backed admin check for single-doc operations
-    function isAdminDB() {
-      return isAdminToken() || exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
     function incoming() { return request.resource.data; }
@@ -37,74 +30,48 @@ service cloud.firestore {
 
     // 1. Users Collection
     match /users/{userId} {
-      function isValidUser(data) {
-        let requiredKeys = ['uid', 'email', 'displayName'];
-        // Pillar 2: Strict Keys & Identity Integrity
-        return data.keys().hasAll(requiredKeys) &&
-               data.uid == userId &&
-               data.email is string && data.email.size() <= 200 &&
-               data.displayName is string && data.displayName.size() <= 200;
-      }
-
-      // Pillar 6: PII Isolation
-      allow get: if isOwner(userId) || isAdminDB();
-      // Pillar 8: Secure List Queries (Avoid exists in list)
-      allow list: if isAdminToken(); 
-
-      allow create: if isOwner(userId) && isValidUser(incoming());
-      
-      allow update: if (isOwner(userId) || isAdminDB()) && (
-        // Tiered identity logic: allow specific state updates or full admin control
-        incoming().diff(existing()).affectedKeys().hasAny(['tier', 'isPremium', 'displayName', 'photoURL', 'totalMinutesStreamed', 'updatedAt', 'stripeCustomerId']) ||
-        isAdminDB()
-      );
+      allow get, update: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow list: if isAdmin();
     }
 
-    // 2. Categories
+    // 2. Categories (Public)
     match /categories/{categoryId} {
-      allow read: if true; 
-      allow write: if isAdminDB();
+      allow read: if true;
     }
 
-    // 3. Albums
+    // 3. Albums (Public)
     match /albums/{albumId} {
-      allow read: if true; 
-      allow update: if (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['playCount', 'updatedAt'])) || isAdminDB();
-      allow create, delete: if isAdminDB();
+      allow read: if true;
+      // Allow incrementing playCount for signed in users
+      allow update: if (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['playCount', 'updatedAt'])) || isAdmin();
     }
 
     // 4. Playlists
     match /playlists/{playlistId} {
-      function isValidPlaylist(data) {
-        return data.userId == request.auth.uid &&
-               data.name is string && data.name.size() <= 100 &&
-               data.albumIds is list && data.albumIds.size() <= 1000;
-      }
-
-      // Pillar 8: Secure List Queries - restrict to owner
+      // Explicitly allow list queries for the owner
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdminDB());
       
-      allow create: if isSignedIn() && isValidPlaylist(incoming()) && isValidId(playlistId);
-      
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && (
-        incoming().diff(existing()).affectedKeys().hasAny(['name', 'albumIds', 'updatedAt']) ||
-        isAdminDB()
+      // Allow get and write
+      allow get, write: if isSignedIn() && (
+        (resource != null && resource.data.userId == request.auth.uid) ||
+        (resource == null && incoming().userId == request.auth.uid) ||
+        isAdmin()
       );
-      
-      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdminDB());
-    }
-    
-    // 5. Favorites
-    match /favorites/{favoriteId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow write: if isSignedIn() && (incoming().userId == request.auth.uid || (existing() != null && existing().userId == request.auth.uid));
     }
 
-    // 6. Admins
+    // 5. Favorites (Optional separate collection, usually handled via 'Liked' playlist)
+    match /favorites/{favoriteId} {
+      allow read, write: if isSignedIn() && (
+        (resource != null && resource.data.userId == request.auth.uid) ||
+        (resource == null && incoming().userId == request.auth.uid)
+      );
+    }
+
+    // 6. Admins Collection (Specific doc access)
     match /admins/{adminId} {
-      allow read: if isAdminDB();
-      allow write: if false; 
+      allow get: if isSignedIn() && (adminId == request.auth.uid || isAdmin());
+      allow list: if isAdmin();
     }
   }
 }

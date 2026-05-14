@@ -16,11 +16,15 @@ export default function Profile() {
   const { user, setUser } = useAuthStore();
 
   const handleLogin = async () => {
+    const toastId = toast.loading('Signing in with Google...');
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
+      toast.success('Signed in successfully!', { id: toastId });
       // Profile creation and store update is handled by the real-time listener in App.tsx
     } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Sign-in failed. Please ensure popups are allowed.', { id: toastId });
       handleFirestoreError(error, OperationType.WRITE, 'auth/login');
     }
   };
