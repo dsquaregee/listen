@@ -1,108 +1,75 @@
 {
   "entities": {
-    "User": {
-      "title": "User Profile",
-      "description": "User account information, premium status, and streaming metrics",
-      "type": "object",
-      "properties": {
-        "uid": { "type": "string" },
-        "email": { "type": "string" },
-        "displayName": { "type": "string" },
-        "photoURL": { "type": "string" },
-        "isPremium": { "type": "boolean" },
-        "subscriptionAmount": { "type": "number" },
-        "subscriptionCurrency": { "type": "string" },
-        "subscriptionDate": { "type": "string", "format": "date-time" },
-        "totalMinutesStreamed": { "type": "number" },
-        "primaryGenre": { "type": "string" },
-        "topAlbumId": { "type": "string" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["uid", "email"]
-    },
     "Category": {
-      "title": "Music Category",
-      "description": "Categories for grouping albums (e.g., Fusion Fast, Carnatic Instrumental)",
+      "title": "Category",
+      "description": "Music categories",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
         "name": { "type": "string" },
+        "slug": { "type": "string" },
         "description": { "type": "string" },
         "visualIdentity": { "type": "string" },
-        "slug": { "type": "string" },
-        "order": { "type": "number" }
+        "order": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "name", "slug"]
+      "required": ["name", "slug"]
     },
     "Album": {
-      "title": "Album/Experience",
-      "description": "The primary 1-hour immersive audio content",
+      "title": "Album",
+      "description": "Music albums",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
         "title": { "type": "string" },
         "artist": { "type": "string" },
-        "duration": { "type": "number" },
+        "duration": { "type": "integer" },
         "coverUrl": { "type": "string" },
-        "audioUrl": { "type": "string" },
-        "shortVideoUrl": { "type": "string" },
+        "hlsUrl": { "type": "string" },
+        "videoHlsUrl": { "type": "string" },
         "categoryId": { "type": "string" },
         "description": { "type": "string" },
-        "instruments": { "type": "array", "items": { "type": "string" } },
-        "moodTags": { "type": "array", "items": { "type": "string" } },
-        "bpm": { "type": "number" },
         "featured": { "type": "boolean" },
-        "playCount": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "title", "audioUrl", "categoryId"]
-    },
-    "Favorite": {
-      "title": "User Favorite",
-      "description": "Albums favorited by a user",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "albumId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["userId", "albumId"]
-    },
-    "Playlist": {
-      "title": "User Playlist",
-      "description": "Collections of albums created by users",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "name": { "type": "string" },
-        "albumIds": { "type": "array", "items": { "type": "string" } },
+        "tier": { "type": "string" },
+        "playCount": { "type": "integer" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "userId", "name", "albumIds"]
+      "required": ["title", "artist", "categoryId"]
+    },
+    "Session": {
+      "title": "Listening Session",
+      "description": "Analytics tracking for user listening behavior",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "albumId": { "type": "string" },
+        "albumTitle": { "type": "string" },
+        "duration": { "type": "integer" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" },
+            "city": { "type": "string" }
+          }
+        }
+      },
+      "required": ["userId", "albumId", "startTime"]
     }
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": "User",
-      "description": "Stores user profile data"
-    },
-    "/categories/{categoryId}": {
+    "categories": {
       "schema": "Category",
-      "description": "Stores category metadata"
+      "description": "Collection of music categories"
     },
-    "/albums/{albumId}": {
+    "albums": {
       "schema": "Album",
-      "description": "Stores album information"
+      "description": "Collection of music albums"
     },
-    "/favorites/{favoriteId}": {
-      "schema": "Favorite",
-      "description": "Stores user favorites"
-    },
-    "/playlists/{playlistId}": {
-      "schema": "Playlist",
-      "description": "Stores user-created playlists"
+    "listening_sessions": {
+      "schema": "Session",
+      "description": "Historical record of all playback sessions"
     }
   }
 }

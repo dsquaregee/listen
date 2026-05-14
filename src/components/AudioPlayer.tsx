@@ -8,7 +8,7 @@ import {
   GripVertical, X, Trash2, CheckCircle2,
   Zap, Share2, Twitter, Facebook, Instagram, Link,
   PlusCircle, FolderPlus, ListPlus, Download,
-  Shuffle, Repeat, Repeat1, Search, ExternalLink
+  Shuffle, Search, ExternalLink
 } from 'lucide-react';
 import AudioVisualizer from './AudioVisualizer';
 import { usePlayerStore } from '../store/usePlayerStore';
@@ -20,6 +20,7 @@ import { formatTime, cn } from '../lib/utils';
 import { streamingService, StreamingService } from '../services/streamingService';
 import { offlineService } from '../services/offlineService';
 import { Album } from '../types';
+import { analyticsService } from '../services/analyticsService';
 
 interface QueueItemProps {
   album: Album;
@@ -640,6 +641,14 @@ function PlaylistModal({ isOpen, onClose, album }: PlaylistModalProps) {
   );
 }
 
+const formatETA = (seconds: number) => {
+  if (seconds <= 0) return '0s';
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
+};
+
 export default function AudioPlayer() {
   const audioRef1 = useRef<HTMLAudioElement | null>(null);
   const audioRef2 = useRef<HTMLAudioElement | null>(null);
@@ -650,16 +659,62 @@ export default function AudioPlayer() {
   const isTransitioningRef = useRef(false);
   const previousAlbumIdRef = useRef<string | null>(null);
   
+  // Session tracking
+  const sessionStartTimeRef = useRef<number | null>(null);
+  const sessionDurationRef = useRef<number>(0);
+
   const location = useLocation();
   const { 
     currentAlbum, isPlaying, progress, currentTime, duration, 
     volume, isMinimized, queue, togglePlay, play, pause, setProgress, setCurrentTime, 
     setDuration, setMinimized, setVolume, next, previous, reorderQueue, removeFromQueue, setAlbum, clearQueue,
     userTier, offlineAlbums, refreshOfflineStatus, preferredQuality, setPreferredQuality,
-    autoPlayNext, setAutoPlayNext, isShuffled, repeatMode, toggleShuffle, toggleRepeat
+    autoPlayNext, setAutoPlayNext, isShuffled, toggleShuffle
   } = usePlayerStore();
 
   const { favorites, toggleLike } = useUserStore();
+
+  // Handle session recording on album change or unmount
+  useEffect(() => {
+    const activeAlbum = currentAlbum;
+    
+    // Resume session tracking if already playing
+    if (isPlaying && sessionStartTimeRef.current === null) {
+      sessionStartTimeRef.current = Date.now();
+    }
+
+    return () => {
+      if (activeAlbum) {
+        let finalDuration = sessionDurationRef.current;
+        if (sessionStartTimeRef.current !== null) {
+          finalDuration += (Date.now() - sessionStartTimeRef.current) / 1000;
+        }
+        
+        if (finalDuration >= 5) {
+          analyticsService.recordSession(activeAlbum, finalDuration);
+        }
+        
+        // Reset for next album
+        sessionDurationRef.current = 0;
+        sessionStartTimeRef.current = isPlaying ? Date.now() : null;
+      }
+    };
+  }, [currentAlbum?.id]);
+
+  // Track session duration based on play/pause
+  useEffect(() => {
+    if (isPlaying) {
+      if (sessionStartTimeRef.current === null) {
+        sessionStartTimeRef.current = Date.now();
+      }
+    } else {
+      if (sessionStartTimeRef.current !== null) {
+        const SessionTime = (Date.now() - sessionStartTimeRef.current) / 1000;
+        sessionDurationRef.current += SessionTime;
+        sessionStartTimeRef.current = null;
+      }
+    }
+  }, [isPlaying]);
 
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [queueSearch, setQueueSearch] = useState('');
@@ -705,9 +760,15 @@ export default function AudioPlayer() {
   }, [isQueueOpen, queueSearch]);
 
   const handleDeleteDownload = async (albumId: string) => {
+    const album = MOCK_ALBUMS.find(a => a.id === albumId);
+    const confirmed = window.confirm(`Remove ${album?.title || 'this album'} from offline storage?`);
+    if (!confirmed) return;
+
+    hapticFeedback.medium();
     await offlineService.deleteAlbum(albumId);
     const updatedIds = await offlineService.getOfflineAlbumIds();
     refreshOfflineStatus(updatedIds);
+    setToast({ message: 'Album removed from offline preservation.', type: 'success' });
   };
   
   const handleTogglePlay = async () => {
@@ -1159,13 +1220,9 @@ export default function AudioPlayer() {
       setDuration(dur);
       setProgress(time / dur);
 
-      // Trigger crossfade 2 seconds before end
-      // Only if autoPlayNext is on OR repeatMode is on (to loop back to start/next)
-      // AND it's a NEW track (to allow crossfade). If it's the same track (repeatMode === 'one'),
-      // we let onEnded handle the simple loop to avoid crossfading with self.
-      const isRepeatOne = repeatMode === 'one';
-      if (!isRepeatOne && dur > 20 && time > 10 && dur - time < 2 && !isTransitioningRef.current && (autoPlayNext || repeatMode === 'all')) {
-        console.log('Triggering auto-advance/repeat transition at time:', time, 'duration:', dur);
+      // Trigger auto-advance 2 seconds before end
+      if (dur > 20 && time > 10 && dur - time < 2 && !isTransitioningRef.current && autoPlayNext) {
+        console.log('Triggering auto-advance transition at time:', time, 'duration:', dur);
         next();
       }
     }
@@ -1190,17 +1247,9 @@ export default function AudioPlayer() {
     setPreferredQuality(level);
   };
 
-  // Explicit loop reset for repeatMode === 'one'
+  // Explicit reset
   const handleAudioEnded = () => {
-    if (repeatMode === 'one') {
-      const activeAudio = activePlayer === 1 ? audioRef1.current : audioRef2.current;
-      if (activeAudio) {
-        activeAudio.currentTime = 0;
-        activeAudio.play().catch(console.error);
-        setCurrentTime(0);
-        setProgress(0);
-      }
-    } else if (autoPlayNext || repeatMode === 'all') {
+    if (autoPlayNext) {
       next();
     }
   };
@@ -1357,24 +1406,6 @@ export default function AudioPlayer() {
                   title="Next Track"
                 >
                   <SkipForward className="w-5 h-5 fill-current" />
-                </button>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    hapticFeedback.light();
-                    toggleRepeat();
-                  }}
-                  className={cn(
-                    "transition-all p-2 transform hover:scale-110 active:scale-95 relative group/repeat-mini",
-                    repeatMode !== 'none' ? "text-accent" : "text-white/20 hover:text-white"
-                  )}
-                  aria-label={`Repeat: ${repeatMode}`}
-                  title={`Repeat: ${repeatMode}`}
-                >
-                  {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
-                  {repeatMode !== 'none' && (
-                    <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-accent rounded-full shadow-[0_0_8px_rgba(212,187,255,0.8)]" />
-                  )}
                 </button>
               </div>
               <div className="flex items-center gap-3">
@@ -1557,9 +1588,20 @@ export default function AudioPlayer() {
                     <Download className="w-5 h-5 transition-transform group-hover:scale-110" />
                   )}
                 </div>
-                <span className="text-[8px] font-bold uppercase text-white/40">
-                  {isDownloading ? `${Math.round(downloadProgress * 100)}%` : offlineAlbums.includes(currentAlbum.id) ? 'Saved' : 'Off'}
-                </span>
+                <div className="flex flex-col items-center">
+                  <span className="text-[8px] font-bold uppercase text-white/40">
+                    {isDownloading ? `${Math.round(downloadProgress * 100)}%` : offlineAlbums.includes(currentAlbum.id) ? 'Saved' : 'Off'}
+                  </span>
+                  {isDownloading && downloadEta !== null && (
+                    <motion.span 
+                      initial={{ opacity: 0, y: 2 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-[6px] font-mono text-primary/60 uppercase tracking-widest leading-tight"
+                    >
+                      ~{formatETA(downloadEta)}
+                    </motion.span>
+                  )}
+                </div>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsQueueOpen(true); }}
@@ -1805,47 +1847,6 @@ export default function AudioPlayer() {
                   title="Next Track"
                 >
                   <SkipForward className="w-10 h-10 fill-current" />
-                </button>
-                <button 
-                  onClick={() => {
-                    hapticFeedback.light();
-                    toggleRepeat();
-                  }}
-                  className={cn(
-                    "transition-all p-2 transform hover:scale-110 active:scale-95 relative group",
-                    repeatMode !== 'none' ? "text-primary" : "text-white/40 hover:text-white"
-                  )}
-                  aria-label={`Repeat: ${repeatMode}`}
-                  title={`Repeat: ${repeatMode}`}
-                >
-                  {repeatMode === 'one' ? <Repeat1 className="w-5 h-5" /> : <Repeat className="w-5 h-5" />}
-                  
-                  {/* Subtle glow when active */}
-                  {repeatMode !== 'none' && (
-                    <motion.div 
-                      layoutId="repeat-glow"
-                      className="absolute inset-0 bg-primary/10 blur-xl rounded-full -z-10"
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1.2, opacity: 1 }}
-                    />
-                  )}
-
-                  {/* Mode Indicator Dot */}
-                  <AnimatePresence>
-                    {repeatMode !== 'none' && (
-                      <motion.div 
-                        initial={{ scale: 0, opacity: 0, y: 5 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0, opacity: 0, y: 5 }}
-                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(153,102,204,0.8)]"
-                      />
-                    )}
-                  </AnimatePresence>
-
-                  {/* Mode Label (Subtle) */}
-                  <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-1 rounded backdrop-blur-sm whitespace-nowrap pointer-events-none border border-white/10">
-                    {repeatMode === 'none' ? 'Repeat Off' : repeatMode === 'all' ? 'Repeat All' : 'Repeat One'}
-                  </span>
                 </button>
                 <div className="relative">
                   <button 
@@ -2098,9 +2099,13 @@ export default function AudioPlayer() {
                           : offlineAlbums.includes(currentAlbum.id) ? 'Saved' : 'Reserve'}
                       </span>
                       {isDownloading && downloadEta !== null && (
-                        <span className="text-[6px] font-mono opacity-40 uppercase tracking-widest mt-0.5">
-                          ~{downloadEta}s
-                        </span>
+                        <motion.span 
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="text-[6px] font-mono opacity-40 uppercase tracking-widest mt-0.5"
+                        >
+                          ETA: {formatETA(downloadEta)}
+                        </motion.span>
                       )}
                     </div>
                   </button>
@@ -2303,22 +2308,6 @@ export default function AudioPlayer() {
                         title="Shuffle Queue"
                       >
                         <Shuffle className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => {
-                          hapticFeedback.light();
-                          toggleRepeat();
-                        }}
-                        className={cn(
-                          "p-2 rounded-md transition-all relative",
-                          repeatMode !== 'none' ? "bg-primary/20 text-primary" : "text-white/20 hover:text-white"
-                        )}
-                        title={`Repeat: ${repeatMode}`}
-                      >
-                        {repeatMode === 'one' ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
-                        {repeatMode !== 'none' && (
-                          <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
-                        )}
                       </button>
                     </div>
                   </div>

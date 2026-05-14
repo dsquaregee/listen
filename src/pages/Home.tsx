@@ -118,6 +118,47 @@ export default function Home() {
           </motion.div>
         </div>
       </motion.section>
+      
+      {/* Recently Played - Immediate Context */}
+      {recentlyPlayed.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 mb-20">
+          <div className="flex justify-between items-end mb-8 border-b border-accent/10 pb-4">
+            <div>
+              <h2 className="text-3xl sm:text-4xl font-serif italic text-white mb-1">Back in the Cosmos</h2>
+              <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-accent/40">Continue your last resonance</p>
+            </div>
+          </div>
+          <div className="flex gap-4 sm:gap-8 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4">
+            {recentlyPlayed.map((album, idx) => (
+              <motion.div 
+                key={album.id + '-recent'}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: idx * 0.1 }}
+                className="flex-shrink-0 w-40 sm:w-56 group cursor-pointer"
+                onClick={() => setAlbum(album)}
+              >
+                <div className="relative aspect-square rounded-2xl overflow-hidden mb-3 border border-white/5 group-hover:border-accent/40 transition-all duration-500 shadow-lg">
+                  <OptimizedImage 
+                    src={album.coverUrl} 
+                    alt={album.title} 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-100" 
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-2xl">
+                      <Play className="w-4 h-4 text-black fill-current" />
+                    </div>
+                  </div>
+                </div>
+                <h4 className="text-sm font-serif italic text-white group-hover:text-accent transition-colors truncate">
+                  {album.title}
+                </h4>
+                <p className="text-[9px] text-white/30 uppercase tracking-widest truncate">{album.artist}</p>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Categories with Horizontal Albums */}
       <div className="max-w-7xl mx-auto space-y-20">

@@ -73,6 +73,23 @@ class OfflineService {
     return true;
   }
 
+  async getStorageUsage(): Promise<{ used: number; quota: number }> {
+    if ('storage' in navigator && 'estimate' in navigator.storage) {
+      const estimate = await navigator.storage.estimate();
+      return {
+        used: estimate.usage || 0,
+        quota: estimate.quota || 0
+      };
+    }
+    
+    // Fallback: estimate based on stores
+    let total = 0;
+    await this.store.iterate((value) => {
+      if (typeof value === 'string') total += value.length * 2; // UCS-2 strings are 2 bytes per char
+    });
+    return { used: total, quota: 0 };
+  }
+
   private async encryptBlob(blob: Blob): Promise<string> {
     const text = await blob.text();
     return CryptoJS.AES.encrypt(text, CACHE_SECRET).toString();

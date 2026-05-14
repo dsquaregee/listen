@@ -1,6 +1,6 @@
 {
   "name": "DsquareGee | Carnatic Raga & Fusion",
   "description": "Premium cinematic streaming platform for immersive Carnatic music experiences.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["geolocation"],
   "majorCapabilities": []
 }

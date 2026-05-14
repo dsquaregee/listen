@@ -2,52 +2,85 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Master Admin Helper (using UID for rock-solid identity)
-    function isMasterAdmin() {
-      return request.auth != null && (
-        request.auth.uid == 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1' ||
-        request.auth.token.email == 'dsquaregee@gmail.com'
-      );
-    }
-    
-    // Allow users to update their own profile and read public ones
-    match /users/{userId} {
-      allow read: if true;
-      allow write: if isMasterAdmin() || (request.auth != null && request.auth.uid == userId);
-    }
+    // ---------------------------------------------------------
+    // GLOBAL HELPERS
+    // ---------------------------------------------------------
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isAdmin() { return isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
 
-    // Public content
-    match /categories/{id} {
-      allow read: if true;
-      allow write: if isMasterAdmin();
-    }
-    
-    match /albums/{id} {
-      allow read: if true;
-      allow write: if isMasterAdmin();
-      // Allow users to update play logs or specific tracks
-      allow update: if request.auth != null;
-    }
-
-    // System health
-    match /system/{id} {
-      allow read, write: if isMasterAdmin();
-    }
-
-    // Playlists & Favorites
-    match /playlists/{id} {
-      allow read: if true; 
-      allow write: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid);
-    }
-    
-    match /favorites/{id} {
-      allow read, write: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid);
-    }
-
-    // Global Catch-all (Deny by default)
+    // ---------------------------------------------------------
+    // CATCH-ALL DENY
+    // ---------------------------------------------------------
     match /{document=**} {
-      allow read, write: if isMasterAdmin();
+      allow read, write: if false;
+    }
+
+    // ---------------------------------------------------------
+    // USERS COLLECTION
+    // ---------------------------------------------------------
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && 
+                      incoming().tier == 'free' &&
+                      (!('isAdmin' in incoming()) || incoming().isAdmin == false);
+      allow update: if (isOwner(userId) || isAdmin()) && 
+                      (
+                        // User updating their own profile (subset of fields)
+                        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt'])) ||
+                        // Admin updating anything
+                        isAdmin()
+                      );
+    }
+
+    // ---------------------------------------------------------
+    // CATEGORIES (Read only for users, Write for Admin)
+    // ---------------------------------------------------------
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------------------------------------------------------
+    // ALBUMS (Read only for users, Write for Admin)
+    // ---------------------------------------------------------
+    match /albums/{albumId} {
+      allow read: if true;
+      allow write: if isAdmin();
+      
+      // Allow playCount increments for signed in users
+      allow update: if isVerified() && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['playCount']) &&
+                      incoming().playCount == existing().playCount + 1;
+    }
+
+    // ---------------------------------------------------------
+    // PLAYLISTS (User specific)
+    // ---------------------------------------------------------
+    match /playlists/{playlistId} {
+      allow read: if isOwner(existing().userId) || isAdmin();
+      allow create: if isOwner(incoming().userId) && isValidId(playlistId);
+      allow update: if isOwner(existing().userId) && incoming().userId == existing().userId;
+      allow delete: if isOwner(existing().userId);
+    }
+    
+    // ---------------------------------------------------------
+    // ADMINS LIST (Self-Bootstrap check)
+    // ---------------------------------------------------------
+    match /admins/{adminId} {
+      allow read: if isOwner(adminId);
+    }
+
+    // ---------------------------------------------------------
+    // LISTENING SESSIONS (Analytics)
+    // ---------------------------------------------------------
+    match /listening_sessions/{sessionId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && isOwner(incoming().userId);
     }
   }
 }

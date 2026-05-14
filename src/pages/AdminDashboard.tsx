@@ -17,8 +17,7 @@ import { toast } from 'sonner';
 export default function AdminDashboard() {
   const { user, isLoading } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'metrics' | 'content'>('metrics');
-  const [activeContent, setActiveContent] = useState<'categories' | 'albums' | 'system'>('categories');
-  const [isSeeding, setIsSeeding] = useState(false);
+  const [activeContent, setActiveContent] = useState<'categories' | 'albums'>('categories');
   const [metrics, setMetrics] = useState({
     totalUsers: 0,
     totalHours: 0,
@@ -71,49 +70,6 @@ export default function AdminDashboard() {
     { label: 'Top Experience', value: metrics.topAlbum, icon: Music, diff: 'Most Resonated', color: 'text-primary' },
     { label: 'Retention Rate', value: '84%', icon: TrendingUp, diff: '+2.4%', color: 'text-purple-400' },
   ];
-
-  const seedUniverse = async () => {
-    if (!confirm('This will populate the database with default categories and albums from mock data. Continue?')) return;
-    
-    setIsSeeding(true);
-    const toastId = toast.loading('Restoring Universe Data...');
-    
-    try {
-      console.log('Restoration: Current UID:', user?.uid);
-      console.log('Restoration: Current Email:', user?.email);
-      console.log('Starting Universe Restoration...');
-      // 1. Seed Categories
-      for (const cat of MOCK_CATEGORIES) {
-        console.log(`Seeding category: ${cat.name}`);
-        const catRef = doc(db, 'categories', cat.id);
-        await setDoc(catRef, {
-          ...cat,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-      }
-      
-      // 2. Seed Albums
-      for (const album of MOCK_ALBUMS) {
-        console.log(`Seeding album: ${album.title}`);
-        const albRef = doc(db, 'albums', album.id);
-        await setDoc(albRef, {
-          ...album,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          playCount: 0
-        }, { merge: true });
-      }
-      
-      console.log('Universe Restoration Complete!');
-      toast.success('Universe Data Restored Successfully!', { id: toastId });
-    } catch (error: any) {
-      console.error('Seeding failed with error:', error);
-      const errorMsg = error?.message || 'Unknown error';
-      toast.error(`Restoration failed: ${errorMsg}`, { id: toastId });
-    } finally {
-      setIsSeeding(false);
-    }
-  };
 
   return (
     <div className="min-h-screen pt-24 px-4 md:px-8 pb-12 bg-[#050505] text-white">
@@ -216,7 +172,8 @@ export default function AdminDashboard() {
               {[
                 { id: 'categories', label: 'Categories', icon: Layers, count: 'Manage Collections' },
                 { id: 'albums', label: 'Universe Albums', icon: Music, count: 'Manage Experiences' },
-                { id: 'system', label: 'System Health', icon: RefreshCw, count: 'Database Tools' },
+                { id: 'analytics', label: 'Resonance Analytics', icon: BarChart3, count: 'Listening Sessions' },
+                { id: 'legal', label: 'Legal & IP Hub', icon: ShieldCheck, count: 'Copyright & Protection' },
               ].map(item => (
                 <button 
                   key={item.id}
@@ -238,34 +195,195 @@ export default function AdminDashboard() {
             <div className="p-4 md:p-8 rounded-[32px] md:rounded-[40px] bg-white/10 border border-white/10 backdrop-blur-md overflow-x-auto min-h-[400px]">
               {activeContent === 'categories' && <CategoryManager />}
               {activeContent === 'albums' && <AlbumManager />}
-              {activeContent === 'system' && (
-                <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-                  <div className="p-4 rounded-3xl bg-primary/10 border border-primary/20 mb-6">
-                    <Database className="w-12 h-12 text-primary" />
-                  </div>
-                  <h3 className="text-2xl font-serif italic mb-4">Universe Restoration</h3>
-                  <p className="text-white/40 text-sm max-w-md mb-8">
-                    If your database was recently reset or is empty, use this tool to restore 
-                    all default Categories and Music Albums from the system blueprints.
-                  </p>
-                  <button
-                    onClick={seedUniverse}
-                    disabled={isSeeding}
-                    className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-primary text-black font-bold uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100"
-                  >
-                    {isSeeding ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Database className="w-4 h-4" />
-                    )}
-                    Restore Universe Data
-                  </button>
-                </div>
-              )}
+              {activeContent === 'analytics' && <SessionViewer />}
+              {activeContent === 'legal' && <LegalIPHub />}
             </div>
           </main>
         </div>
       )}
+    </div>
+  );
+}
+
+function SessionViewer() {
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const q = query(collection(db, 'listening_sessions'), where('startTime', '!=', null));
+        const sn = await getDocs(q);
+        const sorted = sn.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a: any, b: any) => b.startTime?.toMillis() - a.startTime?.toMillis());
+        setSessions(sorted);
+      } catch (e) {
+        console.error('Failed to fetch sessions:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSessions();
+  }, []);
+
+  if (loading) return <div className="py-20 text-center text-[10px] uppercase font-bold text-white/20 tracking-widest animate-pulse">Synchronizing Universal Data...</div>;
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h3 className="text-xl font-serif font-bold italic mb-2">Resonance Analytics</h3>
+        <p className="text-[10px] text-white/40 uppercase tracking-widest">Tracking the global soundscape</p>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-white/5 text-[10px] uppercase font-bold text-white/20 tracking-widest">
+              <th className="pb-4">Seeker</th>
+              <th className="pb-4">Experience</th>
+              <th className="pb-4">Digital Tracer (Origin ID)</th>
+              <th className="pb-4">Location</th>
+              <th className="pb-4">Time</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {sessions.map((session) => (
+              <tr key={session.id} className="group hover:bg-white/[0.02]">
+                <td className="py-4">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-white">{session.userEmail || 'Anonymous Seeker'}</span>
+                    <span className="text-[9px] font-mono text-white/20 uppercase tracking-tighter">{session.userId.slice(0, 8)}...</span>
+                  </div>
+                </td>
+                <td className="py-4">
+                   <div className="flex flex-col">
+                    <p className="text-xs text-white/60 font-serif italic">{session.albumTitle}</p>
+                    <p className="text-[9px] font-mono text-primary/60">{Math.round(session.duration)}s resonance</p>
+                   </div>
+                </td>
+                <td className="py-4">
+                  <div className="flex flex-col">
+                    <p className="text-[10px] font-mono text-primary font-bold">{session.proofOfOriginId || 'LEGACY-SESSION'}</p>
+                    <p className="text-[8px] text-white/20 truncate max-w-[150px]">{session.userAgent}</p>
+                  </div>
+                </td>
+                <td className="py-4">
+                  {session.location ? (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500/40" />
+                      <p className="text-[10px] text-white/40 font-mono tracking-tighter">
+                        {session.location.lat.toFixed(2)}, {session.location.lng.toFixed(2)}
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="text-[9px] text-white/10 italic">Undisclosed</span>
+                  )}
+                </td>
+                <td className="py-4">
+                  <p className="text-[10px] text-white/30">
+                    {session.startTime?.toDate().toLocaleString(undefined, { 
+                      month: 'short', 
+                      day: 'numeric', 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </p>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {sessions.length === 0 && (
+          <div className="py-20 text-center text-xs text-white/20 italic">
+            No vibrations recorded in this sector yet.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LegalIPHub() {
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
+
+  const dmcaTemplate = `DMCA TAKEDOWN NOTICE
+To: YouTube Legal Support (Copyright Department)
+
+I am the copyright owner of the music content titled "Natural Tones - Cinematic Fusion".
+I have a good faith belief that the material appearing on your service at [INSERT URL] is not authorized by the copyright owner, its agent, or the law.
+
+Proof of Origin: This content was exclusively released on https://dsquaregee.com.
+Digital Tracer ID: [INSERT ORIGIN ID FROM ANALYTICS]
+
+I swear, under penalty of perjury, that the information in this notification is accurate and that I am the copyright owner or am authorized to act on behalf of the owner of an exclusive right that is allegedly infringed.
+
+Sincerely,
+DsquareGee Music Administration`;
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopyStatus(id);
+    setTimeout(() => setCopyStatus(null), 2000);
+    toast.success('Template copied to clipboard.');
+  };
+
+  return (
+    <div className="space-y-10">
+      <div>
+        <h3 className="text-xl font-serif font-bold italic mb-2">Legal & IP Hub</h3>
+        <p className="text-[10px] text-white/40 uppercase tracking-widest">Intellectual Property Protection & Enforcement</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 space-y-4">
+          <div className="flex items-center gap-3 mb-2">
+            <ShieldCheck className="w-5 h-5 text-primary" />
+            <h4 className="text-sm font-bold uppercase tracking-widest">Protection Status</h4>
+          </div>
+          <div className="space-y-3">
+            {[
+              { label: 'Visual Watermarking', status: 'Active (Global)', color: 'text-green-400' },
+              { id: 'origin', label: 'Digital Origin Tracing', status: 'Enabled', color: 'text-green-400' },
+              { label: 'Interface Protection', status: 'Locked', color: 'text-green-400' },
+              { label: 'Right-Click Defense', status: 'Active', color: 'text-green-400' },
+            ].map(item => (
+              <div key={item.label} className="flex justify-between items-center text-[10px] py-2 border-b border-white/5">
+                <span className="text-white/40 font-medium uppercase tracking-wider">{item.label}</span>
+                <span className={`font-bold ${item.color}`}>{item.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 space-y-4">
+          <div className="flex items-center gap-3 mb-2">
+            <TrendingUp className="w-5 h-5 text-purple-400" />
+            <h4 className="text-sm font-bold uppercase tracking-widest">Enforcement Toolkit</h4>
+          </div>
+          <p className="text-[10px] text-white/40 leading-relaxed uppercase tracking-wider">
+            If you detect an unauthorized upload on YouTube, use the Digital Tracer ID from the Analytics tab combined with the template below.
+          </p>
+          <button 
+            onClick={() => copyToClipboard(dmcaTemplate, 'dmca')}
+            className="w-full py-3 rounded-xl bg-white/5 border border-white/10 hover:border-primary/50 transition-all text-[9px] font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+          >
+            {copyStatus === 'dmca' ? 'Copied' : 'Copy DMCA Template'}
+          </button>
+        </div>
+      </div>
+
+      <div className="p-8 rounded-[40px] bg-white/[0.02] border border-white/10">
+        <h4 className="text-xs font-bold uppercase tracking-widest mb-6 border-l-2 border-primary pl-4">Rights Statement</h4>
+        <div className="prose prose-invert prose-sm max-w-none text-white/40 font-serif italic text-sm leading-relaxed space-y-4">
+          <p>
+            All audio assets served through this platform are digitally watermarked at the transport layer. Each session generated is unique to the authenticated seeker (User ID) and the specific resonance (Origin ID).
+          </p>
+          <p>
+            Any reproduction, redistribution, or public performance without an active Premium subscription or explicit written consent from DsquareGee is strictly prohibited under international copyright law.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

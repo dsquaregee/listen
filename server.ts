@@ -29,9 +29,9 @@ if (process.env.GCS_PROJECT_ID && process.env.GCS_CLIENT_EMAIL && privateKey) {
         }),
       });
     }
-    console.log('Firebase Admin initialized successfully');
+    logToFile('Firebase Admin initialized successfully');
   } catch (e) {
-    console.error('Failed to initialize Firebase Admin:', e);
+    logToFile(`Failed to initialize Firebase Admin: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -306,47 +306,6 @@ app.post('/api/upload-artwork', async (req, res) => {
     const errMsg = error instanceof Error ? error.message : String(error);
     logToFile(`Artwork Upload Failed: ${errMsg}`);
     res.status(500).json({ error: 'Failed to upload artwork', details: errMsg });
-  }
-});
-
-// Seeding Endpoint (Secure, server-side only to bypass rules)
-app.post('/api/seed-universe', async (req, res) => {
-  try {
-    // Only allow dsquaregee@gmail.com to trigger this if we wanted to check auth, 
-    // but here it's used for setup so we'll allow it if initiated by the client's admin check.
-    const { categories, albums } = req.body;
-    const db = getAdminDb();
-    
-    logToFile('Server-side seeding started...');
-    
-    const batch = db.batch();
-    
-    if (categories) {
-      for (const cat of categories) {
-        const ref = db.collection('categories').doc(cat.id);
-        batch.set(ref, { ...cat, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-      }
-    }
-    
-    if (albums) {
-      for (const album of albums) {
-        const ref = db.collection('albums').doc(album.id);
-        batch.set(ref, { 
-          ...album, 
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-          playCount: 0
-        }, { merge: true });
-      }
-    }
-    
-    await batch.commit();
-    logToFile('Server-side seeding completed successfully.');
-    res.json({ success: true });
-  } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    logToFile(`Seeding Failed: ${errMsg}`);
-    res.status(500).json({ error: 'Seeding failed', details: errMsg });
   }
 });
 

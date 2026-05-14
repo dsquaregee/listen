@@ -17,7 +17,6 @@ interface PlayerState {
   autoPlayNext: boolean;
   recentlyPlayed: Album[];
   isShuffled: boolean;
-  repeatMode: 'none' | 'one' | 'all';
   
   // Actions
   setAlbum: (album: Album) => void;
@@ -25,7 +24,6 @@ interface PlayerState {
   pause: () => void;
   togglePlay: () => void;
   toggleShuffle: () => void;
-  toggleRepeat: () => void;
   next: () => void;
   previous: () => void;
   setProgress: (progress: number) => void;
@@ -60,7 +58,6 @@ export const usePlayerStore = create<PlayerState>()(
       autoPlayNext: true,
       recentlyPlayed: [],
       isShuffled: false,
-      repeatMode: 'none',
 
       setAlbum: (album) => {
         const current = get();
@@ -107,20 +104,9 @@ export const usePlayerStore = create<PlayerState>()(
       pause: () => set({ isPlaying: false }),
       togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
       toggleShuffle: () => set((state) => ({ isShuffled: !state.isShuffled })),
-      toggleRepeat: () => set((state) => {
-        const modes: ('none' | 'one' | 'all')[] = ['none', 'all', 'one'];
-        const currentIndex = modes.indexOf(state.repeatMode);
-        const nextMode = modes[(currentIndex + 1) % modes.length];
-        return { repeatMode: nextMode };
-      }),
       
       next: () => {
-        const { queue, repeatMode, currentAlbum, isShuffled } = get();
-
-        if (repeatMode === 'one' && currentAlbum) {
-          set({ currentTime: 0, progress: 0, isPlaying: true });
-          return;
-        }
+        const { queue, currentAlbum, isShuffled } = get();
 
         if (queue.length > 0) {
           let nextAlbum: Album;
@@ -141,19 +127,13 @@ export const usePlayerStore = create<PlayerState>()(
             return;
           }
 
-          // If repeat all is on, add the current album back to the end of the queue
-          const finalQueue = (repeatMode === 'all' && currentAlbum) ? [...newQueue, currentAlbum] : newQueue;
-
           set({ 
             currentAlbum: nextAlbum, 
-            queue: finalQueue, 
+            queue: newQueue, 
             isPlaying: true, 
             currentTime: 0,
             progress: 0
           });
-        } else if (repeatMode === 'all' && currentAlbum) {
-          // If queue is empty but repeat all is on, just keep playing the current album (or restart it)
-          set({ currentTime: 0, progress: 0, isPlaying: true });
         }
       },
       
@@ -195,7 +175,6 @@ export const usePlayerStore = create<PlayerState>()(
         autoPlayNext: state.autoPlayNext,
         recentlyPlayed: state.recentlyPlayed,
         isShuffled: state.isShuffled,
-        repeatMode: state.repeatMode,
       }),
     }
   )

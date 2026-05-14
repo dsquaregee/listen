@@ -37,53 +37,6 @@ import { MOCK_CATEGORIES, MOCK_ALBUMS } from './data/mockData';
 
 const queryClient = new QueryClient();
 
-// Quiet seeding - no toasts, just background attempt
-const UniverseRestorer = () => {
-  const { user } = useAuthStore();
-
-  useEffect(() => {
-    const restore = async () => {
-      const firebaseUser = auth.currentUser;
-      const isAdmin = firebaseUser?.email === 'dsquaregee@gmail.com' || firebaseUser?.uid === 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1' || user?.isAdmin;
-      
-      if (!isAdmin) return;
-
-      try {
-        const catSn = await getDocs(collection(db, 'categories'));
-        if (catSn.empty) {
-          console.log('UniverseRestorer: Seeding universe in background...');
-          // Attempt seeding
-          for (const cat of MOCK_CATEGORIES) {
-            await setDoc(doc(db, 'categories', cat.id), { ...cat, updatedAt: serverTimestamp() }, { merge: true });
-          }
-          for (const album of MOCK_ALBUMS) {
-            await setDoc(doc(db, 'albums', album.id), { ...album, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), playCount: 0 }, { merge: true });
-          }
-          console.log('UniverseRestorer: Background seeding successful!');
-        }
-      } catch (e) {
-        // Silently fail, Home.tsx will use mock data
-        console.warn('UniverseRestorer: Background seeding failed (likely permissions). Using local data fallback.');
-      }
-    };
-
-    if (auth.currentUser) {
-      restore();
-    } else {
-      const unsub = onAuthStateChanged(auth, (u) => {
-        if (u) {
-          restore();
-          unsub();
-        }
-      });
-      return unsub;
-    }
-  }, [user]);
-
-  return null;
-};
-
-
 function PaymentHandler() {
   const { user, setUser } = useAuthStore();
   const { setUserTier } = usePlayerStore();
@@ -123,6 +76,8 @@ function PaymentHandler() {
 
   return null;
 }
+
+import CopyrightProtection from './components/CopyrightProtection';
 
 export default function App() {
   const { setUser, setLoading } = useAuthStore();
@@ -229,33 +184,34 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <UniverseRestorer />
-        <Toaster position="top-center" theme="dark" closeButton richColors />
-        <PaymentHandler />
-        <div className="flex flex-col min-h-screen bg-black text-slate-100 cinematic-gradient-bg">
-          <Navbar />
-          
-          <main className="flex-1 pb-32">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/explore" element={<Explore />} />
-              <Route path="/album/:id" element={<AlbumDetail />} />
-              <Route path="/category/:slug" element={<CategoryExplore />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/premium" element={<Premium />} />
-              <Route path="/playlists" element={<Playlists />} />
-              <Route path="/playlist/:id" element={<PlaylistDetail />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/refund" element={<Refund />} />
-            </Routes>
-          </main>
+        <CopyrightProtection>
+          <Toaster position="top-center" theme="dark" closeButton richColors />
+          <PaymentHandler />
+          <div className="flex flex-col min-h-screen bg-black text-slate-100 cinematic-gradient-bg">
+            <Navbar />
+            
+            <main className="flex-1 pb-32">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/explore" element={<Explore />} />
+                <Route path="/album/:id" element={<AlbumDetail />} />
+                <Route path="/category/:slug" element={<CategoryExplore />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/premium" element={<Premium />} />
+                <Route path="/playlists" element={<Playlists />} />
+                <Route path="/playlist/:id" element={<PlaylistDetail />} />
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/refund" element={<Refund />} />
+              </Routes>
+            </main>
 
-          <AudioPlayer />
-          <PremiumGateway />
-          <InstallPrompt />
-        </div>
+            <AudioPlayer />
+            <PremiumGateway />
+            <InstallPrompt />
+          </div>
+        </CopyrightProtection>
       </Router>
     </QueryClientProvider>
   );

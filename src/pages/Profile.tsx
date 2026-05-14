@@ -1,19 +1,29 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { useAuthStore } from '../store/useAuthStore';
-import { LogOut, ShieldCheck, Mail, User, Crown, Settings } from 'lucide-react';
+import { LogOut, ShieldCheck, Mail, User, Crown, Settings, Database, HardDrive } from 'lucide-react';
 import { motion } from 'motion/react';
 import { UserProfile } from '../types';
 import { cn } from '../lib/utils';
 import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
+import { offlineService } from '../services/offlineService';
 
 import { Toaster, toast } from 'sonner';
 
+const formatBytes = (bytes: number) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
 export default function Profile() {
   const { user, setUser } = useAuthStore();
+  const [storage, setStorage] = useState<{ used: number; quota: number } | null>(null);
 
   const handleLogin = async () => {
     const toastId = toast.loading('Signing in with Google...');
@@ -30,7 +40,11 @@ export default function Profile() {
   };
 
   useEffect(() => {
-    // Analytics or other initialization could go here
+    const fetchStorage = async () => {
+      const usage = await offlineService.getStorageUsage();
+      setStorage(usage);
+    };
+    fetchStorage();
   }, []);
 
   const handleManageSubscription = async () => {
@@ -154,6 +168,54 @@ export default function Profile() {
 
         <SettingsItem icon={ShieldCheck} label="Security & Privacy" value="Connected via Google" />
         <SettingsItem icon={Settings} label="App Preferences" value="Default" />
+
+        <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Preservation & Storage</h2>
+        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/[0.03] flex items-center justify-center border border-white/5">
+                <HardDrive className="w-5 h-5 text-white/40" />
+              </div>
+              <div>
+                <p className="text-[10px] text-white/30 font-medium uppercase tracking-wider">Local Resonance Storage</p>
+                <p className="text-white font-medium text-sm">{storage ? formatBytes(storage.used) : 'Calculating...'} used</p>
+              </div>
+            </div>
+            {storage?.quota && (
+               <div className="text-right">
+                <p className="text-[10px] text-white/30 font-medium uppercase tracking-wider">Quota Allocation</p>
+                <p className="text-white/60 font-mono text-[10px]">{Math.round((storage.used / storage.quota) * 100)}%</p>
+              </div>
+            )}
+          </div>
+          
+          <div className="relative h-1.5 bg-white/5 rounded-full overflow-hidden">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: storage && storage.quota ? `${(storage.used / storage.quota) * 100}%` : storage ? '10%' : 0 }}
+              className="absolute inset-y-0 left-0 bg-primary shadow-[0_0_10px_rgba(153,102,204,0.4)]"
+            />
+          </div>
+          
+          <div className="flex justify-between items-center pt-2">
+            <p className="text-[8px] text-white/20 italic max-w-[200px]">
+              Offline preservation uses your browser's persistent storage. Clearing cache will remove saved albums.
+            </p>
+            <button 
+              onClick={async () => {
+                if (window.confirm('Clear all offline preserved content?')) {
+                   await offlineService.clearAll();
+                   const usage = await offlineService.getStorageUsage();
+                   setStorage(usage);
+                   toast.success('Offline storage cleared.');
+                }
+              }}
+              className="text-[9px] text-red-400/60 uppercase font-black tracking-widest hover:text-red-400 transition-colors"
+            >
+              Clear Storage
+            </button>
+          </div>
+        </div>
 
         <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Support & Legal</h2>
         
