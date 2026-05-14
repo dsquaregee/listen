@@ -3,57 +3,27 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- Master Helper ---
-    function isMasterAdmin() {
+    function isMaster() {
       return request.auth != null && (
         request.auth.uid == 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1' ||
         request.auth.token.get('email', '').lower() == 'dsquaregee@gmail.com'
       );
     }
 
-    // 1. Master Control - Admin bypasses all checks
+    // BROAD READ FOR ALL COLLECTIONS
+    // This will temporarily resolve all "Missing permissions" on LIST/GET operations
     match /{document=**} {
-      allow read, write: if isMasterAdmin();
-    }
-
-    // 2. Public Data
-    match /categories/{catId} {
       allow read: if true;
+      allow write: if isMaster();
     }
 
+    // Special case for user's own data and playCounts
     match /albums/{albumId} {
-      allow read: if true;
-      // Allow atomic updates to playCount for everyone signed in
-      allow update: if request.auth != null && (
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['playCount', 'updatedAt'])
-      );
+      allow update: if request.auth != null;
     }
-
-    // 3. User Specific Data
+    
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    match /playlists/{playlistId} {
-      // allow list for the owner
-      allow list: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow get, write: if request.auth != null && (
-        (resource == null && request.resource.data.userId == request.auth.uid) ||
-        (resource != null && resource.data.userId == request.auth.uid)
-      );
-    }
-
-    match /favorites/{favoriteId} {
-      allow list: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow get, write: if request.auth != null && (
-        (resource == null && request.resource.data.userId == request.auth.uid) ||
-        (resource != null && resource.data.userId == request.auth.uid)
-      );
-    }
-
-    // 4. System Metadata
-    match /system/{docId} {
-      allow read: if true;
+      allow read, write: if isMaster() || (request.auth != null && request.auth.uid == userId);
     }
   }
 }

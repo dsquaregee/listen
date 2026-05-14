@@ -79,6 +79,8 @@ export default function AdminDashboard() {
     const toastId = toast.loading('Restoring Universe Data...');
     
     try {
+      console.log('Restoration: Current UID:', user?.uid);
+      console.log('Restoration: Current Email:', user?.email);
       console.log('Starting Universe Restoration...');
       // 1. Seed Categories
       for (const cat of MOCK_CATEGORIES) {
