@@ -2780,7 +2780,7 @@ export default function AudioPlayer() {
                 <h3 className="text-2xl font-serif font-bold text-white italic">Premium Experience</h3>
                 <p className="text-xs text-white/40 uppercase tracking-widest leading-loose">
                   This curated journey is reserved for our community of seekers. 
-                  Unlock offline listening, high-fidelity HLS streaming, and exclusive universes.
+                  Unlock offline listening and exclusive universes.
                 </p>
               </div>
 
@@ -2793,7 +2793,7 @@ export default function AudioPlayer() {
                   }}
                   className="w-full py-4 bg-primary text-black font-bold rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20 text-sm uppercase tracking-widest"
                 >
-                  Start Journey • $9.99/mo
+                  Start Journey
                 </button>
                 <button 
                   onClick={() => setShowPremiumModal(false)}
