@@ -128,12 +128,36 @@ export default function App() {
             if (docSnap.exists()) {
               const userData = docSnap.data() as UserProfile;
               const finalTier = isMasterAdmin && !userData.stripeCustomerId ? 'premium' : userData.tier;
+              
+              if (isMasterAdmin) {
+                // Ensure admin doc exists
+                const adminDocRef = doc(db, 'admins', firebaseUser.uid);
+                getDoc(adminDocRef).then(snap => {
+                  if (!snap.exists()) {
+                    setDoc(adminDocRef, { 
+                      email: firebaseUser.email, 
+                      role: 'admin', 
+                      bootstrapped: true,
+                      updatedAt: serverTimestamp() 
+                    }).catch(err => console.error('Failed to bootstrap admin doc:', err));
+                  }
+                });
+              }
+
               setUser({ ...userData, isAdmin: isMasterAdmin || userData.isAdmin, tier: finalTier });
               setUserTier(finalTier);
             } else if (isMasterAdmin) {
               // Create default profile if missing for admin
               const tier = 'premium';
               
+              const adminDocRef = doc(db, 'admins', firebaseUser.uid);
+              setDoc(adminDocRef, { 
+                email: firebaseUser.email, 
+                role: 'admin', 
+                bootstrapped: true,
+                updatedAt: serverTimestamp() 
+              }).catch(err => console.error('Failed to bootstrap admin doc:', err));
+
               const initialProfile: UserProfile = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',

@@ -70,6 +70,18 @@
     "listening_sessions": {
       "schema": "Session",
       "description": "Historical record of all playback sessions"
+    },
+    "admins": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string" },
+          "role": { "type": "string" },
+          "bootstrapped": { "type": "boolean" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "List of authorized administrators"
     }
   }
 }
