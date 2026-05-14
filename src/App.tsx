@@ -42,15 +42,19 @@ function UniverseRestorer() {
 
   useEffect(() => {
     const checkAndRestore = async () => {
-      if (!user || !user.isAdmin) return;
+      // Use auth.currentUser as a backup to the store state for quicker detection
+      const firebaseUser = auth.currentUser;
+      const isAdminEmail = firebaseUser?.email?.toLowerCase() === 'dsquaregee@gmail.com';
+      
+      if (!isAdminEmail && (!user || !user.isAdmin)) return;
 
       try {
+        console.log('UniverseRestorer: Checking universe health...');
         const catSn = await getDocs(collection(db, 'categories'));
         const albSn = await getDocs(collection(db, 'albums'));
 
         if (catSn.empty || albSn.empty) {
-          console.log('Database universe incomplete, restoring data...');
-          const toastId = toast.loading('Synchronizing Atmosphere Universe...');
+          console.warn('UniverseRestorer: Database incomplete, auto-restoring...');
           
           // Seed Categories
           for (const cat of MOCK_CATEGORIES) {
@@ -70,15 +74,19 @@ function UniverseRestorer() {
             }, { merge: true });
           }
           
-          toast.success('Universe Data Restored Successfully!', { id: toastId });
-          window.location.reload(); // Refresh to show data
+          console.log('UniverseRestorer: Auto-restoration successful.');
+          window.location.reload(); 
+        } else {
+          console.log('UniverseRestorer: Universe is healthy.');
         }
-      } catch (err) {
-        console.error('Auto-restoration failed:', err);
+      } catch (err: any) {
+        console.error('UniverseRestorer: Check/Restore failed:', err);
       }
     };
 
-    checkAndRestore();
+    // Wait a bit for auth to settle
+    const timeout = setTimeout(checkAndRestore, 2000);
+    return () => clearTimeout(timeout);
   }, [user]);
 
   return null;

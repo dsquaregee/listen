@@ -79,9 +79,12 @@ export default function AdminDashboard() {
     const toastId = toast.loading('Restoring Universe Data...');
     
     try {
+      console.log('Starting Universe Restoration...');
       // 1. Seed Categories
       for (const cat of MOCK_CATEGORIES) {
-        await setDoc(doc(db, 'categories', cat.id), {
+        console.log(`Seeding category: ${cat.name}`);
+        const catRef = doc(db, 'categories', cat.id);
+        await setDoc(catRef, {
           ...cat,
           updatedAt: serverTimestamp()
         }, { merge: true });
@@ -89,7 +92,9 @@ export default function AdminDashboard() {
       
       // 2. Seed Albums
       for (const album of MOCK_ALBUMS) {
-        await setDoc(doc(db, 'albums', album.id), {
+        console.log(`Seeding album: ${album.title}`);
+        const albRef = doc(db, 'albums', album.id);
+        await setDoc(albRef, {
           ...album,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -97,10 +102,12 @@ export default function AdminDashboard() {
         }, { merge: true });
       }
       
+      console.log('Universe Restoration Complete!');
       toast.success('Universe Data Restored Successfully!', { id: toastId });
-    } catch (error) {
-      console.error('Seeding failed:', error);
-      toast.error('Restoration failed. Check console for details.', { id: toastId });
+    } catch (error: any) {
+      console.error('Seeding failed with error:', error);
+      const errorMsg = error?.message || 'Unknown error';
+      toast.error(`Restoration failed: ${errorMsg}`, { id: toastId });
     } finally {
       setIsSeeding(false);
     }
