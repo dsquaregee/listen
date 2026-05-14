@@ -3,27 +3,74 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    function isMaster() {
-      return request.auth != null && (
+    // --- MASTER HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Explicitly identify the master admin account
+    function isMasterAdmin() {
+      return isSignedIn() && (
         request.auth.uid == 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1' ||
-        request.auth.token.get('email', '').lower() == 'dsquaregee@gmail.com'
+        request.auth.token.email == 'dsquaregee@gmail.com'
       );
     }
 
-    // BROAD READ FOR ALL COLLECTIONS
-    // This will temporarily resolve all "Missing permissions" on LIST/GET operations
+    // --- ROOT CATCH-ALL ---
+    // This provides full read access to everyone for everything
+    // and full write access to the admin.
     match /{document=**} {
       allow read: if true;
-      allow write: if isMaster();
+      allow write: if isMasterAdmin();
     }
 
-    // Special case for user's own data and playCounts
-    match /albums/{albumId} {
-      allow update: if request.auth != null;
+    // --- SPECIFIC COLLECTION RULES ---
+    // Even if the global catch-all is there, we define these for clarity
+    // and to handle user-specific write logic correctly.
+
+    // 1. Categories - PUBLIC READ
+    match /categories/{catId} {
+      allow read: if true;
+      allow write: if isMasterAdmin();
     }
-    
+
+    // 2. Albums - PUBLIC READ + PlayCount Updates
+    match /albums/{albumId} {
+      allow read: if true;
+      allow write: if isMasterAdmin();
+      // Allow atomic updates to playCount for any seeker
+      allow update: if isSignedIn();
+    }
+
+    // 3. Profiles
     match /users/{userId} {
-      allow read, write: if isMaster() || (request.auth != null && request.auth.uid == userId);
+      allow read, write: if isMasterAdmin() || (isSignedIn() && request.auth.uid == userId);
+    }
+
+    // 4. Playlists
+    match /playlists/{playlistId} {
+      allow read, write: if isMasterAdmin() || (
+        isSignedIn() && (
+          (resource == null && request.resource.data.userId == request.auth.uid) ||
+          (resource != null && resource.data.userId == request.auth.uid)
+        )
+      );
+    }
+
+    // 5. Favorites
+    match /favorites/{favoriteId} {
+      allow read, write: if isMasterAdmin() || (
+        isSignedIn() && (
+          (resource == null && request.resource.data.userId == request.auth.uid) ||
+          (resource != null && resource.data.userId == request.auth.uid)
+        )
+      );
+    }
+
+    // 6. System Metadata
+    match /system/{docId} {
+      allow read: if true;
+      allow write: if isMasterAdmin();
     }
   }
 }
