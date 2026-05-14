@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import cors from 'cors';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import ffmpeg from 'fluent-ffmpeg';
@@ -85,11 +86,19 @@ if (ffmpegInstaller) {
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
-// Generic request logger (Errors only)
+// Enable CORS
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'stripe-signature'],
+}));
+
+// Generic request logger
 app.use((req, res, next) => {
+  logToFile(`${req.method} ${req.url}`);
   res.on('finish', () => {
     if (res.statusCode >= 400) {
-      logToFile(`${req.method} ${req.url} - Status: ${res.statusCode}`);
+      logToFile(`STATUS ERROR: ${req.method} ${req.url} - Status: ${res.statusCode}`);
     }
   });
   next();
@@ -445,7 +454,6 @@ app.post('/api/create-checkout-session', async (req, res) => {
     }
 
     // Determine the base URL for redirects
-    // req.headers.origin is typically available in fetch, but fallback to host for redirected links or if missing
     let baseUrl = req.headers.origin;
     if (!baseUrl || baseUrl === 'null') {
       const protocol = req.get('x-forwarded-proto') || req.protocol;
@@ -453,7 +461,9 @@ app.post('/api/create-checkout-session', async (req, res) => {
       baseUrl = `${protocol}://${host}`;
     }
 
-    const session = await stripe.checkout.sessions.create({
+    logToFile(`Base URL detected for session: ${baseUrl}`);
+
+    const sessOptions: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       client_reference_id: userId,
       line_items: [
@@ -465,7 +475,10 @@ app.post('/api/create-checkout-session', async (req, res) => {
       mode: 'subscription',
       success_url: process.env.STRIPE_SUCCESS_URL || `${baseUrl}/profile?payment=success`,
       cancel_url: process.env.STRIPE_CANCEL_URL || `${baseUrl}/premium?payment=cancelled`,
-    });
+    };
+
+    logToFile(`Stripe session urls: success=${sessOptions.success_url}, cancel=${sessOptions.cancel_url}`);
+    const session = await stripe.checkout.sessions.create(sessOptions);
 
     logToFile(`Checkout session created: ${session.id}`);
     res.json({ url: session.url });
@@ -570,25 +583,42 @@ async function startServer() {
     }
   }
 
+  // Dedicated route for Premium to handle Stripe redirects robustly
+  app.get('/premium', (req, res) => {
+    logToFile(`Explicit /premium route hit: ${req.url}`);
+    res.sendFile(indexPath, (err) => {
+      if (err) {
+        // Fallback to searching root if dist fails
+        const rootIndex = path.resolve(rootDir, 'index.html');
+        res.sendFile(rootIndex);
+      }
+    });
+  });
+
   // Global SPA Catch-all - MUST be after all other routes and static middleware
-  // This handles all navigation that doesn't correspond to physical files
   app.get('*', (req, res, next) => {
     // 1. Skip API routes
-    if (req.path.startsWith('/api')) return next();
-    
-    // 2. Skip files with extensions (likely missing static assets)
-    if (path.extname(req.path)) {
-      logToFile(`Asset missing fallback: ${req.path}`);
+    if (req.path.startsWith('/api')) {
+      logToFile(`API 404 skip: ${req.url}`);
       return next();
     }
-
-    // 3. For any other GET request, send index.html to support SPA routing
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
-      logToFile(`404 Fallthrough: ${req.url} - index.html missing at ${indexPath}`);
-      res.status(404).send('Application build missing. Please wait while the app prepares.');
+    
+    // 2. Resolve index.html target
+    // In dev mode with Vite, index.html is in root. In prod, it's in dist.
+    let targetIndex = indexPath;
+    if (process.env.NODE_ENV !== 'production' && !fs.existsSync(indexPath)) {
+      targetIndex = path.resolve(rootDir, 'index.html');
     }
+
+    logToFile(`SPA Routing Navigation: ${req.url} -> ${targetIndex}`);
+    
+    res.sendFile(targetIndex, (err) => {
+      if (err) {
+        logToFile(`Error sending index.html (${targetIndex}) for ${req.url}: ${err.message}`);
+        // Fallback or explicit 404
+        res.status(404).send(`Application build missing. Please wait. (File: ${targetIndex})`);
+      }
+    });
   });
 
   const server = app.listen(PORT, '0.0.0.0', () => {
