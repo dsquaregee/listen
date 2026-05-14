@@ -133,9 +133,8 @@ export default function App() {
                 photoURL: firebaseUser.photoURL || '',
                 tier,
                 isAdmin,
-                createdAt: new Date().toISOString()
               };
-              setDoc(userDocRef, initialProfile);
+              setDoc(userDocRef, { ...initialProfile, createdAt: new Date().toISOString() });
             }
           }, (err) => {
             handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);

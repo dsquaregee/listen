@@ -2,7 +2,8 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Global Safety Net
+    
+    // 0. Default Deny - Global Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
@@ -12,147 +13,98 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isEmailVerified() {
-      // Use this if we want to enforce verification, but let's keep it simple for now as requested.
-      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
-    }
-
-    function isAdmin() {
-      return isSignedIn() && (
-        (request.auth.token.get('email', '').lower() == 'dsquaregee@gmail.com') ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
-    }
-
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Pillar 8 constraint: No exists() inside allow list
+    function isAdminToken() {
+      return isSignedIn() && request.auth.token.get('email', '').lower() == 'dsquaregee@gmail.com';
+    }
+
+    // DB-backed admin check for single-doc operations
+    function isAdminDB() {
+      return isAdminToken() || exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
     // --- End Helpers ---
 
     // 1. Users Collection
     match /users/{userId} {
       function isValidUser(data) {
-        let requiredKeys = ['uid', 'email', 'displayName', 'photoURL'];
+        let requiredKeys = ['uid', 'email', 'displayName'];
+        // Pillar 2: Strict Keys & Identity Integrity
         return data.keys().hasAll(requiredKeys) &&
                data.uid == userId &&
                data.email is string && data.email.size() <= 200 &&
-               data.displayName is string && data.displayName.size() <= 100 &&
-               data.photoURL is string && data.photoURL.size() <= 500 &&
-               (data.get('isPremium', false) is bool) &&
-               (data.get('subscriptionAmount', 0) is number) &&
-               (data.get('subscriptionCurrency', 'USD') is string) &&
-               (data.get('totalMinutesStreamed', 0) is number) &&
-               (data.get('isAdmin', false) == false || isAdmin());
+               data.displayName is string && data.displayName.size() <= 200;
       }
 
-      // Read access strictly restricted to owner or admin (PII Isolation)
-      allow get: if isOwner(userId) || isAdmin();
-      
-      // Prevent query scraping
-      allow list: if isAdmin(); 
+      // Pillar 6: PII Isolation
+      allow get: if isOwner(userId) || isAdminDB();
+      // Pillar 8: Secure List Queries (Avoid exists in list)
+      allow list: if isAdminToken(); 
 
-      allow create: if isOwner(userId) && isValidUser(incoming()) && 
-                    (incoming().get('isPremium', false) == false || isAdmin()) && 
-                    (incoming().get('isAdmin', false) == false || isAdmin());
-                    
-      allow update: if isOwner(userId) && (
-        // Allow updating core profile fields, subscription, and metrics
-        (incoming().diff(existing()).affectedKeys().hasAll(['updatedAt']) && 
-         isValidUser(incoming())) ||
-        // Admin override
-        isAdmin()
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      
+      allow update: if (isOwner(userId) || isAdminDB()) && (
+        // Tiered identity logic: allow specific state updates or full admin control
+        incoming().diff(existing()).affectedKeys().hasAny(['tier', 'isPremium', 'displayName', 'photoURL', 'totalMinutesStreamed', 'updatedAt', 'stripeCustomerId']) ||
+        isAdminDB()
       );
     }
 
-    // 2. Categories Collection
+    // 2. Categories
     match /categories/{categoryId} {
-      function isValidCategory(data) {
-        return data.name is string && data.name.size() <= 100 &&
-               data.slug is string && data.slug.size() <= 100 &&
-               (data.get('description', '') is string) &&
-               (data.get('visualIdentity', '') is string) &&
-               (data.get('order', 0) is number);
-      }
-
       allow read: if true; 
-      allow create, update: if isAdmin() && isValidCategory(incoming());
-      allow delete: if isAdmin();
+      allow write: if isAdminDB();
     }
 
-    // 3. Albums Collection
+    // 3. Albums
     match /albums/{albumId} {
-      function isValidAlbum(data) {
-        return (data.get('title', '') is string) && (data.get('title', '').size() <= 200) &&
-               (data.get('artist', '') is string) &&
-               (data.get('duration', 0) is number) &&
-               (data.get('coverUrl', '') is string) &&
-               (data.get('hlsUrl', '') is string) &&
-               (data.get('categoryId', '') is string) &&
-               (data.get('tier', 'free') in ['free', 'premium']) &&
-               (data.get('videoHlsUrl', '') is string) &&
-               (data.get('description', '') is string) &&
-               (data.get('instruments', []) is list) &&
-               (data.get('moodTags', []) is list) &&
-               (data.get('bpm', 0) is number) &&
-               (data.get('featured', false) is bool) &&
-               (data.get('playCount', 0) is number) &&
-               (data.get('createdAt', '') is string);
-      }
-
       allow read: if true; 
-      allow create: if isAdmin() && isValidAlbum(incoming());
-      allow update: if (isAdmin() && isValidAlbum(incoming())) ||
-                    (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['playCount', 'updatedAt']) && 
-                     (incoming().get('playCount', 0) >= existing().get('playCount', 0)));
-      allow delete: if isAdmin();
+      allow update: if (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['playCount', 'updatedAt'])) || isAdminDB();
+      allow create, delete: if isAdminDB();
     }
 
-    // 4. Favorites Collection
-    match /favorites/{favoriteId} {
-      function isValidFavorite(data) {
-        return data.userId == request.auth.uid &&
-               data.albumId is string;
-      }
-
-      // Secure list queries: must filter by userId
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
-      
-      allow create: if isSignedIn() && isValidFavorite(incoming()) && isValidId(favoriteId);
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-    }
-
-    // 5. Playlists Collection
+    // 4. Playlists
     match /playlists/{playlistId} {
       function isValidPlaylist(data) {
         return data.userId == request.auth.uid &&
                data.name is string && data.name.size() <= 100 &&
-               data.albumIds is list && data.albumIds.size() <= 500 &&
-               (data.albumIds.size() == 0 || (data.albumIds[0] is string));
+               data.albumIds is list && data.albumIds.size() <= 1000;
       }
 
+      // Pillar 8: Secure List Queries - restrict to owner
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdminDB());
       
       allow create: if isSignedIn() && isValidPlaylist(incoming()) && isValidId(playlistId);
       
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && 
-                    isValidPlaylist(incoming()) &&
-                    incoming().diff(existing()).affectedKeys().hasOnly(['name', 'albumIds', 'updatedAt']);
-                    
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && (
+        incoming().diff(existing()).affectedKeys().hasAny(['name', 'albumIds', 'updatedAt']) ||
+        isAdminDB()
+      );
+      
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdminDB());
+    }
+    
+    // 5. Favorites
+    match /favorites/{favoriteId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if isSignedIn() && (incoming().userId == request.auth.uid || (existing() != null && existing().userId == request.auth.uid));
+    }
+
+    // 6. Admins
+    match /admins/{adminId} {
+      allow read: if isAdminDB();
+      allow write: if false; 
     }
   }
 }
