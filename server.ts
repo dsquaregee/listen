@@ -444,6 +444,15 @@ app.post('/api/create-checkout-session', async (req, res) => {
       return res.status(400).json({ error: 'No Price ID provided or configured' });
     }
 
+    // Determine the base URL for redirects
+    // req.headers.origin is typically available in fetch, but fallback to host for redirected links or if missing
+    let baseUrl = req.headers.origin;
+    if (!baseUrl || baseUrl === 'null') {
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const host = req.get('host');
+      baseUrl = `${protocol}://${host}`;
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       client_reference_id: userId,
@@ -454,8 +463,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
         },
       ],
       mode: 'subscription',
-      success_url: process.env.STRIPE_SUCCESS_URL || `${req.headers.origin}/profile?payment=success`,
-      cancel_url: process.env.STRIPE_CANCEL_URL || `${req.headers.origin}/premium?payment=cancelled`,
+      success_url: process.env.STRIPE_SUCCESS_URL || `${baseUrl}/profile?payment=success`,
+      cancel_url: process.env.STRIPE_CANCEL_URL || `${baseUrl}/premium?payment=cancelled`,
     });
 
     logToFile(`Checkout session created: ${session.id}`);
@@ -476,9 +485,17 @@ app.post('/api/create-portal-session', async (req, res) => {
     }
 
     const stripe = getStripe();
+
+    let baseUrl = req.headers.origin;
+    if (!baseUrl || baseUrl === 'null') {
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const host = req.get('host');
+      baseUrl = `${protocol}://${host}`;
+    }
+
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${req.headers.origin}/profile`,
+      return_url: `${baseUrl}/profile`,
     });
 
     res.json({ url: session.url });
@@ -543,26 +560,39 @@ async function startServer() {
     
     if (fs.existsSync(distPath)) {
       app.use(express.static(distPath));
-      app.get('*', (req, res, next) => {
-        // Only serve index.html for non-API routes
-        if (req.path.startsWith('/api')) {
-          return next();
-        }
-        res.sendFile(path.join(distPath, 'index.html'));
-      });
       logToFile('Production static serving active');
     } else {
       logToFile(`ERROR: Dist path not found at ${distPath}. Did build run?`);
-      // In Cloud Run, sometimes we might need to check if we are in the wrong directory
-      app.get('*', (req, res) => {
-        res.status(500).send(`Application not built or dist directory missing at ${distPath}. Current directory: ${process.cwd()}`);
-      });
     }
   }
 
   const server = app.listen(PORT, '0.0.0.0', () => {
     logToFile(`Server actually listening on http://0.0.0.0:${PORT}`);
   });
+
+  // Global SPA Catch-all (Must be last)
+  // This ensures that even if Vite or static serving falls through, 
+  // we attempt to serve index.html for unknown paths to support SPA routing.
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    
+    const distPath = path.join(process.cwd(), 'dist');
+    const indexPath = path.join(distPath, 'index.html');
+
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_VITE !== 'true') {
+      // In development, the request should have been caught by Vite middlewares.
+      // If we are here, it means Vite didn't handle it. This might happen if the path
+      // has an extension that Vite thinks is a static file but doesn't exist.
+      // We log it to help debug.
+      logToFile(`Dev Fallthrough: ${req.method} ${req.url}`);
+      next();
+    } else {
+      next();
+    }
+  });
+
   server.timeout = 600000; // 10 minutes
   
   // Handle server errors
