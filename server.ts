@@ -534,10 +534,12 @@ async function startServer() {
     }
   }
 
-  // Resolve paths robustly
+  // Robust path resolution for both local and container environments
   const rootDir = process.cwd();
   const distPath = path.resolve(rootDir, 'dist');
   const indexPath = path.resolve(distPath, 'index.html');
+
+  logToFile(`Path Check: Root=${rootDir}, Dist=${distPath}, Index=${fs.existsSync(indexPath)}`);
 
   if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_VITE !== 'true') {
     logToFile('Integrating Vite middleware (Development mode)');
@@ -553,15 +555,15 @@ async function startServer() {
       logToFile(`Error integrating Vite fallback: ${e instanceof Error ? e.message : String(e)}`);
       if (fs.existsSync(distPath)) {
         logToFile('Vite failed, falling back to static dist in dev mode');
-        app.use(express.static(distPath));
+        app.use(express.static(distPath, { index: false }));
       }
     }
   } else {
     logToFile('Starting Production mode (Static Serving)');
-    logToFile(`Static assets path: ${distPath}`);
-    
     if (fs.existsSync(distPath)) {
-      app.use(express.static(distPath));
+      // Use express.static WITHOUT 'index: true' automatically to prevent it from greedily
+      // intercepting directories that should be handled by the SPA catch-all
+      app.use(express.static(distPath, { index: false }));
       logToFile('Production static serving active');
     } else {
       logToFile(`ERROR: Dist path not found at ${distPath}. Did build run?`);
@@ -569,17 +571,23 @@ async function startServer() {
   }
 
   // Global SPA Catch-all - MUST be after all other routes and static middleware
+  // This handles all navigation that doesn't correspond to physical files
   app.get('*', (req, res, next) => {
-    // Skip API routes
+    // 1. Skip API routes
     if (req.path.startsWith('/api')) return next();
     
-    // For any other GET request, send index.html to support SPA routing
+    // 2. Skip files with extensions (likely missing static assets)
+    if (path.extname(req.path)) {
+      logToFile(`Asset missing fallback: ${req.path}`);
+      return next();
+    }
+
+    // 3. For any other GET request, send index.html to support SPA routing
     if (fs.existsSync(indexPath)) {
       res.sendFile(indexPath);
     } else {
-      // If index.html is missing, we can't do much
       logToFile(`404 Fallthrough: ${req.url} - index.html missing at ${indexPath}`);
-      res.status(404).send('404 - Source index not found');
+      res.status(404).send('Application build missing. Please wait while the app prepares.');
     }
   });
 
