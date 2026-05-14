@@ -102,6 +102,7 @@ export default function App() {
       if (firebaseUser) {
         const adminEmail = 'dsquaregee@gmail.com';
         const isMasterAdmin = firebaseUser.email?.toLowerCase() === adminEmail || firebaseUser.uid === 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1';
+        let firstSnapshotDone = false;
 
         try {
           // Playlists Listener
@@ -118,7 +119,6 @@ export default function App() {
             setPlaylists(plys);
           }, (err) => {
             console.error('Playlists listener error:', err);
-            // Don't toast here as it might be an index issue or just temporary
           });
 
           const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -146,17 +146,19 @@ export default function App() {
 
               setUser({ ...userData, isAdmin: isMasterAdmin || userData.isAdmin, tier: finalTier });
               setUserTier(finalTier);
-            } else if (isMasterAdmin) {
-              // Create default profile if missing for admin
-              const tier = 'premium';
+            } else {
+              // Create default profile if missing
+              const tier = isMasterAdmin ? 'premium' : 'free';
               
-              const adminDocRef = doc(db, 'admins', firebaseUser.uid);
-              setDoc(adminDocRef, { 
-                email: firebaseUser.email, 
-                role: 'admin', 
-                bootstrapped: true,
-                updatedAt: serverTimestamp() 
-              }).catch(err => console.error('Failed to bootstrap admin doc:', err));
+              if (isMasterAdmin) {
+                const adminDocRef = doc(db, 'admins', firebaseUser.uid);
+                setDoc(adminDocRef, { 
+                  email: firebaseUser.email, 
+                  role: 'admin', 
+                  bootstrapped: true,
+                  updatedAt: serverTimestamp() 
+                }).catch(err => console.error('Failed to bootstrap admin doc:', err));
+              }
 
               const initialProfile: UserProfile = {
                 uid: firebaseUser.uid,
@@ -172,6 +174,11 @@ export default function App() {
               setUser({ ...initialProfile, isAdmin: isMasterAdmin });
               setUserTier(tier);
             }
+            
+            if (!firstSnapshotDone) {
+              setLoading(false);
+              firstSnapshotDone = true;
+            }
           }, (err) => {
             console.error('User listener error:', err);
             // Fallback for master admin if doc fetch fails (e.g. initial setup)
@@ -186,16 +193,21 @@ export default function App() {
               });
               setUserTier('premium');
             }
+            if (!firstSnapshotDone) {
+              setLoading(false);
+              firstSnapshotDone = true;
+            }
           });
 
         } catch (error) {
           console.error('Auth post-processing error:', error);
+          setLoading(false);
         }
       } else {
         setUser(null);
         setPlaylists([]);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {

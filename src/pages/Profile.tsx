@@ -22,7 +22,7 @@ const formatBytes = (bytes: number) => {
 };
 
 export default function Profile() {
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, isLoading: authLoading } = useAuthStore();
   const [storage, setStorage] = useState<{ used: number; quota: number } | null>(null);
 
   const handleLogin = async () => {
@@ -81,6 +81,15 @@ export default function Profile() {
     await signOut(auth);
     setUser(null);
   };
+
+  if (authLoading) {
+    return (
+      <div className="pt-32 px-6 flex flex-col items-center justify-center text-center">
+        <div className="w-16 h-16 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-6" />
+        <p className="text-white/40 uppercase text-[10px] tracking-widest animate-pulse">Reconnecting Resonance...</p>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

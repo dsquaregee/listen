@@ -31,8 +31,12 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && 
-                      incoming().tier == 'free' &&
-                      (!('isAdmin' in incoming()) || incoming().isAdmin == false);
+                      (
+                        // Standard user creation
+                        (incoming().tier == 'free' && (!('isAdmin' in incoming()) || incoming().isAdmin == false)) ||
+                        // Admin self-bootstrap creation
+                        (request.auth.token.email == 'dsquaregee@gmail.com' && incoming().tier == 'premium' && incoming().isAdmin == true)
+                      );
       allow update: if (isOwner(userId) || isAdmin()) && 
                       (
                         // User updating their own profile (subset of fields)
@@ -77,7 +81,9 @@ service cloud.firestore {
     // ADMINS LIST (Self-Bootstrap check)
     // ---------------------------------------------------------
     match /admins/{adminId} {
-      allow read: if isOwner(adminId);
+      allow read: if isOwner(adminId) || isAdmin();
+      allow create: if isVerified() && isOwner(adminId) && (request.auth.token.email == 'dsquaregee@gmail.com' || isAdmin());
+      allow update, delete: if isAdmin();
     }
 
     // ---------------------------------------------------------
