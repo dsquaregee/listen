@@ -45,48 +45,92 @@ function UniverseRestorer() {
       // Use auth.currentUser as a backup to the store state for quicker detection
       const firebaseUser = auth.currentUser;
       const isAdminEmail = firebaseUser?.email?.toLowerCase() === 'dsquaregee@gmail.com';
+      const isUidAdmin = firebaseUser?.uid === 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1';
       
-      if (!isAdminEmail && (!user || !user.isAdmin)) return;
+      console.log('UniverseRestorer logic check:', { 
+        hasFirebaseUser: !!firebaseUser, 
+        isAdminEmail, 
+        isUidAdmin,
+        storeUserIsAdmin: user?.isAdmin 
+      });
+
+      if (!isAdminEmail && !isUidAdmin && (!user || !user.isAdmin)) {
+        console.log('UniverseRestorer: User is not an admin, skipping.');
+        return;
+      }
 
       try {
         console.log('UniverseRestorer: Checking universe health...');
-        const catSn = await getDocs(collection(db, 'categories'));
-        const albSn = await getDocs(collection(db, 'albums'));
+        let catSn;
+        try {
+          catSn = await getDocs(collection(db, 'categories'));
+          console.log('UniverseRestorer: Health check read success. Categories found:', catSn.size);
+        } catch (readErr: any) {
+          console.error('UniverseRestorer: Health check read failed. Error:', readErr.message);
+          // If we are admin, we assume emptiness if we can't read, to try and fix it with a write
+          catSn = { empty: true, size: 0 }; 
+        }
 
-        if (catSn.empty || albSn.empty) {
-          console.warn('UniverseRestorer: Database incomplete, auto-restoring...');
+        if (catSn.empty) {
+          console.warn('UniverseRestorer: Database empty or unreachable. Attempting force-seed...');
+          toast.loading('Initializing database...', { id: 'seeding' });
           
-          // Seed Categories
-          for (const cat of MOCK_CATEGORIES) {
-            await setDoc(doc(db, 'categories', cat.id), {
-              ...cat,
-              updatedAt: serverTimestamp()
-            }, { merge: true });
+          try {
+            // Seed Categories
+            console.log('UniverseRestorer: Seeding categories...');
+            for (const cat of MOCK_CATEGORIES) {
+              await setDoc(doc(db, 'categories', cat.id), {
+                ...cat,
+                updatedAt: serverTimestamp()
+              }, { merge: true });
+            }
+            
+            // Seed Albums
+            console.log('UniverseRestorer: Seeding albums...');
+            for (const album of MOCK_ALBUMS) {
+              await setDoc(doc(db, 'albums', album.id), {
+                ...album,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                playCount: 0
+              }, { merge: true });
+            }
+            
+            toast.success('Database seeded successfully!', { id: 'seeding' });
+            console.log('UniverseRestorer: Seeding complete.');
+            // Brief delay to allow Firestore to propagate before reload
+            setTimeout(() => window.location.reload(), 1500); 
+          } catch (writeErr: any) {
+            console.error('UniverseRestorer: Force-seed write failed:', writeErr.message);
+            handleFirestoreError(writeErr, OperationType.WRITE, 'categories/albums');
           }
-          
-          // Seed Albums
-          for (const album of MOCK_ALBUMS) {
-            await setDoc(doc(db, 'albums', album.id), {
-              ...album,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-              playCount: 0
-            }, { merge: true });
-          }
-          
-          console.log('UniverseRestorer: Auto-restoration successful.');
-          window.location.reload(); 
         } else {
-          console.log('UniverseRestorer: Universe is healthy.');
+          console.log('UniverseRestorer: Universe is already healthy.');
         }
       } catch (err: any) {
-        console.error('UniverseRestorer: Check/Restore failed:', err);
+        console.error('UniverseRestorer: Fatal error:', err);
+        if (err.message?.includes('permission')) {
+          toast.error('Permission denied. Please ensure you are logged in as dsquaregee@gmail.com', { id: 'seeding-error' });
+        }
       }
     };
 
-    // Wait a bit for auth to settle
-    const timeout = setTimeout(checkAndRestore, 2000);
-    return () => clearTimeout(timeout);
+    // Check immediately if auth is ready, or wait for it
+    const checkOnAuth = () => {
+      if (auth.currentUser) {
+        checkAndRestore();
+      } else {
+        const unsub = onAuthStateChanged(auth, (u) => {
+          if (u) {
+            checkAndRestore();
+            unsub();
+          }
+        });
+        setTimeout(unsub, 5000); // Stop waiting after 5s
+      }
+    };
+
+    checkOnAuth();
   }, [user]);
 
   return null;
@@ -154,7 +198,7 @@ export default function App() {
 
       if (firebaseUser) {
         const adminEmail = 'dsquaregee@gmail.com';
-        const isMasterAdmin = firebaseUser.email?.toLowerCase() === adminEmail;
+        const isMasterAdmin = firebaseUser.email?.toLowerCase() === adminEmail || firebaseUser.uid === 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1';
 
         try {
           // Playlists Listener
