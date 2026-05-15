@@ -185,31 +185,6 @@ export default function Profile() {
             >
               Subscribe
             </Link>
-            
-            <button 
-              onClick={async () => {
-                const tid = toast.loading('Synchronizing with Stripe...');
-                try {
-                  const res = await fetch('/api/sync-user-stripe', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: user.uid })
-                  });
-                  const data = await res.json();
-                  if (data.tier === 'premium') {
-                    toast.success('Resonance Restored! Your premium frequencies are now active.', { id: tid });
-                    window.location.reload();
-                  } else {
-                    toast.info('No active subscription found for this account.', { id: tid });
-                  }
-                } catch (e) {
-                  toast.error('Sync failed. Please contact support.', { id: tid });
-                }
-              }}
-              className="mt-4 block text-[8px] uppercase tracking-widest font-bold text-white/20 hover:text-white transition-colors"
-            >
-              Already paid? Sync Subscription
-            </button>
           </motion.div>
         )}
 
@@ -286,6 +261,40 @@ export default function Profile() {
             <h3 className="text-sm font-bold text-white/60 uppercase tracking-widest">Support & Access</h3>
           </div>
           <div className="space-y-2">
+            <button 
+              onClick={async () => {
+                const tid = toast.loading('Synchronizing with Stripe...');
+                try {
+                  const res = await fetch('/api/sync-user-stripe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.uid })
+                  });
+                  const data = await res.json();
+                  if (data.success || data.tier === 'premium') {
+                    toast.success('Resonance Restored! Your premium frequencies are now active.', { id: tid });
+                    setTimeout(() => window.location.reload(), 1500);
+                  } else {
+                    toast.info(data.message || 'No active subscription found.', { id: tid });
+                  }
+                } catch (e) {
+                  toast.error('Sync failed. Please contact support.', { id: tid });
+                }
+              }}
+              className="w-full flex items-center justify-between p-4 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/20 rounded-lg">
+                  <Database className="w-4 h-4 text-primary" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white">Sync Subscription</p>
+                  <p className="text-[10px] text-white/40">Restore access if payment was successful</p>
+                </div>
+              </div>
+              <Crown className="w-3 h-3 text-primary animate-pulse" />
+            </button>
+
             <a 
               href="https://billing.stripe.com/p/login/7sYdRb4Er3nG8nSc7T3Ru00" 
               target="_blank" 
