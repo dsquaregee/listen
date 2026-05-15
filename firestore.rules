@@ -39,8 +39,11 @@ service cloud.firestore {
                       );
       allow update: if (isOwner(userId) || isAdmin()) && 
                       (
-                        // User updating their own profile (subset of fields)
-                        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt'])) ||
+                        // User updating their own profile
+                        (isOwner(userId) && 
+                          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt', 'tier', 'stripeCustomerId', 'subscriptionId', 'subscriptionStatus']) &&
+                          (!('isAdmin' in incoming()) || incoming().isAdmin == existing().isAdmin)
+                        ) ||
                         // Admin updating anything
                         isAdmin()
                       );

@@ -64,13 +64,24 @@ export default function Profile() {
       });
       const data = await res.json();
       
-      if (data.success && data.stripeCustomerId) {
-        toast.success('Billing record found!', { id: tid });
-        return initiatePortal(data.stripeCustomerId);
-      } else if (data.tier === 'premium') {
+      if (data.success && data.tier === 'premium') {
+        const userDocRef = doc(db, 'users', user!.uid);
+        await setDoc(userDocRef, {
+          tier: 'premium',
+          stripeCustomerId: data.stripeCustomerId,
+          subscriptionId: data.subscriptionId,
+          subscriptionStatus: data.status,
+          updatedAt: new Date()
+        }, { merge: true });
+        
         toast.success('Premium status restored!', { id: tid });
         setTimeout(() => window.location.reload(), 1000);
         return;
+      }
+      
+      if (data.success && data.stripeCustomerId) {
+        toast.success('Billing record found!', { id: tid });
+        return initiatePortal(data.stripeCustomerId);
       }
       
       toast.info('No active subscription found. If you just paid, please wait a few seconds and try again.', { id: tid });
@@ -184,6 +195,13 @@ export default function Profile() {
             >
               Subscribe
             </Link>
+            
+            <button 
+              onClick={handleManageSubscription}
+              className="mt-4 block text-[8px] uppercase tracking-widest font-bold text-white/20 hover:text-white transition-colors"
+            >
+              Already paid? Sync Subscription
+            </button>
           </motion.div>
         )}
 

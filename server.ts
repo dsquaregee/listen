@@ -22,25 +22,47 @@ const privateKey = process.env.GCS_PRIVATE_KEY
   ? process.env.GCS_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/^"(.*)"$/, '$1')
   : undefined;
 
-if (process.env.GCS_PROJECT_ID && process.env.GCS_CLIENT_EMAIL && privateKey) {
-  try {
-    if (getApps().length === 0) {
-      initializeApp({
+const APP_NAME = 'dsquaregee-admin';
+
+try {
+  let adminApp;
+  const existingApp = getApps().find(a => a.name === APP_NAME);
+  
+  if (!existingApp) {
+    if (process.env.GCS_PROJECT_ID && process.env.GCS_CLIENT_EMAIL && privateKey) {
+      logToFile('Initializing Named Firebase Admin with provided credentials');
+      adminApp = initializeApp({
         credential: cert({
           projectId: process.env.GCS_PROJECT_ID,
           clientEmail: process.env.GCS_CLIENT_EMAIL,
           privateKey: privateKey,
         }),
-      });
+        projectId: process.env.GCS_PROJECT_ID
+      }, APP_NAME);
+    } else {
+      logToFile(`Initializing Named Firebase Admin with default credentials targeting project: ${firebaseConfig.projectId}`);
+      adminApp = initializeApp({
+        projectId: firebaseConfig.projectId,
+        credential: admin.credential.applicationDefault()
+      }, APP_NAME);
     }
-    logToFile('Firebase Admin initialized successfully');
-  } catch (e) {
-    logToFile(`Failed to initialize Firebase Admin: ${e instanceof Error ? e.message : String(e)}`);
+  } else {
+    adminApp = existingApp;
   }
+  logToFile('Firebase Admin (Named) initialized successfully');
+} catch (e) {
+  logToFile(`Failed to initialize Firebase Admin: ${e instanceof Error ? e.message : String(e)}`);
 }
 
 // Ensure the db is using the correct database instance from config
-const getAdminDb = () => getFirestore(getApp(), firebaseConfig.firestoreDatabaseId);
+const getAdminDb = () => {
+  try {
+    const app = getApps().find(a => a.name === APP_NAME) || getApp();
+    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  } catch (e) {
+    return getFirestore();
+  }
+};
 
 let stripeClient: Stripe | null = null;
 function getStripe() {
@@ -723,7 +745,13 @@ app.post('/api/sync-user-stripe', async (req, res) => {
         updatedAt: FieldValue.serverTimestamp()
       }, { merge: true });
 
-      return res.json({ success: true, stripeCustomerId, tier, status });
+      return res.json({ 
+        success: true, 
+        stripeCustomerId, 
+        tier, 
+        status,
+        subscriptionId: subscription.id
+      });
     }
 
     logToFile(`Stripe Sync: Final - No subscription found for user ${userId}`);
