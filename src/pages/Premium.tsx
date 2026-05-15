@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Check, Crown, Zap, Shield, Headphones, Smartphone, Sparkles, Globe, Infinity, DollarSign } from 'lucide-react';
+import { Check, Crown, Zap, Shield, Headphones, Smartphone, Sparkles, Globe, Infinity, DollarSign, ArrowLeft, HelpCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
@@ -13,6 +14,7 @@ import { Toaster, toast } from 'sonner';
 export default function Premium() {
   const { setUserTier } = usePlayerStore();
   const { user, setUser } = useAuthStore();
+  const navigate = useNavigate();
   const [amount, setAmount] = useState(3);
   const [currency, setCurrency] = useState('USD');
   const [isSubscribing, setIsSubscribing] = useState(false);
@@ -73,56 +75,91 @@ export default function Premium() {
   };
 
   return (
-    <div className="min-h-screen pt-24 px-6 pb-20 relative overflow-hidden bg-black flex flex-col items-center justify-center">
-      <div className="max-w-2xl w-full mx-auto">
+    <div className="min-h-screen pt-24 px-6 pb-20 relative overflow-hidden bg-black flex flex-col items-center">
+      <div className="max-w-2xl w-full mx-auto relative">
+        {/* Back Button */}
+        <button 
+          onClick={() => navigate(-1)}
+          className="absolute -top-12 left-0 flex items-center gap-2 text-white/40 hover:text-white transition-colors text-[10px] uppercase font-bold tracking-widest group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          Return
+        </button>
+
         {/* Infinite Resonance Tier */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/5 border border-accent/30 p-10 rounded-[40px] shadow-2xl relative overflow-hidden cinematic-glow"
+          className="bg-[#0A0A0A] border border-accent/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group"
         >
-          {/* Decorative backdrop */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
+          {/* Animated Background Elements */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-accent/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 group-hover:bg-accent/20 transition-colors duration-1000" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 blur-[80px] rounded-full translate-y-1/2 -translate-x-1/2" />
           
           <div className="relative z-10 flex flex-col h-full">
-            <div className="flex justify-between items-start mb-8">
+            <div className="flex justify-between items-start mb-10">
               <div>
-                <h3 className="text-2xl font-serif font-bold italic text-white">Infinite Seeker</h3>
-                <p className="text-accent/60 text-[10px] uppercase tracking-widest mt-1">The Full Cinematic Spectrum</p>
+                <h3 className="text-3xl font-serif font-bold italic text-white tracking-tight">Infinite Seeker</h3>
+                <p className="text-accent/60 text-[10px] uppercase tracking-[0.3em] font-black mt-2">Maximum Resonance Spectrum</p>
               </div>
-              <div className="p-2 bg-accent/20 rounded-full">
-                <Crown className="w-4 h-4 text-accent" />
+              <div className="p-3 bg-accent/10 rounded-2xl border border-accent/20 shadow-[0_0_20px_rgba(153,102,204,0.2)]">
+                <Crown className="w-6 h-6 text-accent animate-pulse" />
               </div>
             </div>
 
-            <div className="flex items-baseline gap-2 mb-10">
-              <span className="text-5xl font-bold italic text-white">Unlock Full Access</span>
+            <div className="flex flex-col gap-2 mb-12">
+              <div className="flex items-baseline gap-2">
+                <span className="text-5xl font-bold italic text-white">$4.99</span>
+                <span className="text-white/40 text-sm uppercase tracking-widest font-bold">/ Month</span>
+              </div>
+              <p className="text-white/40 text-[9px] uppercase tracking-widest font-black italic">Access the unfiltered universe</p>
             </div>
 
-            <div className="space-y-8 mb-12 flex-grow">
-              <div className="space-y-4">
-                <p className="text-white/60 text-sm leading-relaxed">
-                  Unlock the complete vibrational spectrum with unlimited library access and offline resonance capabilities.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { icon: Infinity, label: 'Full Library' },
-                  { icon: Smartphone, label: 'Offline Listening' },
-                ].map(item => (
-                  <div key={item.label} className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-xl">
-                    <item.icon className="w-4 h-4 text-accent" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">{item.label}</span>
+            <div className="space-y-10 mb-12 flex-grow">
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                    <Infinity className="w-4 h-4 text-accent" />
                   </div>
-                ))}
+                  <div>
+                    <h4 className="text-white text-sm font-bold">Unfiltered Library</h4>
+                    <p className="text-white/40 text-xs mt-1 leading-relaxed">No limits. Every raga, every fusion, every journey is yours to explore.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                    <Smartphone className="w-4 h-4 text-accent" />
+                  </div>
+                  <div>
+                    <h4 className="text-white text-sm font-bold">Offline Preservation</h4>
+                    <p className="text-white/40 text-xs mt-1 leading-relaxed">Download journeys to your device for immersive listening without connection.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-4 h-4 text-accent" />
+                  </div>
+                  <div>
+                    <h4 className="text-white text-sm font-bold">Resonance Enhancement</h4>
+                    <p className="text-white/40 text-xs mt-1 leading-relaxed">Exclusive access to high-fidelity audio streams and beta atmospheric features.</p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="mb-8 p-4 rounded-2xl bg-white/[0.03] border border-white/10">
-              <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-2">Manifestation Tip</p>
-              <p className="text-[10px] text-white/60 italic leading-relaxed">
-                Applying a promo code? You can enter it on the secure payment page in the next step.
+            <div className="mb-8 p-5 rounded-3xl bg-white/[0.02] border border-white/5 relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-3 opacity-10">
+                 <HelpCircle className="w-4 h-4 text-white" />
+               </div>
+              <p className="text-[10px] text-white/60 font-black uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-accent rounded-full animate-ping" />
+                Promo Code Manifestation
+              </p>
+              <p className="text-[10px] text-white/30 italic leading-relaxed">
+                If you possess a sacred code, apply it on the next secure page. Once applied, the total will recalibrate. 
+                <span className="block mt-2 text-white/50">Note: Promotional codes are customer-facing strings created in Stripe.</span>
               </p>
             </div>
 
@@ -130,13 +167,19 @@ export default function Premium() {
               onClick={handleSubscribe}
               disabled={isSubscribing || user?.tier === 'premium'}
               className={cn(
-                "w-full py-5 rounded-2xl font-bold uppercase tracking-[0.3em] text-[10px] transition-all relative overflow-hidden group",
-                isSubscribing ? "opacity-50 cursor-wait" : "bg-accent text-black hover:scale-[1.02] active:scale-95 shadow-[0_20px_40px_rgba(153,102,204,0.3)]"
+                "w-full py-6 rounded-[24px] font-black uppercase tracking-[0.4em] text-[10px] transition-all relative overflow-hidden group shadow-2xl",
+                isSubscribing ? "opacity-50 cursor-wait" : "bg-accent text-black hover:bg-white hover:scale-[1.02] active:scale-95 shadow-accent/20"
               )}
             >
-              {isSubscribing ? 'Manifesting...' : user?.tier === 'premium' ? 'Currently Infinite' : 'Unlock The Universe'}
-              <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              <span className="relative z-10">
+                {isSubscribing ? 'Opening Portal...' : user?.tier === 'premium' ? 'Resonance Active' : 'Enter The Infinite'}
+              </span>
+              <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
             </button>
+
+            <p className="text-[8px] text-center text-white/20 mt-6 uppercase tracking-widest font-bold">
+              Secure Resonance via Stripe • Cancel Anytime
+            </p>
           </div>
         </motion.div>
       </div>

@@ -665,7 +665,16 @@ async function startServer() {
     // 2. IMPORTANT: Skip anything that looks like a static asset/file
     // If it has an extension, it should have been caught by vite.middlewares or express.static
     // If it reaches here, it means the file is MISSING. We should 404, not send index.html.
-    if (path.extname(req.path)) {
+    const ext = path.extname(req.path);
+    if (ext) {
+      // In development, sometimes source files are requested but might be missed by Vite's first pass
+      // We check if the file actually exists on disk before 404ing
+      const fullPath = path.join(process.cwd(), req.path);
+      if (fs.existsSync(fullPath)) {
+        logToFile(`Asset hit catch-all but exists: ${req.url}. Letting fall through.`);
+        return next();
+      }
+
       logToFile(`404 Asset Missing: ${req.url}`);
       return res.status(404).send('Resource not found');
     }

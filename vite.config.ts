@@ -12,9 +12,9 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+        includeAssets: ['pwa-512x512.png'],
         manifest: {
-          name: 'DsquareGee | Carnatic Music',
+          name: 'DsquareGee | Carnatic Raga & Fusion',
           short_name: 'DsquareGee',
           description: 'Premium cinematic streaming platform for immersive Carnatic music experiences.',
           theme_color: '#000000',
@@ -36,6 +36,26 @@ export default defineConfig(({mode}) => {
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any maskable'
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '120x120',
+              type: 'image/png'
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '152x152',
+              type: 'image/png'
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '167x167',
+              type: 'image/png'
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '180x180',
+              type: 'image/png'
             }
           ]
         },

@@ -121,7 +121,7 @@ export default function PaymentSuccess() {
                   transition={{ delay: 0.4 }}
                   className="text-4xl font-serif font-bold italic text-white"
                 >
-                  Infinite Access Activated
+                  Resonance Unified
                 </motion.h1>
                 <motion.p 
                   initial={{ opacity: 0 }}
@@ -129,7 +129,7 @@ export default function PaymentSuccess() {
                   transition={{ delay: 0.6 }}
                   className="text-white/60 leading-relaxed italic text-sm"
                 >
-                  The full spectrum is now yours. Your journeys will never end, and your resonance will never fade. Begin your listening experience with high-fidelity immersive sound.
+                  Your infinite manifestation has been verified. The full spectrum of DsquareGee is now unlocked on all your devices.
                 </motion.p>
               </div>
 
@@ -154,36 +154,25 @@ export default function PaymentSuccess() {
                 ))}
               </div>
 
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1.4 }}
-                className="p-4 rounded-3xl bg-white/[0.03] border border-white/5 flex items-center gap-4 text-left group cursor-pointer hover:bg-white/[0.05] transition-colors"
-                onClick={() => navigate('/album/a1')}
-              >
-                <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-white/10">
-                   <img src="https://images.unsplash.com/photo-1514525253361-9f6fa183c5a6?auto=format&fit=crop&q=80&w=811" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="Veena" />
-                </div>
-                <div>
-                  <p className="text-[8px] uppercase tracking-widest font-bold text-accent/60 mb-1 leading-none">Suggested First Journey</p>
-                  <h4 className="text-sm font-serif italic text-white leading-tight">Divine Veena Resonance</h4>
-                  <p className="text-[10px] text-white/40 mt-1 italic">Begin your premium manifestation.</p>
-                </div>
-                <div className="ml-auto p-2 rounded-full bg-white/5 group-hover:bg-accent group-hover:text-black transition-all">
-                  <ArrowRight className="w-3 h-3" />
-                </div>
-              </motion.div>
-
               <motion.button
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.7 }}
+                transition={{ delay: 1.2 }}
                 onClick={() => navigate('/')}
-                className="group flex items-center justify-center gap-3 w-full py-5 bg-accent text-black rounded-2xl font-bold uppercase tracking-[0.3em] text-[10px] hover:scale-[1.02] active:scale-95 transition-all outline-none"
+                className="group flex items-center justify-center gap-3 w-full py-6 bg-accent text-black rounded-2xl font-bold uppercase tracking-[0.3em] text-[10px] hover:bg-white transition-all shadow-[0_20px_50px_rgba(153,102,204,0.3)]"
               >
                 Enter The Library
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </motion.button>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2 }}
+                className="text-[8px] text-white/20 uppercase tracking-[0.2em] font-black"
+              >
+                Redirecting automatically in a few heartbeats...
+              </motion.p>
             </motion.div>
           )}
 

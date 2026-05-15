@@ -1,3 +1,4 @@
+// Centralized Firestore Error Handler for DsquareGee Immersive
 import { auth } from './firebase';
 
 export enum OperationType {
