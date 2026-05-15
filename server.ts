@@ -22,42 +22,22 @@ const privateKey = process.env.GCS_PRIVATE_KEY
   ? process.env.GCS_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/^"(.*)"$/, '$1')
   : undefined;
 
-try {
-  if (getApps().length === 0) {
-    if (process.env.GCS_PROJECT_ID && process.env.GCS_CLIENT_EMAIL && privateKey) {
-      logToFile('Initializing Firebase Admin with provided credentials');
-      initializeApp({
-        credential: cert({
-          projectId: process.env.GCS_PROJECT_ID,
-          clientEmail: process.env.GCS_CLIENT_EMAIL,
-          privateKey: privateKey,
-        }),
-        projectId: process.env.GCS_PROJECT_ID
-      });
-    } else {
-      logToFile(`Initializing Firebase Admin with ADC targeting project: ${firebaseConfig.projectId}`);
-      // In some environments, passing projectId here is enough to override ADC's default project
-      initializeApp({
-        projectId: firebaseConfig.projectId,
-        credential: admin.credential.applicationDefault()
-      });
-    }
-  }
-  logToFile('Firebase Admin initialized successfully');
-} catch (e) {
-  logToFile(`Failed to initialize Firebase Admin: ${e instanceof Error ? e.message : String(e)}`);
-}
+// We'll initialize inside startServer() to ensure proper logging
+
 
 // Ensure the db is using the correct database instance from config
 const getAdminDb = () => {
   try {
     const app = getApp();
-    // Using the newer syntax to target the specific database
-    // @ts-ignore - databaseId is supported in some versions but might not be in types
-    const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    const dbId = firebaseConfig.firestoreDatabaseId || '(default)';
+    // In firebase-admin, getFirestore(app, dbId) is the correct way to target a specific database
+    // @ts-ignore
+    const db = getFirestore(app, dbId);
     return db;
   } catch (e) {
-    logToFile(`Admin Firestore Error: ${e instanceof Error ? e.message : String(e)}`);
+    const msg = e instanceof Error ? e.message : String(e);
+    logToFile(`Admin Firestore Retrieval Error: ${msg}`);
+    // Fallback to default
     return getFirestore();
   }
 };
@@ -789,23 +769,27 @@ app.post('/api/sync-user-stripe', async (req, res) => {
 
 // Database Health & Maintenance
 app.get('/api/db-health', async (req, res) => {
+  const dbId = firebaseConfig.firestoreDatabaseId || '(default)';
+  logToFile(`DB Health: Starting check for ${dbId} in project ${firebaseConfig.projectId}`);
   try {
     const db = getAdminDb();
     const start = Date.now();
     // Simple light query to check connectivity
-    await db.collection('categories').limit(1).get();
+    logToFile(`DB Health: Pinging 'categories' collection...`);
+    const sn = await db.collection('categories').limit(1).get();
     const latency = Date.now() - start;
+    logToFile(`DB Health: SUCCESS. Latency ${latency}ms, Docs found: ${sn.size}`);
     
     res.json({
       status: 'Healthy',
       latency: `${latency}ms`,
-      databaseId: firebaseConfig.firestoreDatabaseId || '(default)',
+      databaseId: dbId,
       project: firebaseConfig.projectId,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    logToFile(`DB Health Check Failed: ${errMsg}`);
+    logToFile(`DB Health: FAILED. Error: ${errMsg}`);
     res.status(500).json({ status: 'Unhealthy', error: errMsg });
   }
 });
@@ -861,6 +845,55 @@ process.on('unhandledRejection', (reason, promise) => {
 
 async function startServer() {
   logToFile('Starting server initialization...');
+  
+  // Initialize Firebase Admin inside the lifecycle to ensure logging and fresh state
+  try {
+    if (getApps().length === 0) {
+      const targetProject = firebaseConfig.projectId;
+      
+      logToFile(`Firebase Config Project: ${targetProject}`);
+      
+      // We prefer applicationDefault() in AI Studio as it usually has the correct ambient permissions
+      try {
+        logToFile(`Initializing Firebase Admin with ADC targeting project: ${targetProject}`);
+        initializeApp({
+          projectId: targetProject,
+          credential: admin.credential.applicationDefault()
+        });
+        logToFile('Firebase Admin initialized with ADC');
+      } catch (adcErr: any) {
+        logToFile(`ADC Init Failed: ${adcErr?.message || String(adcErr)}. Trying Cert fallback.`);
+        
+        const gcsProject = process.env.GCS_PROJECT_ID;
+        if (gcsProject && process.env.GCS_CLIENT_EMAIL && privateKey) {
+          logToFile(`Attempting initialization with service account cert: ${process.env.GCS_CLIENT_EMAIL}`);
+          try {
+            initializeApp({
+              credential: cert({
+                projectId: gcsProject,
+                clientEmail: process.env.GCS_CLIENT_EMAIL,
+                privateKey: privateKey,
+              }),
+              projectId: targetProject
+            });
+            logToFile('Firebase Admin initialized with Service Account Cert');
+          } catch (certErr: any) {
+            logToFile(`Cert Init Failed: ${certErr?.message || String(certErr)}. Trying minimal init.`);
+            initializeApp({ projectId: targetProject });
+            logToFile('Firebase Admin initialized with minimal config (no explicit credential)');
+          }
+        } else {
+          logToFile('No cert credentials available, trying minimal init.');
+          initializeApp({ projectId: targetProject });
+          logToFile('Firebase Admin initialized with minimal config (no explicit credential)');
+        }
+      }
+    }
+    logToFile('Firebase Admin initialization block complete');
+  } catch (e) {
+    logToFile(`CRITICAL: Firebase Admin failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
   logToFile(`NODE_ENV: ${process.env.NODE_ENV}`);
   logToFile(`Working directory: ${process.cwd()}`);
   logToFile(`__dirname: ${_dirname}`);

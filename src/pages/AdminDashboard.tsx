@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import CategoryManager from '../components/CategoryManager';
 import AlbumManager from '../components/AlbumManager';
-import { collection, query, where, getDocs, updateDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, updateDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { MOCK_ALBUMS, MOCK_CATEGORIES } from '../data/mockData';
 import { toast } from 'sonner';
