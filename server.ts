@@ -57,9 +57,12 @@ try {
 // Ensure the db is using the correct database instance from config
 const getAdminDb = () => {
   try {
-    const app = getApps().find(a => a.name === APP_NAME) || getApp();
+    const apps = getApps();
+    const app = apps.find(a => a.name === APP_NAME) || getApp();
+    logToFile(`Admin Firestore: Using app "${app.name}" for database "${firebaseConfig.firestoreDatabaseId || '(default)'}"`);
     return getFirestore(app, firebaseConfig.firestoreDatabaseId);
   } catch (e) {
+    logToFile(`Admin Firestore: Fallback to default due to error: ${e instanceof Error ? e.message : String(e)}`);
     return getFirestore();
   }
 };
@@ -677,15 +680,28 @@ app.post('/api/create-portal-session', async (req, res) => {
 // Admin/System: Sync user subscription from Stripe manually
 app.post('/api/sync-user-stripe', async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, email } = req.body;
     if (!userId) return res.status(400).json({ error: 'User ID required' });
 
-    logToFile(`Stripe Sync: Starting manual sync for user ${userId}`);
+    logToFile(`Stripe Sync: Starting manual sync for user ${userId} (Email hint: ${email})`);
+    
     const db = getAdminDb();
-    const userDoc = await db.collection('users').doc(userId).get();
-    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+    let userData: any = { email: email };
+    
+    // Try to get email from DB if not provided, but don't fail if DB is inaccessible
+    try {
+      const userDoc = await db.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        userData = { ...userData, ...userDoc.data() };
+      }
+    } catch (dbErr) {
+      logToFile(`Stripe Sync: DB Read Failed (UserId: ${userId}), continuing with hint email: ${email}`);
+    }
 
-    const userData = userDoc.data();
+    if (!userData.email) {
+      return res.status(400).json({ error: 'No email found for user. Please ensure your profile is initialized.' });
+    }
+
     const stripe = getStripe();
     let stripeCustomerId = userData?.stripeCustomerId;
     let subscription: Stripe.Subscription | null = null;
@@ -719,7 +735,7 @@ app.post('/api/sync-user-stripe', async (req, res) => {
       logToFile(`Stripe Sync: No subscription found by customer ID, searching recent sessions for internal_user_id: ${userId}`);
       const sessions = await stripe.checkout.sessions.list({ limit: 100 });
       const userSession = sessions.data.find(s => 
-        (s.client_reference_id === userId || s.metadata?.internal_user_id === userId) && 
+        (s.client_reference_id === userId || s.metadata?.internal_user_id === userId || s.customer_email === userData.email) && 
         s.payment_status === 'paid'
       );
       
@@ -737,13 +753,19 @@ app.post('/api/sync-user-stripe', async (req, res) => {
       
       logToFile(`Stripe Sync SUCCESS: Found sub ${subscription.id} (${status}). Activating tier: ${tier}`);
       
-      await db.collection('users').doc(userId).set({
-        tier: tier,
-        stripeCustomerId: stripeCustomerId,
-        subscriptionId: subscription.id,
-        subscriptionStatus: status,
-        updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
+      // Attempt backend write, but don't fail if it hits permission issues (client will also try)
+      try {
+        await db.collection('users').doc(userId).set({
+          tier: tier,
+          stripeCustomerId: stripeCustomerId,
+          subscriptionId: subscription.id,
+          subscriptionStatus: status,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        logToFile(`Stripe Sync: Backend Firestore write success for ${userId}`);
+      } catch (writeErr) {
+        logToFile(`Stripe Sync: Backend Firestore write FAILED (Permission?). Client will handle update. Error: ${writeErr instanceof Error ? writeErr.message : String(writeErr)}`);
+      }
 
       return res.json({ 
         success: true, 

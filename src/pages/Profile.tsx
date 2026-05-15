@@ -60,19 +60,27 @@ export default function Profile() {
       const res = await fetch('/api/sync-user-stripe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user?.uid })
+        body: JSON.stringify({ 
+          userId: user?.uid,
+          email: user?.email 
+        })
       });
       const data = await res.json();
       
       if (data.success && data.tier === 'premium') {
         const userDocRef = doc(db, 'users', user!.uid);
-        await setDoc(userDocRef, {
-          tier: 'premium',
-          stripeCustomerId: data.stripeCustomerId,
-          subscriptionId: data.subscriptionId,
-          subscriptionStatus: data.status,
-          updatedAt: new Date()
-        }, { merge: true });
+        try {
+          await setDoc(userDocRef, {
+            tier: 'premium',
+            stripeCustomerId: data.stripeCustomerId,
+            subscriptionId: data.subscriptionId,
+            subscriptionStatus: data.status,
+            updatedAt: new Date()
+          }, { merge: true });
+        } catch (ruleErr) {
+          console.error('Client-side profile update failed (rules?):', ruleErr);
+          // We don't block here because the backend might have succeeded in writing too
+        }
         
         toast.success('Premium status restored!', { id: tid });
         setTimeout(() => window.location.reload(), 1000);
@@ -152,7 +160,7 @@ export default function Profile() {
   return (
     <div className="pt-24 px-6 max-w-2xl mx-auto pb-32">
       <Toaster position="top-center" richColors />
-      <div className="flex items-center gap-6 mb-12">
+      <div className="flex items-center gap-6 mb-8">
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
           <OptimizedImage 
@@ -173,6 +181,22 @@ export default function Profile() {
             {user.email}
           </div>
         </div>
+      </div>
+
+      {/* EMERGENCY SYNC LINK - ALWAYS VISIBLE FOR NON-PREMIUM OR IF THEY NEED IT */}
+      <div className="mb-8">
+        <button 
+          onClick={handleManageSubscription}
+          className="w-full py-4 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center gap-3 group hover:bg-primary/20 transition-all"
+        >
+          <div className="p-2 bg-primary/20 rounded-lg group-hover:scale-110 transition-transform">
+            <Crown className="w-4 h-4 text-primary" />
+          </div>
+          <div className="text-left">
+            <p className="text-xs font-bold text-white uppercase tracking-widest">Restore Subscription</p>
+            <p className="text-[10px] text-white/40">Sync your payment resonance if not applied</p>
+          </div>
+        </button>
       </div>
 
       <div className="space-y-4">

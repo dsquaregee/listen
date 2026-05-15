@@ -42,7 +42,7 @@ service cloud.firestore {
                         // User updating their own profile
                         (isOwner(userId) && 
                           incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt', 'tier', 'stripeCustomerId', 'subscriptionId', 'subscriptionStatus']) &&
-                          (!('isAdmin' in incoming()) || incoming().isAdmin == existing().isAdmin)
+                          (!('isAdmin' in incoming()) || incoming().isAdmin == existing().get('isAdmin', false))
                         ) ||
                         // Admin updating anything
                         isAdmin()
