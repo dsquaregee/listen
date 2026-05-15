@@ -132,7 +132,7 @@ export default function AdminDashboard() {
                     <tr className="border-b border-white/5 text-[10px] uppercase font-bold text-white/20 tracking-widest">
                       <th className="pb-4 pt-0">Seeker</th>
                       <th className="pb-4 pt-0">Vibration Time</th>
-                      <th className="pb-4 pt-0">Contribution</th>
+                      <th className="pb-4 pt-0">Beta Access</th>
                       <th className="pb-4 pt-0">Status</th>
                     </tr>
                   </thead>
@@ -427,16 +427,38 @@ function UserListRows() {
             <p className="text-xs font-mono text-white/60">{(u.totalMinutesStreamed || 0).toFixed(0)}m</p>
           </td>
           <td className="py-4">
-            <p className="text-xs font-bold text-primary italic">
-              {u.subscriptionAmount ? `${u.subscriptionCurrency || 'USD'} ${u.subscriptionAmount}` : 'None'}
-            </p>
+            <button 
+              onClick={async () => {
+                const newBeta = !u.betaAccess;
+                try {
+                  await updateDoc(doc(db, 'users', u.id), { 
+                    betaAccess: newBeta,
+                    tier: newBeta ? 'premium' : u.tier,
+                    updatedAt: serverTimestamp()
+                  });
+                  toast.success(`${u.displayName} is now ${newBeta ? 'a Beta Seeker' : 'a regular Seeker'}`);
+                  setUsers(prev => prev.map(user => user.id === u.id ? { ...user, betaAccess: newBeta, tier: newBeta ? 'premium' : user.tier } : user));
+                } catch (e) {
+                  toast.error('Failed to update seeker frequency.');
+                }
+              }}
+              className={cn(
+                "w-12 h-6 rounded-full relative transition-all duration-300 border",
+                u.betaAccess ? "bg-primary/20 border-primary/40" : "bg-white/5 border-white/10"
+              )}
+            >
+              <div className={cn(
+                "absolute top-1 w-3.5 h-3.5 rounded-full transition-all duration-300",
+                u.betaAccess ? "right-1 bg-primary shadow-[0_0_8px_rgba(153,102,204,0.8)]" : "left-1 bg-white/20"
+              )} />
+            </button>
           </td>
           <td className="py-4">
             <span className={cn(
               "text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest",
-              u.tier === 'premium' ? "bg-primary/20 text-primary" : "bg-white/5 text-white/40"
+              u.tier === 'premium' || u.betaAccess ? "bg-primary/20 text-primary" : "bg-white/5 text-white/40"
             )}>
-              {u.tier === 'premium' ? 'Universal' : 'Surface'}
+              {u.tier === 'premium' || u.betaAccess ? 'Universal' : 'Surface'}
             </span>
           </td>
         </tr>

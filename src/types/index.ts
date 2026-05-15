@@ -44,6 +44,8 @@ export interface UserProfile {
   updatedAt?: string;
   stripeCustomerId?: string;
   subscriptionId?: string | null;
+  subscriptionStatus?: string;
+  betaAccess?: boolean;
 }
 
 export interface Favorite {

@@ -16,7 +16,6 @@ import AudioPlayer from './components/AudioPlayer';
 import PremiumGateway from './components/PremiumGateway';
 import { InstallPrompt } from './components/InstallPrompt';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { updateDoc } from 'firebase/firestore';
 
 // Pages
 import Home from './pages/Home';
@@ -31,15 +30,15 @@ import PlaylistDetail from './pages/PlaylistDetail';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Refund from './pages/Refund';
+import PaymentSuccess from './pages/PaymentSuccess';
 
 import { Toaster, toast } from 'sonner';
 import { MOCK_CATEGORIES, MOCK_ALBUMS } from './data/mockData';
 
 const queryClient = new QueryClient();
 
-function PaymentHandler() {
-  const { user, setUser } = useAuthStore();
-  const { setUserTier } = usePlayerStore();
+function LegacyPaymentHandler() {
+  const { user } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -47,32 +46,11 @@ function PaymentHandler() {
     const params = new URLSearchParams(location.search);
     const paymentStatus = params.get('payment');
 
-    if (paymentStatus === 'success' && user && user.tier !== 'premium') {
-      const updateTier = async () => {
-        try {
-          const userRef = doc(db, 'users', user.uid);
-          const updateData = {
-            tier: 'premium' as const,
-            isPremium: true,
-            updatedAt: new Date().toISOString()
-          };
-          await updateDoc(userRef, updateData);
-          setUser({ ...user, ...updateData });
-          setUserTier('premium');
-          
-          toast.success('Welcome to Premium! Your payment was successful.');
-          navigate('/profile', { replace: true });
-        } catch (e) {
-          console.error('Failed to update tier after payment:', e);
-          toast.error('Resonance synchronization failed. Please refresh.');
-        }
-      };
-      updateTier();
-    } else if (paymentStatus === 'cancelled') {
+    if (paymentStatus === 'cancelled') {
        toast.info('Manifestation paused. You can continue exploring at any time.');
        navigate('/premium', { replace: true });
     }
-  }, [location.search, user, setUser, setUserTier, navigate]);
+  }, [location.search, user, navigate]);
 
   return null;
 }
@@ -127,7 +105,9 @@ export default function App() {
           userUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
             if (docSnap.exists()) {
               const userData = docSnap.data() as UserProfile;
-              const finalTier = isMasterAdmin && !userData.stripeCustomerId ? 'premium' : userData.tier;
+              // Admin boost OR explicit beta access OR existing premium tier
+              const hasPremiumAccess = isMasterAdmin || userData.betaAccess === true || userData.tier === 'premium';
+              const finalTier = hasPremiumAccess ? 'premium' : userData.tier;
               
               if (isMasterAdmin) {
                 // Ensure admin doc exists
@@ -222,7 +202,7 @@ export default function App() {
       <Router>
         <CopyrightProtection>
           <Toaster position="top-center" theme="dark" closeButton richColors />
-          <PaymentHandler />
+          <LegacyPaymentHandler />
           <div className="flex flex-col min-h-screen bg-black text-slate-100 cinematic-gradient-bg">
             <Navbar />
             
@@ -234,6 +214,7 @@ export default function App() {
                 <Route path="/category/:slug" element={<CategoryExplore />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/premium" element={<Premium />} />
+                <Route path="/payment/success" element={<PaymentSuccess />} />
                 <Route path="/playlists" element={<Playlists />} />
                 <Route path="/playlist/:id" element={<PlaylistDetail />} />
                 <Route path="/admin" element={<AdminDashboard />} />

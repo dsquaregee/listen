@@ -179,17 +179,34 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
       const customerId = session.customer as string;
 
       if (userId) {
-        logToFile(`Updating user ${userId} to premium tier (Session)`);
-        await db.collection('users').doc(userId).set({
-          tier: 'premium',
-          stripeCustomerId: customerId,
-          subscriptionId: session.subscription,
-          updatedAt: FieldValue.serverTimestamp()
-        }, { merge: true });
+        logToFile(`Checkout session completed for user ${userId}. Retrieving subscription details.`);
+        
+        // Retrieve session with subscription expanded to check status
+        const sessionWithSub = await stripe.checkout.sessions.retrieve(session.id, {
+          expand: ['subscription'],
+        });
+        
+        const subscription = sessionWithSub.subscription as Stripe.Subscription;
+        const status = subscription?.status;
+        
+        logToFile(`Subscription status for session ${session.id}: ${status}`);
+        
+        if (status === 'active' || status === 'trialing') {
+          logToFile(`Updating user ${userId} to premium tier (Session)`);
+          await db.collection('users').doc(userId).set({
+            tier: 'premium',
+            stripeCustomerId: customerId,
+            subscriptionId: subscription.id,
+            subscriptionStatus: status,
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+        } else {
+          logToFile(`Subscription status ${status} not eligible for automatic activation for user ${userId}`);
+        }
       }
     }
 
-    if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated') {
+    if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
       const status = subscription.status;
@@ -200,10 +217,11 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
         const userDoc = usersSnapshot.docs[0];
         const tier = (status === 'active' || status === 'trialing') ? 'premium' : 'free';
         
-        logToFile(`Updating user ${userDoc.id} tier to ${tier} (Sub Update)`);
+        logToFile(`Updating user ${userDoc.id} tier to ${tier} (Sub Update: ${status})`);
         await userDoc.ref.update({
           tier: tier,
           subscriptionId: subscription.id,
+          subscriptionStatus: status,
           updatedAt: FieldValue.serverTimestamp()
         });
       }
@@ -474,8 +492,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
       ],
       mode: 'subscription',
       allow_promotion_codes: true,
-      success_url: process.env.STRIPE_SUCCESS_URL || `${baseUrl}/profile?payment=success`,
-      cancel_url: process.env.STRIPE_CANCEL_URL || `${baseUrl}/premium?payment=cancelled`,
+      success_url: `${baseUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/premium?payment=cancelled`,
     };
 
     logToFile(`Stripe session urls: success=${sessOptions.success_url}, cancel=${sessOptions.cancel_url}`);
@@ -487,6 +505,53 @@ app.post('/api/create-checkout-session', async (req, res) => {
     const errMsg = error instanceof Error ? error.message : String(error);
     logToFile(`Checkout Session Failure: ${errMsg}`);
     res.status(500).json({ error: 'Failed to create checkout session', details: errMsg });
+  }
+});
+
+// Verify Stripe Session and activate subscription
+app.post('/api/verify-session', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ error: 'Session ID is required' });
+    }
+
+    const stripe = getStripe();
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['subscription', 'customer'],
+    });
+
+    const subscription = session.subscription as Stripe.Subscription;
+    const subStatus = subscription?.status;
+    const userId = session.client_reference_id;
+
+    logToFile(`Verifying session: ${session.id}, payment: ${session.payment_status}, sub: ${subStatus}`);
+
+    if (subStatus === 'active' || subStatus === 'trialing' || session.payment_status === 'paid' || session.amount_total === 0) {
+      const customerId = session.customer as string;
+      const subscriptionId = subscription?.id || session.subscription as string;
+
+      if (userId) {
+        const db = getAdminDb();
+        logToFile(`Verification success for user ${userId} (Status: ${subStatus || session.payment_status}). Activating premium.`);
+        
+        await db.collection('users').doc(userId).set({
+          tier: 'premium',
+          stripeCustomerId: customerId,
+          subscriptionId: subscriptionId,
+          subscriptionStatus: subStatus,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        return res.json({ success: true, tier: 'premium' });
+      }
+    }
+
+    res.status(400).json({ error: 'Subscription not active', status: subStatus, payment: session.payment_status });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logToFile(`Session Verification Failure: ${errMsg}`);
+    res.status(500).json({ error: 'Verification failed', details: errMsg });
   }
 });
 
