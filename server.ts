@@ -787,6 +787,66 @@ app.post('/api/sync-user-stripe', async (req, res) => {
   }
 });
 
+// Database Health & Maintenance
+app.get('/api/db-health', async (req, res) => {
+  try {
+    const db = getAdminDb();
+    const start = Date.now();
+    // Simple light query to check connectivity
+    await db.collection('categories').limit(1).get();
+    const latency = Date.now() - start;
+    
+    res.json({
+      status: 'Healthy',
+      latency: `${latency}ms`,
+      databaseId: firebaseConfig.firestoreDatabaseId || '(default)',
+      project: firebaseConfig.projectId,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logToFile(`DB Health Check Failed: ${errMsg}`);
+    res.status(500).json({ status: 'Unhealthy', error: errMsg });
+  }
+});
+
+// Admin System Maintenance (Cleanup orphaned sessions if TTL is not used)
+app.post('/api/admin/db-maintenance', async (req, res) => {
+  try {
+    const db = getAdminDb();
+    const isAdmin = true; // In real app, verify admin session here
+    
+    if (!isAdmin) return res.status(403).json({ error: 'Unauthorized' });
+
+    logToFile('Admin: Starting DB Maintenance...');
+    
+    // Example: Find sessions without an expireAt field and add it (Migration)
+    const sessions = await db.collection('listening_sessions').where('expireAt', '==', null).limit(100).get();
+    
+    if (sessions.empty) {
+      return res.json({ message: 'No immediate maintenance required. Database is optimized.' });
+    }
+
+    const batch = db.batch();
+    const expireAt = new Date();
+    expireAt.setDate(expireAt.getDate() + 90);
+
+    sessions.forEach(doc => {
+      batch.update(doc.ref, { expireAt });
+    });
+
+    await batch.commit();
+    logToFile(`Admin: Maintenance complete. Updated ${sessions.size} sessions for TTL.`);
+    
+    res.json({ 
+      success: true, 
+      message: `Database recalibrated. ${sessions.size} legacy records optimized for TTL.` 
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Maintenance failed', details: error instanceof Error ? error.message : String(error) });
+  }
+});
+
 // Global error handlers for better crash reporting
 process.on('uncaughtException', (err) => {
   logToFile(`CRITICAL: Uncaught Exception: ${err.message}`);

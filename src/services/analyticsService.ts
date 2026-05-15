@@ -50,6 +50,10 @@ class AnalyticsService {
       // Used for forensic tracking of content distribution.
       const proofOfOriginId = `ORIGIN-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
 
+      // TTL: Set session to expire in 90 days for database hygiene
+      const expireAt = new Date();
+      expireAt.setDate(expireAt.getDate() + 90);
+
       const sessionData = {
         userId: user.uid,
         userEmail: user.email,
@@ -57,10 +61,11 @@ class AnalyticsService {
         albumTitle: album.title,
         duration: Math.floor(duration),
         startTime: serverTimestamp(),
+        expireAt, // Used for Firestore TTL policies
         location,
         proofOfOriginId,
         userAgent: navigator.userAgent.substring(0, 100),
-        ipContext: 'SERVER_CAPTURED' // Actual IP is best captured on server, but we mark intent here
+        ipContext: 'SERVER_CAPTURED'
       };
 
       await addDoc(collection(db, 'listening_sessions'), sessionData);

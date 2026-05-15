@@ -161,6 +161,53 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+
+              <div className="pt-4 space-y-3">
+                <h4 className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-2">Advanced Diagnostics</h4>
+                <button 
+                  onClick={async () => {
+                    const tid = toast.loading('Pinging Universal Database...');
+                    try {
+                      const res = await fetch('/api/db-health');
+                      const data = await res.json();
+                      if (data.status === 'Healthy') {
+                        toast.success(`Resonance Healthy: ${data.latency}`, { id: tid });
+                      } else {
+                        toast.error(`Resonance Failed: ${data.error}`, { id: tid });
+                      }
+                    } catch (e) {
+                      toast.error('Diagnostic communication failed.', { id: tid });
+                    }
+                  }}
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-all text-left group"
+                >
+                  <div className="flex items-center gap-3">
+                    <Database className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-bold text-white">Database Health</span>
+                  </div>
+                  <ChevronRight className="w-3 h-3 text-primary group-hover:translate-x-1 transition-transform" />
+                </button>
+                
+                <button 
+                  onClick={async () => {
+                    const tid = toast.loading('Running Universal Maintenance...');
+                    try {
+                      const res = await fetch('/api/admin/db-maintenance', { method: 'POST' });
+                      const data = await res.json();
+                      toast.success(data.message || 'Optimization complete.', { id: tid });
+                    } catch (e) {
+                      toast.error('Maintenance cycle interrupted.', { id: tid });
+                    }
+                  }}
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all text-left group"
+                >
+                  <div className="flex items-center gap-3">
+                    <RefreshCw className="w-4 h-4 text-white/40" />
+                    <span className="text-xs font-bold text-white">Optimize Records</span>
+                  </div>
+                  <ChevronRight className="w-3 h-3 text-white/20 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
             </div>
           </div>
         </>
@@ -212,12 +259,14 @@ function SessionViewer() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const q = query(collection(db, 'listening_sessions'), where('startTime', '!=', null));
+        const q = query(
+          collection(db, 'listening_sessions'), 
+          where('startTime', '!=', null),
+          orderBy('startTime', 'desc')
+        );
         const sn = await getDocs(q);
-        const sorted = sn.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .sort((a: any, b: any) => b.startTime?.toMillis() - a.startTime?.toMillis());
-        setSessions(sorted);
+        const fetched = sn.docs.map(d => ({ id: d.id, ...d.data() }));
+        setSessions(fetched);
       } catch (e) {
         console.error('Failed to fetch sessions:', e);
       } finally {

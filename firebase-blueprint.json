@@ -46,6 +46,7 @@
         "albumTitle": { "type": "string" },
         "duration": { "type": "integer" },
         "startTime": { "type": "string", "format": "date-time" },
+        "expireAt": { "type": "string", "format": "date-time", "description": "TTL endpoint (current + 90 days)" },
         "location": {
           "type": "object",
           "properties": {
