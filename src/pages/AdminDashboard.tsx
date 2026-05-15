@@ -416,7 +416,7 @@ function UserListRows() {
 
   return (
     <>
-      <tr>
+      <tr key="admin-search-row">
         <td colSpan={4} className="pb-6">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
@@ -430,7 +430,7 @@ function UserListRows() {
           </div>
         </td>
       </tr>
-      {filteredUsers.slice(0, 50).map(u => (
+      {filteredUsers.slice(0, 50).map((u) => (
         <tr key={u.id} className="group">
           <td className="py-4">
             <div className="flex items-center gap-3">
@@ -471,39 +471,37 @@ function UserListRows() {
               </button>
               <button 
                 onClick={async () => {
-                const newBeta = !u.betaAccess;
-                // If turning beta ON, they become premium.
-                // If turning beta OFF, they only stay premium if they have an active stripe subscription.
-                const newTier = newBeta ? 'premium' : (u.subscriptionStatus === 'active' ? 'premium' : 'free');
-                
-                try {
-                  await updateDoc(doc(db, 'users', u.id), { 
-                    betaAccess: newBeta,
-                    tier: newTier,
-                    updatedAt: serverTimestamp()
-                  });
-                  toast.success(`${u.displayName} status recalibrated. Frequency: ${newTier}`);
-                  setUsers(prev => prev.map(user => user.id === u.id ? { ...user, betaAccess: newBeta, tier: newTier } : user));
-                } catch (e) {
-                  toast.error('Failed to recalibrate seeker.');
-                }
-              }}
-              className={cn(
-                "w-12 h-6 rounded-full relative transition-all duration-300 border",
-                u.betaAccess ? "bg-primary/20 border-primary/40" : "bg-white/5 border-white/10"
-              )}
-            >
-              <div className={cn(
-                "absolute top-1 w-3.5 h-3.5 rounded-full transition-all duration-300",
-                u.betaAccess ? "right-1 bg-primary shadow-[0_0_8px_rgba(153,102,204,0.8)]" : "left-1 bg-white/20"
-              )} />
-            </button>
-          </div>
-          <div className="mt-1 text-[7px] text-white/20 uppercase tracking-tighter">
-            {u.stripeCustomerId ? `Stripe: ${u.subscriptionStatus || 'Incomplete'}` : 'No Payment Ref'}
-          </div>
-        </td>
-        <td className="py-4">
+                  const newBeta = !u.betaAccess;
+                  const newTier = newBeta ? 'premium' : (u.subscriptionStatus === 'active' ? 'premium' : 'free');
+                  
+                  try {
+                    await updateDoc(doc(db, 'users', u.id), { 
+                      betaAccess: newBeta,
+                      tier: newTier,
+                      updatedAt: serverTimestamp()
+                    });
+                    toast.success(`${u.displayName} status recalibrated. Frequency: ${newTier}`);
+                    setUsers(prev => prev.map(user => user.id === u.id ? { ...user, betaAccess: newBeta, tier: newTier } : user));
+                  } catch (e) {
+                    toast.error('Failed to recalibrate seeker.');
+                  }
+                }}
+                className={cn(
+                  "w-12 h-6 rounded-full relative transition-all duration-300 border",
+                  u.betaAccess ? "bg-primary/20 border-primary/40" : "bg-white/5 border-white/10"
+                )}
+              >
+                <div className={cn(
+                  "absolute top-1 w-3.5 h-3.5 rounded-full transition-all duration-300",
+                  u.betaAccess ? "right-1 bg-primary shadow-[0_0_8px_rgba(153,102,204,0.8)]" : "left-1 bg-white/20"
+                )} />
+              </button>
+            </div>
+            <div className="mt-1 text-[7px] text-white/20 uppercase tracking-tighter">
+              {u.stripeCustomerId ? `Stripe: ${u.subscriptionStatus || 'Incomplete'}` : 'No Payment Ref'}
+            </div>
+          </td>
+          <td className="py-4">
             <span className={cn(
               "text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest",
               u.tier === 'premium' || u.betaAccess ? "bg-primary/20 text-primary" : "bg-white/5 text-white/40"

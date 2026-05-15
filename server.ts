@@ -557,9 +557,11 @@ app.post('/api/verify-session', async (req, res) => {
 
 // Stripe Customer Portal Session
 app.post('/api/create-portal-session', async (req, res) => {
+  logToFile(`Create Portal Session requested: ${JSON.stringify(req.body)}`);
   try {
     const { customerId } = req.body;
     if (!customerId) {
+      logToFile('Portal Session: Missing Customer ID');
       return res.status(400).json({ error: 'Customer ID is required' });
     }
 
@@ -571,6 +573,8 @@ app.post('/api/create-portal-session', async (req, res) => {
       const host = req.get('host');
       baseUrl = `${protocol}://${host}`;
     }
+    
+    logToFile(`Portal Session for ${customerId} with return_url: ${baseUrl}/profile`);
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
@@ -580,6 +584,7 @@ app.post('/api/create-portal-session', async (req, res) => {
     res.json({ url: session.url });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('Portal Session Error:', error);
     logToFile(`Portal Session Failure: ${errMsg}`);
     res.status(500).json({ error: 'Failed to create portal session', details: errMsg });
   }
@@ -648,9 +653,6 @@ app.post('/api/sync-user-stripe', async (req, res) => {
       const status = subscription.status;
       const tier = (status === 'active' || status === 'trialing') ? 'premium' : 'free';
       
-      const adminLib = await import('firebase-admin');
-      const FieldValue = adminLib.firestore.FieldValue;
-
       const updateData: any = {
         tier: tier,
         subscriptionStatus: status,
