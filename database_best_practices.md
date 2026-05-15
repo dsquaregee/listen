@@ -29,13 +29,48 @@ Firestore supports automated daily backups for projects on the **Blaze (Pay-as-y
 ### Implementation Guide
 Backups are managed via the Google Cloud SDK or Console. 
 
+**Via Google Cloud Console (Recommended/Easiest):**
+
+**Step 1: Enable Point-In-Time Recovery (PITR)**
+1. Go to the [Firestore Databases page](https://console.cloud.google.com/firestore/databases).
+2. Click on your database ID: `ai-studio-b13617d8-a958-45af-b868-fa5ff1f1aea0`.
+3. In the left-hand menu, select **Settings**.
+4. Find **Point-in-time recovery (PITR)** and click **Enable**.
+
+**Step 2: Setup Automated Daily Backups**
+1. In the same database view, select **Backups** from the left-hand menu.
+2. Click **Create backup schedule**.
+3. Set **Recurrence** to `Daily`.
+4. Set **Retention period** to `30 days`.
+5. Click **Create**.
+
+*If you complete these steps in the UI, you do **not** need to run any gcloud commands.*
+
+**Recommended Configuration:**
+- **Recurrence:** `Daily` (Protects against significant data loss).
+- **Retention (Expiry):** `30 days` (Allows recovery from bugs found weeks later).
+
 **Via Google Cloud Shell:**
+If you receive an "unrecognized arguments" error for `--point-in-time-recovery-enable`, ensure your gcloud CLI is up to date (`gcloud components update`). 
+Note: The database ID is typically passed as a positional argument or via the `--database` flag depending on your gcloud version.
+
 ```bash
+# 1. Enable Point-in-Time Recovery (PITR)
+# This provides continuous protection for the last 7 days
+gcloud firestore databases update 'ai-studio-b13617d8-a958-45af-b868-fa5ff1f1aea0' \
+    --point-in-time-recovery-enable
+
+# 2. Create Daily Backup Schedule
+# This creates a permanent snapshot every day that lasts for 30 days
 gcloud firestore backups schedules create \
     --database='ai-studio-b13617d8-a958-45af-b868-fa5ff1f1aea0' \
-    --retention=30d \
-    --recurrence=daily
+    --recurrence=daily \
+    --retention=30d
 ```
+
+**Why both?**
+- **Schedules:** Provide snapshots you can restore to a new database if a catastrophic logical error occurs.
+- **PITR:** Allows you to recover data from any specific second in the last 7 days (perfect for accidental "Delete All" mistakes).
 
 **Retention Strategy:**
 - Critical Data: 30 days retention.
