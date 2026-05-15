@@ -49,33 +49,34 @@ export default function Profile() {
   }, []);
 
   const handleManageSubscription = async () => {
-    if (!user?.stripeCustomerId) {
-      // If premium but no ID, they might be an admin or need a sync
-      if (user?.tier === 'premium') {
-        const tid = toast.loading('Attempting to locate your Stripe account...');
-        try {
-          const res = await fetch('/api/sync-user-stripe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.uid })
-          });
-          const data = await res.json();
-          if (data.success && data.stripeCustomerId) {
-            toast.success('Billing record found! Redirecting...', { id: tid });
-            // Continue with the new ID
-            return initiatePortal(data.stripeCustomerId);
-          }
-        } catch (e) {
-          // Fall through to manual sync suggestion
-        }
-        toast.dismiss(tid);
-      }
-      return toast.error('No active billing record found. Please click "Sync Subscription" below to restore your access.', {
-        duration: 5000
-      });
+    // If we have a customer ID, try to open the portal
+    if (user?.stripeCustomerId) {
+      return initiatePortal(user.stripeCustomerId);
     }
     
-    return initiatePortal(user.stripeCustomerId);
+    // If no customer ID, try to sync first (they might have just paid or be an admin)
+    const tid = toast.loading('Synchronizing with Stripe...');
+    try {
+      const res = await fetch('/api/sync-user-stripe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.uid })
+      });
+      const data = await res.json();
+      
+      if (data.success && data.stripeCustomerId) {
+        toast.success('Billing record found!', { id: tid });
+        return initiatePortal(data.stripeCustomerId);
+      } else if (data.tier === 'premium') {
+        toast.success('Premium status restored!', { id: tid });
+        setTimeout(() => window.location.reload(), 1000);
+        return;
+      }
+      
+      toast.info('No active subscription found. If you just paid, please wait a few seconds and try again.', { id: tid });
+    } catch (e) {
+      toast.error('Sync failed. Please contact support.', { id: tid });
+    }
   };
 
   const initiatePortal = async (customerId: string) => {
@@ -137,8 +138,6 @@ export default function Profile() {
     );
   }
 
-  const canManage = !!user.stripeCustomerId || user.tier === 'premium';
-
   return (
     <div className="pt-24 px-6 max-w-2xl mx-auto pb-32">
       <Toaster position="top-center" richColors />
@@ -190,13 +189,13 @@ export default function Profile() {
 
         <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Account Settings</h2>
         
-        <div onClick={canManage ? handleManageSubscription : undefined} className={canManage ? "cursor-pointer" : ""}>
+        <div onClick={handleManageSubscription} className="cursor-pointer">
           <SettingsItem 
             icon={Crown} 
             label="Subscription Plan" 
             value={user.tier === 'premium' ? "Infinite Seeker (Active)" : "Free Listener"} 
             highlight={user.tier === 'free'} 
-            badge={canManage ? "Manage" : undefined}
+            badge="Manage / Sync"
           />
         </div>
 
@@ -252,68 +251,45 @@ export default function Profile() {
           </div>
         </div>
 
-        <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Support & Legal</h2>
+        <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Billing & Access</h2>
         
-        <SettingsItem icon={Mail} label="Contact Support" value="support@dsquaregee.com" />
-        
-        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white/60 uppercase tracking-widest">Support & Access</h3>
-          </div>
-          <div className="space-y-2">
-            <button 
-              onClick={async () => {
-                const tid = toast.loading('Synchronizing with Stripe...');
-                try {
-                  const res = await fetch('/api/sync-user-stripe', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: user.uid })
-                  });
-                  const data = await res.json();
-                  if (data.success || data.tier === 'premium') {
-                    toast.success('Resonance Restored! Your premium frequencies are now active.', { id: tid });
-                    setTimeout(() => window.location.reload(), 1500);
-                  } else {
-                    toast.info(data.message || 'No active subscription found.', { id: tid });
-                  }
-                } catch (e) {
-                  toast.error('Sync failed. Please contact support.', { id: tid });
-                }
-              }}
-              className="w-full flex items-center justify-between p-4 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/20 rounded-lg">
-                  <Database className="w-4 h-4 text-primary" />
-                </div>
-                <div className="text-left">
-                  <p className="text-xs font-bold text-white">Sync Subscription</p>
-                  <p className="text-[10px] text-white/40">Restore access if payment was successful</p>
-                </div>
+        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+          <button 
+            onClick={handleManageSubscription}
+            className="w-full flex items-center justify-between p-4 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/20 rounded-lg">
+                <Database className="w-4 h-4 text-primary" />
               </div>
-              <Crown className="w-3 h-3 text-primary animate-pulse" />
-            </button>
+              <div className="text-left">
+                <p className="text-xs font-bold text-white">Sync Subscription</p>
+                <p className="text-[10px] text-white/40">Restore access if payment was successful</p>
+              </div>
+            </div>
+            <Crown className="w-3 h-3 text-primary animate-pulse" />
+          </button>
 
-            <a 
-              href="https://billing.stripe.com/p/login/7sYdRb4Er3nG8nSc7T3Ru00" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.05] transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors">
-                  <Settings className="w-4 h-4 text-accent" />
-                </div>
-                <div className="text-left">
-                  <p className="text-xs font-bold text-white">Direct Billing Portal</p>
-                  <p className="text-[10px] text-white/40">Secure access via Stripe Login</p>
-                </div>
+          <a 
+            href="https://billing.stripe.com/p/login/7sYdRb4Er3nG8nSc7T3Ru00" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.05] transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors">
+                <Settings className="w-4 h-4 text-accent" />
               </div>
-              <Crown className="w-3 h-3 text-white/20 group-hover:text-accent transition-colors" />
-            </a>
-          </div>
+              <div className="text-left">
+                <p className="text-xs font-bold text-white">Direct Billing Portal</p>
+                <p className="text-[10px] text-white/40">Secure access via Stripe Login</p>
+              </div>
+            </div>
+            <Crown className="w-3 h-3 text-white/20 group-hover:text-accent transition-colors" />
+          </a>
         </div>
+
+        <h2 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] mb-4">Legal</h2>
 
         <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5">
           <p className="text-[10px] text-white/30 font-medium uppercase tracking-wider mb-2">Policies</p>
