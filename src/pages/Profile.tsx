@@ -50,21 +50,42 @@ export default function Profile() {
 
   const handleManageSubscription = async () => {
     if (!user?.stripeCustomerId) {
-      if (user?.tier === 'premium' && !user.stripeCustomerId) {
-        return toast.info('This account has Administrative Premium access, which does not use Stripe billing.', {
-          duration: 5000
-        });
+      // If premium but no ID, they might be an admin or need a sync
+      if (user?.tier === 'premium') {
+        const tid = toast.loading('Attempting to locate your Stripe account...');
+        try {
+          const res = await fetch('/api/sync-user-stripe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.uid })
+          });
+          const data = await res.json();
+          if (data.success && data.stripeCustomerId) {
+            toast.success('Billing record found! Redirecting...', { id: tid });
+            // Continue with the new ID
+            return initiatePortal(data.stripeCustomerId);
+          }
+        } catch (e) {
+          // Fall through to manual sync suggestion
+        }
+        toast.dismiss(tid);
       }
-      toast.error('No active billing record found. If you have an active subscription, you can access the portal directly below.');
+      return toast.error('No active billing record found. Please click "Sync Subscription" below to restore your access.', {
+        duration: 5000
+      });
     }
     
+    return initiatePortal(user.stripeCustomerId);
+  };
+
+  const initiatePortal = async (customerId: string) => {
     const toastId = toast.loading('Connecting to Stripe Billing...');
     try {
       const response = await fetch('/api/create-portal-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          customerId: user.stripeCustomerId,
+          customerId,
           returnUrl: window.location.origin + '/profile'
         })
       });
@@ -76,7 +97,7 @@ export default function Profile() {
       window.location.href = data.url;
     } catch (error) {
       console.error('Portal error:', error);
-      toast.error(error instanceof Error ? error.message : 'Could not open billing portal. Please use the direct link below.', { id: toastId });
+      toast.error(error instanceof Error ? error.message : 'Could not open billing portal.', { id: toastId });
     }
   };
 
@@ -116,10 +137,11 @@ export default function Profile() {
     );
   }
 
-  const canManage = !!user.stripeCustomerId;
+  const canManage = !!user.stripeCustomerId || user.tier === 'premium';
 
   return (
     <div className="pt-24 px-6 max-w-2xl mx-auto pb-32">
+      <Toaster position="top-center" richColors />
       <div className="flex items-center gap-6 mb-12">
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>

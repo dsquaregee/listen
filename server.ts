@@ -9,8 +9,11 @@ import { Storage } from '@google-cloud/storage';
 import dotenv from 'dotenv';
 import Stripe from 'stripe';
 import { initializeApp, cert, getApp, getApps } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
+import admin from 'firebase-admin';
 import firebaseConfig from './firebase-applet-config.json' assert { type: 'json' };
+
+const FieldValue = admin.firestore.FieldValue;
 
 dotenv.config();
 
@@ -175,61 +178,77 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
     
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
-      const userId = session.client_reference_id;
+      const userId = session.client_reference_id || session.metadata?.internal_user_id;
       const customerId = session.customer as string;
 
+      logToFile(`Stripe Webhook: Checkout Completed - session=${session.id}, user=${userId}, customer=${customerId}`);
+
       if (userId) {
-        logToFile(`Checkout session completed for user ${userId}. Retrieving subscription details.`);
-        
-        // Retrieve session with subscription expanded to check status
-        const sessionWithSub = await stripe.checkout.sessions.retrieve(session.id, {
-          expand: ['subscription'],
-        });
-        
+        // Expand subscription to get status
+        const sessionWithSub = await stripe.checkout.sessions.retrieve(session.id, { expand: ['subscription'] });
         const subscription = sessionWithSub.subscription as Stripe.Subscription;
-        const status = subscription?.status;
+        const status = subscription?.status || 'active';
         
-        logToFile(`Subscription status for session ${session.id}: ${status}`);
+        logToFile(`Stripe Webhook: Activating Premium for ${userId} (Status: ${status})`);
         
-        if (status === 'active' || status === 'trialing') {
-          logToFile(`Updating user ${userId} to premium tier (Session)`);
-          await db.collection('users').doc(userId).set({
-            tier: 'premium',
-            stripeCustomerId: customerId,
-            subscriptionId: subscription.id,
-            subscriptionStatus: status,
-            updatedAt: FieldValue.serverTimestamp()
-          }, { merge: true });
-        } else {
-          logToFile(`Subscription status ${status} not eligible for automatic activation for user ${userId}`);
-        }
+        await db.collection('users').doc(userId).set({
+          tier: 'premium',
+          stripeCustomerId: customerId,
+          subscriptionId: subscription?.id || (typeof session.subscription === 'string' ? session.subscription : null),
+          subscriptionStatus: status,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        
+        logToFile(`Stripe Webhook: Activation SUCCESS for ${userId}`);
+      } else {
+        logToFile('Stripe Webhook: CRITICAL - Session completed without internal_user_id or client_reference_id');
       }
     }
 
-    if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+    if (['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'].includes(event.type)) {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
       const status = subscription.status;
+      const userId = subscription.metadata?.internal_user_id;
 
-      const usersSnapshot = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
-      
-      if (!usersSnapshot.empty) {
-        const userDoc = usersSnapshot.docs[0];
+      logToFile(`Stripe Webhook: Subscription Event ${event.type} - customer=${customerId}, status=${status}, user_metadata=${userId}`);
+
+      let targetUserDoc: admin.firestore.DocumentSnapshot | null = null;
+
+      // 1. Try Metadata
+      if (userId) {
+        const doc = await db.collection('users').doc(userId).get();
+        if (doc.exists) targetUserDoc = doc;
+      }
+
+      // 2. Try Customer ID mapping in DB
+      if (!targetUserDoc) {
+        const usersSnapshot = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+        if (!usersSnapshot.empty) {
+          targetUserDoc = usersSnapshot.docs[0];
+        }
+      }
+
+      if (targetUserDoc) {
         const tier = (status === 'active' || status === 'trialing') ? 'premium' : 'free';
+        logToFile(`Stripe Webhook: Syncing user ${targetUserDoc.id} to tier ${tier} (Status: ${status})`);
         
-        logToFile(`Updating user ${userDoc.id} tier to ${tier} (Sub Update: ${status})`);
-        await userDoc.ref.update({
+        await targetUserDoc.ref.update({
           tier: tier,
           subscriptionId: subscription.id,
           subscriptionStatus: status,
           updatedAt: FieldValue.serverTimestamp()
         });
+      } else {
+        logToFile(`Stripe Webhook: Orphaned subscription event for customer ${customerId}. No matching user found.`);
       }
     }
 
     res.json({ received: true });
   } catch (error) {
-    logToFile(`Firestore Update Error (Webhook): ${error instanceof Error ? error.message : String(error)}`);
+    const err = error as any;
+    logToFile(`Webhook Processing FAILED: ${err.message}`);
+    console.error('Webhook Error:', err);
     res.status(500).send('Webhook Processing Failed');
   }
 });
@@ -458,15 +477,58 @@ app.post('/api/process-audio', async (req, res) => {
 app.post('/api/create-checkout-session', async (req, res) => {
   try {
     const { userId, priceId } = req.body;
-    logToFile(`Creating subscription session for user: ${userId}`);
+    logToFile(`Stripe: Initiating checkout for user ${userId}`);
     
     if (!userId) {
       return res.status(400).json({ error: 'User ID is required' });
     }
 
+    const db = getAdminDb();
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found in database' });
+    }
+    const userData = userDoc.data();
     const stripe = getStripe();
+
+    // 1. Resolve Stripe Customer ID (Deterministic)
+    let stripeCustomerId = userData?.stripeCustomerId;
+
+    if (!stripeCustomerId) {
+      logToFile(`Stripe: No customer ID in DB for ${userId}. searching by email: ${userData?.email}`);
+      // Fallback 1: Search by email
+      if (userData?.email) {
+        const customers = await stripe.customers.list({ email: userData.email, limit: 1 });
+        if (customers.data.length > 0) {
+          stripeCustomerId = customers.data[0].id;
+          logToFile(`Stripe: Found existing customer ID by email: ${stripeCustomerId}`);
+        }
+      }
+
+      // Fallback 2: Create new customer
+      if (!stripeCustomerId) {
+        logToFile(`Stripe: Creating new customer for ${userId}`);
+        const customer = await stripe.customers.create({
+          email: userData?.email,
+          name: userData?.displayName,
+          metadata: {
+            internal_user_id: userId,
+            app_environment: process.env.NODE_ENV || 'production'
+          }
+        });
+        stripeCustomerId = customer.id;
+        logToFile(`Stripe: Created new customer ${stripeCustomerId}`);
+      }
+
+      // 2. Persist Customer ID immediately
+      logToFile(`Stripe: Persisting customer ID ${stripeCustomerId} for user ${userId}`);
+      await db.collection('users').doc(userId).update({
+        stripeCustomerId: stripeCustomerId,
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    }
+
     const finalPriceId = priceId || process.env.STRIPE_PRICE_ID;
-    
     if (!finalPriceId) {
       return res.status(400).json({ error: 'No Price ID provided or configured' });
     }
@@ -479,43 +541,42 @@ app.post('/api/create-checkout-session', async (req, res) => {
       baseUrl = `${protocol}://${host}`;
     }
 
-    logToFile(`Base URL detected for session: ${baseUrl}`);
-
-    const sessOptions: Stripe.Checkout.SessionCreateParams = {
-      payment_method_types: ['card'],
+    // 3. Create Checkout Session with Mandatory Identity Linkage
+    const session = await stripe.checkout.sessions.create({
+      customer: stripeCustomerId,
       client_reference_id: userId,
-      line_items: [
-        {
-          price: finalPriceId,
-          quantity: 1,
-        },
-      ],
+      payment_method_types: ['card'],
+      line_items: [{ price: finalPriceId, quantity: 1 }],
       mode: 'subscription',
       allow_promotion_codes: true,
+      subscription_data: {
+        metadata: {
+          internal_user_id: userId
+        }
+      },
+      metadata: {
+        internal_user_id: userId
+      },
       success_url: `${baseUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/premium?payment=cancelled`,
-    };
+    });
 
-    logToFile(`Stripe session urls: success=${sessOptions.success_url}, cancel=${sessOptions.cancel_url}`);
-    const session = await stripe.checkout.sessions.create(sessOptions);
-
-    logToFile(`Checkout session created: ${session.id}`);
+    logToFile(`Stripe: Checkout session ${session.id} created for ${userId}`);
     res.json({ url: session.url });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    logToFile(`Checkout Session Failure: ${errMsg}`);
+    logToFile(`Stripe: Checkout Session Failure - ${errMsg}`);
     res.status(500).json({ error: 'Failed to create checkout session', details: errMsg });
   }
 });
 
-// Verify Stripe Session and activate subscription
+// Verify Stripe Session (Deterministic Activation)
 app.post('/api/verify-session', async (req, res) => {
   try {
     const { sessionId } = req.body;
-    if (!sessionId) {
-      return res.status(400).json({ error: 'Session ID is required' });
-    }
+    if (!sessionId) return res.status(400).json({ error: 'Session ID required' });
 
+    logToFile(`Stripe: Verifying success for session ${sessionId}`);
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ['subscription', 'customer'],
@@ -523,34 +584,35 @@ app.post('/api/verify-session', async (req, res) => {
 
     const subscription = session.subscription as Stripe.Subscription;
     const subStatus = subscription?.status;
-    const userId = session.client_reference_id;
+    const userId = session.client_reference_id || session.metadata?.internal_user_id;
+    const customerId = session.customer as string;
 
-    logToFile(`Verifying session: ${session.id}, payment: ${session.payment_status}, sub: ${subStatus}`);
+    logToFile(`Stripe: Verify - session=${session.id}, user=${userId}, customer=${customerId}, status=${subStatus}`);
 
-    if (subStatus === 'active' || subStatus === 'trialing' || session.payment_status === 'paid' || session.amount_total === 0) {
-      const customerId = session.customer as string;
-      const subscriptionId = subscription?.id || session.subscription as string;
-
+    if (subStatus === 'active' || subStatus === 'trialing') {
       if (userId) {
         const db = getAdminDb();
-        logToFile(`Verification success for user ${userId} (Status: ${subStatus || session.payment_status}). Activating premium.`);
+        logToFile(`Stripe: Deterministic activation for user ${userId}`);
         
         await db.collection('users').doc(userId).set({
           tier: 'premium',
           stripeCustomerId: customerId,
-          subscriptionId: subscriptionId,
+          subscriptionId: subscription.id,
           subscriptionStatus: subStatus,
           updatedAt: FieldValue.serverTimestamp()
         }, { merge: true });
 
         return res.json({ success: true, tier: 'premium' });
+      } else {
+        logToFile('Stripe: Verify error - Could not resolve userId from session');
+        return res.status(404).json({ error: 'Verification failed: User identity missing in session' });
       }
     }
 
-    res.status(400).json({ error: 'Subscription not active', status: subStatus, payment: session.payment_status });
+    res.status(400).json({ error: 'Subscription not active', status: subStatus });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    logToFile(`Session Verification Failure: ${errMsg}`);
+    logToFile(`Stripe: Session Verification Failure - ${errMsg}`);
     res.status(500).json({ error: 'Verification failed', details: errMsg });
   }
 });
@@ -596,6 +658,7 @@ app.post('/api/sync-user-stripe', async (req, res) => {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: 'User ID required' });
 
+    logToFile(`Stripe Sync: Starting manual sync for user ${userId}`);
     const db = getAdminDb();
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
@@ -605,73 +668,72 @@ app.post('/api/sync-user-stripe', async (req, res) => {
     let stripeCustomerId = userData?.stripeCustomerId;
     let subscription: Stripe.Subscription | null = null;
 
-    // Try to find customer by email if ID is missing
+    // 1. Resolve Customer ID if missing (by Email)
     if (!stripeCustomerId && userData?.email) {
-      logToFile(`Sync: Searching Stripe for customer by email: ${userData.email}`);
+      logToFile(`Stripe Sync: Searching Stripe for customer by email: ${userData.email}`);
       const customers = await stripe.customers.list({ email: userData.email, limit: 1 });
       if (customers.data.length > 0) {
         stripeCustomerId = customers.data[0].id;
-        logToFile(`Sync: Found Stripe Customer ID: ${stripeCustomerId}`);
+        logToFile(`Stripe Sync: Found Stripe Customer ID via email: ${stripeCustomerId}`);
       }
     }
 
+    // 2. Fetch Subscription by Customer ID
     if (stripeCustomerId) {
+      logToFile(`Stripe Sync: Checking subscriptions for customer ${stripeCustomerId}`);
       const subscriptions = await stripe.subscriptions.list({
         customer: stripeCustomerId,
-        status: 'active',
+        status: 'all',
+        limit: 1
       });
 
       if (subscriptions.data.length > 0) {
         subscription = subscriptions.data[0];
-      } else {
-        // Check trialing or past_due as well
-        const otherSubs = await stripe.subscriptions.list({
-          customer: stripeCustomerId,
-          status: 'all',
-          limit: 1
-        });
-        if (otherSubs.data.length > 0) {
-          subscription = otherSubs.data[0];
-        }
-      }
-    } else {
-      // Last ditch effort: search by client_reference_id in sessions
-      logToFile(`Sync: Searching Stripe Sessions for client_reference_id: ${userId}`);
-      const sessions = await stripe.checkout.sessions.list({
-        limit: 20,
-      });
-      const userSession = sessions.data.find(s => s.client_reference_id === userId && s.payment_status === 'paid');
-      if (userSession && userSession.subscription) {
-        subscription = await stripe.subscriptions.retrieve(userSession.subscription as string);
-        stripeCustomerId = userSession.customer as string;
       }
     }
 
-    if (subscription) {
-      logToFile(`Sync Success: Updating user ${userId} to premium (Stripe Status: ${subscription.status})`);
+    // 3. Fallback: Search recently completed checkout sessions with metadata
+    if (!subscription) {
+      logToFile(`Stripe Sync: No subscription found by customer ID, searching recent sessions for internal_user_id: ${userId}`);
+      const sessions = await stripe.checkout.sessions.list({ limit: 100 });
+      const userSession = sessions.data.find(s => 
+        (s.client_reference_id === userId || s.metadata?.internal_user_id === userId) && 
+        s.payment_status === 'paid'
+      );
       
+      if (userSession && userSession.subscription) {
+        logToFile(`Stripe Sync: Found successful session ${userSession.id} with subscription ${userSession.subscription}`);
+        subscription = await stripe.subscriptions.retrieve(userSession.subscription as string);
+        if (!stripeCustomerId) stripeCustomerId = userSession.customer as string;
+      }
+    }
+
+    // 4. Final Verification and Persistence
+    if (subscription) {
       const status = subscription.status;
       const tier = (status === 'active' || status === 'trialing') ? 'premium' : 'free';
       
-      const updateData: any = {
-        tier: tier,
-        subscriptionStatus: status,
-        subscriptionId: subscription.id,
-        updatedAt: FieldValue.serverTimestamp()
-      };
+      logToFile(`Stripe Sync SUCCESS: Found sub ${subscription.id} (${status}). Activating tier: ${tier}`);
       
-      if (stripeCustomerId) {
-        updateData.stripeCustomerId = stripeCustomerId;
-      }
+      await db.collection('users').doc(userId).set({
+        tier: tier,
+        stripeCustomerId: stripeCustomerId,
+        subscriptionId: subscription.id,
+        subscriptionStatus: status,
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
 
-      await db.collection('users').doc(userId).set(updateData, { merge: true });
-      return res.json({ success: true, tier, status });
+      return res.json({ success: true, stripeCustomerId, tier, status });
     }
 
-    res.json({ success: true, tier: userData?.tier || 'free', status: 'no_subscription_found' });
+    logToFile(`Stripe Sync: Final - No subscription found for user ${userId}`);
+    return res.json({ 
+      success: false, 
+      message: 'No active subscription found in Stripe. If you just paid, please wait a few seconds and try again.' 
+    });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    logToFile(`Sync Stripe Failure: ${errMsg}`);
+    logToFile(`Stripe Sync Failure: ${errMsg}`);
     res.status(500).json({ error: 'Sync failed', details: errMsg });
   }
 });
