@@ -77,14 +77,21 @@ export default function Profile() {
             subscriptionStatus: data.status,
             updatedAt: new Date()
           }, { merge: true });
+          
+          toast.success('Premium status restored!', { id: tid });
+          setTimeout(() => window.location.reload(), 1000);
+          return;
         } catch (ruleErr) {
-          console.error('Client-side profile update failed (rules?):', ruleErr);
-          // We don't block here because the backend might have succeeded in writing too
+          console.error('Client-side profile update failed:', ruleErr);
+          if (data.backendWriteError) {
+            toast.error(`Sync failed on both ends. Server error: ${data.backendWriteError}`, { id: tid });
+          } else {
+            // Backend succeeded (no error reported) but client failed
+            toast.success('Sync complete (Server)! Refreshing...', { id: tid });
+            setTimeout(() => window.location.reload(), 2000);
+          }
+          return;
         }
-        
-        toast.success('Premium status restored!', { id: tid });
-        setTimeout(() => window.location.reload(), 1000);
-        return;
       }
       
       if (data.success && data.stripeCustomerId) {

@@ -22,34 +22,28 @@ const privateKey = process.env.GCS_PRIVATE_KEY
   ? process.env.GCS_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/^"(.*)"$/, '$1')
   : undefined;
 
-const APP_NAME = 'dsquaregee-admin';
-
 try {
-  let adminApp;
-  const existingApp = getApps().find(a => a.name === APP_NAME);
-  
-  if (!existingApp) {
+  if (getApps().length === 0) {
     if (process.env.GCS_PROJECT_ID && process.env.GCS_CLIENT_EMAIL && privateKey) {
-      logToFile('Initializing Named Firebase Admin with provided credentials');
-      adminApp = initializeApp({
+      logToFile('Initializing Firebase Admin with provided credentials');
+      initializeApp({
         credential: cert({
           projectId: process.env.GCS_PROJECT_ID,
           clientEmail: process.env.GCS_CLIENT_EMAIL,
           privateKey: privateKey,
         }),
         projectId: process.env.GCS_PROJECT_ID
-      }, APP_NAME);
+      });
     } else {
-      logToFile(`Initializing Named Firebase Admin with default credentials targeting project: ${firebaseConfig.projectId}`);
-      adminApp = initializeApp({
+      logToFile(`Initializing Firebase Admin with ADC targeting project: ${firebaseConfig.projectId}`);
+      // In some environments, passing projectId here is enough to override ADC's default project
+      initializeApp({
         projectId: firebaseConfig.projectId,
         credential: admin.credential.applicationDefault()
-      }, APP_NAME);
+      });
     }
-  } else {
-    adminApp = existingApp;
   }
-  logToFile('Firebase Admin (Named) initialized successfully');
+  logToFile('Firebase Admin initialized successfully');
 } catch (e) {
   logToFile(`Failed to initialize Firebase Admin: ${e instanceof Error ? e.message : String(e)}`);
 }
@@ -57,12 +51,13 @@ try {
 // Ensure the db is using the correct database instance from config
 const getAdminDb = () => {
   try {
-    const apps = getApps();
-    const app = apps.find(a => a.name === APP_NAME) || getApp();
-    logToFile(`Admin Firestore: Using app "${app.name}" for database "${firebaseConfig.firestoreDatabaseId || '(default)'}"`);
-    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    const app = getApp();
+    // Using the newer syntax to target the specific database
+    // @ts-ignore - databaseId is supported in some versions but might not be in types
+    const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    return db;
   } catch (e) {
-    logToFile(`Admin Firestore: Fallback to default due to error: ${e instanceof Error ? e.message : String(e)}`);
+    logToFile(`Admin Firestore Error: ${e instanceof Error ? e.message : String(e)}`);
     return getFirestore();
   }
 };
@@ -753,8 +748,9 @@ app.post('/api/sync-user-stripe', async (req, res) => {
       
       logToFile(`Stripe Sync SUCCESS: Found sub ${subscription.id} (${status}). Activating tier: ${tier}`);
       
-      // Attempt backend write, but don't fail if it hits permission issues (client will also try)
+      // Attempt backend write - let's be more verbose
       try {
+        logToFile(`Stripe Sync: Attempting backend write to users/${userId} for database ${firebaseConfig.firestoreDatabaseId}`);
         await db.collection('users').doc(userId).set({
           tier: tier,
           stripeCustomerId: stripeCustomerId,
@@ -762,18 +758,21 @@ app.post('/api/sync-user-stripe', async (req, res) => {
           subscriptionStatus: status,
           updatedAt: FieldValue.serverTimestamp()
         }, { merge: true });
-        logToFile(`Stripe Sync: Backend Firestore write success for ${userId}`);
-      } catch (writeErr) {
-        logToFile(`Stripe Sync: Backend Firestore write FAILED (Permission?). Client will handle update. Error: ${writeErr instanceof Error ? writeErr.message : String(writeErr)}`);
+        logToFile(`Stripe Sync: Backend Firestore write SUCCESS for ${userId}`);
+      } catch (writeErr: any) {
+        const errDetails = writeErr?.message || String(writeErr);
+        logToFile(`Stripe Sync CRITICAL ERROR: Backend write failed for ${userId}. Error: ${errDetails}`);
+        // We still return success: true because the client will also attempt a write, 
+        // but we should probably tell the client if the backend failed.
+        return res.json({ 
+          success: true, 
+          backendWriteError: errDetails,
+          stripeCustomerId, 
+          tier, 
+          status,
+          subscriptionId: subscription.id
+        });
       }
-
-      return res.json({ 
-        success: true, 
-        stripeCustomerId, 
-        tier, 
-        status,
-        subscriptionId: subscription.id
-      });
     }
 
     logToFile(`Stripe Sync: Final - No subscription found for user ${userId}`);

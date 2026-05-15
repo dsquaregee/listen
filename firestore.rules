@@ -32,21 +32,15 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && 
                       (
-                        // Standard user creation
-                        (incoming().tier == 'free' && (!('isAdmin' in incoming()) || incoming().isAdmin == false)) ||
-                        // Admin self-bootstrap creation
-                        (request.auth.token.email == 'dsquaregee@gmail.com' && incoming().tier == 'premium' && incoming().isAdmin == true)
+                        // Allow any owner to create their profile, but restrict isAdmin
+                        (!('isAdmin' in incoming()) || isAdmin())
                       );
-      allow update: if (isOwner(userId) || isAdmin()) && 
-                      (
-                        // User updating their own profile
-                        (isOwner(userId) && 
-                          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt', 'tier', 'stripeCustomerId', 'subscriptionId', 'subscriptionStatus']) &&
+      allow update: if (isOwner(userId) && 
+                        (
+                          // Prevent user from making themselves admin
                           (!('isAdmin' in incoming()) || incoming().isAdmin == existing().get('isAdmin', false))
-                        ) ||
-                        // Admin updating anything
-                        isAdmin()
-                      );
+                        )
+                      ) || isAdmin();
     }
 
     // ---------------------------------------------------------
