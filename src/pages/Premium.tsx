@@ -27,7 +27,9 @@ export default function Premium() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          userId: user.uid
+          userId: user.uid,
+          email: user.email,
+          displayName: user.displayName || 'Listener'
         }), 
       });
 

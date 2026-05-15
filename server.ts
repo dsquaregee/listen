@@ -484,10 +484,35 @@ app.post('/api/create-checkout-session', async (req, res) => {
     }
 
     const db = getAdminDb();
-    const userDoc = await db.collection('users').doc(userId).get();
+    let userDoc = await db.collection('users').doc(userId).get();
+    
+    // If user doesn't exist, create a basic profile to allow checkout to proceed
     if (!userDoc.exists) {
-      return res.status(404).json({ error: 'User not found in database' });
+      logToFile(`Stripe: User profile missing for ${userId}. Creating basic profile.`);
+      const { email, displayName } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'User details not found. Please ensure you are logged in correctly.' });
+      }
+      
+      const newProfile = {
+        uid: userId,
+        email: email,
+        displayName: displayName || 'Listener',
+        tier: 'free',
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      };
+      
+      try {
+        await db.collection('users').doc(userId).set(newProfile);
+        userDoc = await db.collection('users').doc(userId).get();
+      } catch (createErr) {
+        logToFile(`Stripe: Failed to create user profile for ${userId}: ${createErr instanceof Error ? createErr.message : String(createErr)}`);
+        // We might not have permissions (though Admin should), but we can still try to proceed if we have email
+        return res.status(500).json({ error: 'Failed to initialize user resonance. Try again in a moment.' });
+      }
     }
+    
     const userData = userDoc.data();
     const stripe = getStripe();
 
