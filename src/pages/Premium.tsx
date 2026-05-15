@@ -7,7 +7,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
+import { handleFirestoreError, OperationType } from '../lib/errorHandler';
 
 import { Toaster, toast } from 'sonner';
 

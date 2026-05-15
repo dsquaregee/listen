@@ -8,12 +8,20 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
     function isAdmin() { 
-      return isVerified() && (
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        request.auth.token.email == 'dsquaregee@gmail.com'
+      return isSignedIn() && (
+        request.auth.token.email.lower() == 'dsquaregee@gmail.com' ||
+        request.auth.uid == 'T9yg2h3VU7c5HSL0Td69Z9FfVQz1'
       ); 
     }
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+
+    // --- Validation Helpers ---
+    function isValidPlaylist(data) {
+      return data.keys().hasAll(['name', 'userId', 'albumIds']) &&
+             data.name is string && data.name.size() <= 100 &&
+             data.userId == request.auth.uid &&
+             data.albumIds is list && data.albumIds.size() <= 100;
+    }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
@@ -29,12 +37,8 @@ service cloud.firestore {
     // USERS COLLECTION
     // ---------------------------------------------------------
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && 
-                      (
-                        // Allow any owner to create their profile, but restrict isAdmin
-                        (!('isAdmin' in incoming()) || isAdmin())
-                      );
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow create: if isOwner(userId);
       allow update: if (isOwner(userId) && 
                         (
                           // Prevent user from making themselves admin
@@ -59,7 +63,7 @@ service cloud.firestore {
       allow write: if isAdmin();
       
       // Allow playCount increments for signed in users
-      allow update: if isVerified() && 
+      allow update: if isSignedIn() && 
                       incoming().diff(existing()).affectedKeys().hasOnly(['playCount']) &&
                       incoming().playCount == existing().playCount + 1;
     }
@@ -68,9 +72,11 @@ service cloud.firestore {
     // PLAYLISTS (User specific)
     // ---------------------------------------------------------
     match /playlists/{playlistId} {
-      allow read: if isOwner(existing().userId) || isAdmin();
-      allow create: if isOwner(incoming().userId) && isValidId(playlistId);
-      allow update: if isOwner(existing().userId) && incoming().userId == existing().userId;
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidPlaylist(incoming()) && isValidId(playlistId);
+      allow update: if isOwner(existing().userId) && 
+                      incoming().userId == existing().userId &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['name', 'albumIds', 'updatedAt']);
       allow delete: if isOwner(existing().userId);
     }
     
@@ -79,7 +85,7 @@ service cloud.firestore {
     // ---------------------------------------------------------
     match /admins/{adminId} {
       allow read: if isOwner(adminId) || isAdmin();
-      allow create: if isVerified() && isOwner(adminId) && (request.auth.token.email == 'dsquaregee@gmail.com' || isAdmin());
+      allow create: if isOwner(adminId) && (request.auth.token.email == 'dsquaregee@gmail.com' || isAdmin());
       allow update, delete: if isAdmin();
     }
 
@@ -88,7 +94,8 @@ service cloud.firestore {
     // ---------------------------------------------------------
     match /listening_sessions/{sessionId} {
       allow read: if isAdmin();
-      allow create: if isSignedIn() && isOwner(incoming().userId);
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && (isOwner(incoming().userId) || isAdmin());
     }
   }
 }

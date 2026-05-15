@@ -12,7 +12,7 @@ import {
   arrayRemove,
   increment
 } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
+import { handleFirestoreError, OperationType } from '../lib/errorHandler';
 
 interface Playlist {
   id: string;

@@ -8,7 +8,7 @@ import { motion } from 'motion/react';
 import { UserProfile } from '../types';
 import { cn } from '../lib/utils';
 import { Link } from 'react-router-dom';
-import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
+import { handleFirestoreError, OperationType } from '../lib/errorHandler';
 import { offlineService } from '../services/offlineService';
 import { OptimizedImage } from '../components/OptimizedImage';
 

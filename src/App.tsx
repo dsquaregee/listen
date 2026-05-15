@@ -8,7 +8,7 @@ import { useAuthStore } from './store/useAuthStore';
 import { usePlayerStore } from './store/usePlayerStore';
 import { useUserStore } from './store/useUserStore';
 import { UserProfile } from './types';
-import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
+import { handleFirestoreError, OperationType } from './lib/errorHandler';
 
 // Layout & Components
 import Navbar from './components/Navbar';

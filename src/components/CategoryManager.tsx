@@ -18,7 +18,7 @@ import {
   GripVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
+import { handleFirestoreError, OperationType } from '../lib/errorHandler';
 import {
   DndContext,
   closestCenter,

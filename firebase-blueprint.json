@@ -72,6 +72,36 @@
       "schema": "Session",
       "description": "Historical record of all playback sessions"
     },
+    "playlists": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "userId": { "type": "string" },
+          "albumIds": { "type": "array", "items": { "type": "string" } },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["name", "userId", "albumIds"]
+      },
+      "description": "User created playlists"
+    },
+    "users": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "uid": { "type": "string" },
+          "email": { "type": "string" },
+          "displayName": { "type": "string" },
+          "photoURL": { "type": "string" },
+          "tier": { "type": "string" },
+          "isAdmin": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["uid", "email"]
+      },
+      "description": "User profiles"
+    },
     "admins": {
       "schema": {
         "type": "object",

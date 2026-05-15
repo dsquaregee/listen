@@ -17,12 +17,15 @@ export interface Album {
   coverUrl: string;
   hlsUrl: string; // Master playlist .m3u8 for adaptive bitrate
   videoHlsUrl?: string; // HLS for reel/preview
+  previewUrl?: string; // Compatibility
+  fullUrl?: string; // Compatibility
   categoryId: string;
   description: string;
   instruments?: string[];
   moodTags?: string[];
   bpm?: number;
   featured?: boolean;
+  isFeatured?: boolean; // Compatibility
   isDownloaded?: boolean;
   tier: SubscriptionTier;
   playCount?: number;
@@ -46,6 +49,7 @@ export interface UserProfile {
   subscriptionId?: string | null;
   subscriptionStatus?: string;
   betaAccess?: boolean;
+  createdAt?: any;
 }
 
 export interface Favorite {
