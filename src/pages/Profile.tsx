@@ -55,7 +55,7 @@ export default function Profile() {
           duration: 5000
         });
       }
-      return toast.error('No active billing record found.');
+      toast.error('No active billing record found. If you have an active subscription, you can access the portal directly below.');
     }
     
     const toastId = toast.loading('Connecting to Stripe Billing...');
@@ -63,7 +63,10 @@ export default function Profile() {
       const response = await fetch('/api/create-portal-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerId: user.stripeCustomerId })
+        body: JSON.stringify({ 
+          customerId: user.stripeCustomerId,
+          returnUrl: window.location.origin + '/profile'
+        })
       });
       
       const data = await response.json();
@@ -73,7 +76,7 @@ export default function Profile() {
       window.location.href = data.url;
     } catch (error) {
       console.error('Portal error:', error);
-      toast.error(error instanceof Error ? error.message : 'Could not open billing portal.', { id: toastId });
+      toast.error(error instanceof Error ? error.message : 'Could not open billing portal. Please use the direct link below.', { id: toastId });
     }
   };
 
@@ -231,6 +234,31 @@ export default function Profile() {
         
         <SettingsItem icon={Mail} label="Contact Support" value="support@dsquaregee.com" />
         
+        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-white/60 uppercase tracking-widest">Support & Access</h3>
+          </div>
+          <div className="space-y-2">
+            <a 
+              href="https://billing.stripe.com/p/login/7sYdRb4Er3nG8nSc7T3Ru00" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.05] transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors">
+                  <Settings className="w-4 h-4 text-accent" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white">Direct Billing Portal</p>
+                  <p className="text-[10px] text-white/40">Secure access via Stripe Login</p>
+                </div>
+              </div>
+              <Crown className="w-3 h-3 text-white/20 group-hover:text-accent transition-colors" />
+            </a>
+          </div>
+        </div>
+
         <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5">
           <p className="text-[10px] text-white/30 font-medium uppercase tracking-wider mb-2">Policies</p>
           <div className="flex gap-4 text-xs font-medium">

@@ -430,17 +430,20 @@ function UserListRows() {
             <button 
               onClick={async () => {
                 const newBeta = !u.betaAccess;
-                const newTier = newBeta ? 'premium' : (u.stripeCustomerId ? 'premium' : 'free');
+                // If turning beta ON, they become premium.
+                // If turning beta OFF, they only stay premium if they have an active stripe subscription.
+                const newTier = newBeta ? 'premium' : (u.subscriptionStatus === 'active' ? 'premium' : 'free');
+                
                 try {
                   await updateDoc(doc(db, 'users', u.id), { 
                     betaAccess: newBeta,
                     tier: newTier,
                     updatedAt: serverTimestamp()
                   });
-                  toast.success(`${u.displayName} is now ${newBeta ? 'a Beta Seeker' : 'a regular Seeker'}`);
+                  toast.success(`${u.displayName} status recalibrated. Frequency: ${newTier}`);
                   setUsers(prev => prev.map(user => user.id === u.id ? { ...user, betaAccess: newBeta, tier: newTier } : user));
                 } catch (e) {
-                  toast.error('Failed to update seeker frequency.');
+                  toast.error('Failed to recalibrate seeker.');
                 }
               }}
               className={cn(
@@ -453,6 +456,9 @@ function UserListRows() {
                 u.betaAccess ? "right-1 bg-primary shadow-[0_0_8px_rgba(153,102,204,0.8)]" : "left-1 bg-white/20"
               )} />
             </button>
+            <div className="mt-1 text-[7px] text-white/20 uppercase tracking-tighter">
+              {u.stripeCustomerId ? `Stripe: ${u.subscriptionStatus || 'Incomplete'}` : 'No Payment Ref'}
+            </div>
           </td>
           <td className="py-4">
             <span className={cn(

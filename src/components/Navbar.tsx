@@ -207,17 +207,18 @@ export default function Navbar() {
                       <button
                         key={album.id}
                         onClick={() => handleResultClick(album.id)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.05] transition-all group text-left"
+                        className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/[0.08] transition-all group text-left relative overflow-hidden"
                       >
+                        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                         <OptimizedImage 
                           src={album.coverUrl} 
                           alt={album.title}
-                          className="w-10 h-10 rounded-lg shrink-0 border border-white/5 group-hover:scale-105 transition-transform duration-500"
+                          className="w-10 h-10 rounded-lg shrink-0 border border-white/5 group-hover:scale-110 group-hover:border-primary/30 transition-all duration-500 relative z-10"
                         />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-xs font-bold text-white truncate group-hover:text-primary transition-colors">{album.title}</h4>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <p className="text-[9px] text-primary/60 font-semibold uppercase tracking-wider group-hover:text-primary/90 transition-colors truncate">
+                        <div className="flex-1 min-w-0 relative z-10">
+                          <h4 className="text-xs font-bold text-white truncate group-hover:text-primary transition-colors group-hover:translate-x-1 duration-300">{album.title}</h4>
+                          <div className="flex items-center gap-1.5 mt-0.5 group-hover:translate-x-1 duration-300 delay-75">
+                            <p className="text-[9px] text-primary/60 font-semibold uppercase tracking-wider group-hover:text-primary transition-colors truncate">
                               {album.artist}
                             </p>
                             <span className="text-[9px] text-white/10">•</span>
