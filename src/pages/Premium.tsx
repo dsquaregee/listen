@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Check, Crown, Zap, Shield, Headphones, Smartphone, Sparkles, Globe, Infinity, DollarSign, ArrowLeft, HelpCircle } from 'lucide-react';
+import { Check, Crown, Zap, Shield, Headphones, Smartphone, Sparkles, Globe, Infinity, ArrowLeft, HelpCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -15,34 +15,7 @@ export default function Premium() {
   const { setUserTier } = usePlayerStore();
   const { user, setUser } = useAuthStore();
   const navigate = useNavigate();
-  const [amount, setAmount] = useState(3);
-  const [currency, setCurrency] = useState('USD');
   const [isSubscribing, setIsSubscribing] = useState(false);
-
-  // Simple currency detection based on locale
-  useEffect(() => {
-    const locale = navigator.language;
-    if (locale.includes('IN')) setCurrency('INR');
-    else if (locale.includes('GB')) setCurrency('GBP');
-    else if (locale.includes('EU') || locale.includes('FR') || locale.includes('DE')) setCurrency('EUR');
-    else setCurrency('USD');
-  }, []);
-
-  const exchangeRates: Record<string, number> = {
-    'USD': 1,
-    'INR': 83,
-    'GBP': 0.8,
-    'EUR': 0.92
-  };
-
-  const getCurrencySymbol = (cur: string) => {
-    switch (cur) {
-      case 'INR': return '₹';
-      case 'GBP': return '£';
-      case 'EUR': return '€';
-      default: return '$';
-    }
-  };
 
   const handleSubscribe = async () => {
     if (!user) return toast.error('Please sign in to subscribe.');
@@ -109,8 +82,8 @@ export default function Premium() {
 
             <div className="flex flex-col gap-2 mb-12">
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold italic text-white">$4.99</span>
-                <span className="text-white/40 text-sm uppercase tracking-widest font-bold">/ Month</span>
+                <span className="text-4xl font-serif font-bold italic text-white">Infinite Seeker</span>
+                <span className="text-white/40 text-sm uppercase tracking-widest font-bold">/ Subscription</span>
               </div>
               <p className="text-white/40 text-[9px] uppercase tracking-widest font-black italic">Access the unfiltered universe</p>
             </div>

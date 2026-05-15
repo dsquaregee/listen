@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import Hls from 'hls.js';
+import { getAssetUrl } from '../lib/utils';
 
 interface HlsVideoPlayerProps {
   src: string;
@@ -24,29 +25,30 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
     const video = videoRef.current;
     if (!video) return;
 
+    const assetUrl = getAssetUrl(src);
     let hls: Hls | null = null;
 
-    if (src && src.endsWith('.m3u8')) {
+    if (assetUrl && assetUrl.endsWith('.m3u8')) {
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
         });
-        hls.loadSource(src);
+        hls.loadSource(assetUrl);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (autoplay) video.play().catch(console.error);
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         // Native HLS support (Safari)
-        video.src = src;
+        video.src = assetUrl;
         video.addEventListener('loadedmetadata', () => {
           if (autoplay) video.play().catch(console.error);
         });
       }
-    } else if (src) {
+    } else if (assetUrl) {
       // Direct video link (mp4, etc)
-      video.src = src;
+      video.src = assetUrl;
     }
 
     return () => {

@@ -635,13 +635,29 @@ async function startServer() {
       logToFile(`Error integrating Vite: ${e instanceof Error ? e.message : String(e)}`);
       if (fs.existsSync(distPath)) {
         logToFile('Vite failed, falling back to static dist');
-        app.use(express.static(distPath, { index: false }));
+        app.use(express.static(distPath, { 
+          index: false,
+          maxAge: '1h', // Browser caching
+          setHeaders: (res, filePath) => {
+            if (filePath.match(/\.(js|css|woff2|png|jpg|jpeg|gif|svg|mp3|m4a|mp4)$/)) {
+              res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // CDN caching
+            }
+          }
+        }));
       }
     }
   } else {
     logToFile('Starting Production mode (Static Serving)');
     if (fs.existsSync(distPath)) {
-      app.use(express.static(distPath, { index: false }));
+      app.use(express.static(distPath, { 
+        index: false,
+        maxAge: '1h',
+        setHeaders: (res, filePath) => {
+          if (filePath.match(/\.(js|css|woff2|png|jpg|jpeg|gif|svg|mp3|m4a|mp4)$/)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          }
+        }
+      }));
       logToFile('Production static serving active');
     } else {
       logToFile(`WARNING: Dist path not found at ${distPath}. Continuing with root index fallback.`);
@@ -671,7 +687,11 @@ async function startServer() {
       // We check if the file actually exists on disk before 404ing
       const fullPath = path.join(process.cwd(), req.path);
       if (fs.existsSync(fullPath)) {
-        logToFile(`Asset hit catch-all but exists: ${req.url}. Letting fall through.`);
+        // If it's a source file or map being requested in what looks like a production context,
+        // we just 404 silently to avoid log clutter
+        if (req.path.startsWith('/src') || req.path.endsWith('.map')) {
+          return res.status(404).send('Resource not found');
+        }
         return next();
       }
 
@@ -680,14 +700,9 @@ async function startServer() {
     }
 
     // 3. Resolve index.html target for navigation
-    // Prefer production index if in production, otherwise root index
-    let targetIndex = (process.env.NODE_ENV === 'production') ? prodIndex : devIndex;
+    // Prefer production index if it exists, otherwise fall back to root index
+    let targetIndex = fs.existsSync(prodIndex) ? prodIndex : devIndex;
     
-    // Safety check: if our choice doesn't exist, try the other one
-    if (!fs.existsSync(targetIndex)) {
-      targetIndex = (targetIndex === prodIndex) ? devIndex : prodIndex;
-    }
-
     logToFile(`SPA Routing Navigation: ${req.url} -> ${targetIndex}`);
     
     res.sendFile(targetIndex, (err) => {

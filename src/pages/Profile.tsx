@@ -10,6 +10,7 @@ import { cn } from '../lib/utils';
 import { Link } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 import { offlineService } from '../services/offlineService';
+import { OptimizedImage } from '../components/OptimizedImage';
 
 import { Toaster, toast } from 'sonner';
 
@@ -119,7 +120,7 @@ export default function Profile() {
       <div className="flex items-center gap-6 mb-12">
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-          <img 
+          <OptimizedImage 
             src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} 
             alt="Profile" 
             className="relative w-24 h-24 rounded-full border-2 border-white/10 shadow-2xl"

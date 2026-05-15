@@ -185,7 +185,8 @@ export default function Navbar() {
                             />
                             <div className="flex-1 min-w-0">
                               <h4 className="text-sm font-bold text-white truncate group-hover:text-primary transition-colors">{results[0].title}</h4>
-                              <p className="text-[10px] text-white/30 line-clamp-2 italic mt-1 leading-relaxed">{results[0].description}</p>
+                              <p className="text-[10px] text-primary/60 font-medium uppercase tracking-[0.05em] mt-0.5 group-hover:text-primary/90 transition-colors">{results[0].artist}</p>
+                              <p className="text-[10px] text-white/30 line-clamp-1 italic mt-1.5 leading-relaxed">{results[0].description}</p>
                               <div className="mt-2 flex items-center gap-2">
                                 <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-[8px] font-bold uppercase tracking-widest">
                                   Best Match
@@ -215,7 +216,13 @@ export default function Navbar() {
                         />
                         <div className="flex-1 min-w-0">
                           <h4 className="text-xs font-bold text-white truncate group-hover:text-primary transition-colors">{album.title}</h4>
-                          <p className="text-[9px] text-white/30 line-clamp-1 italic mt-0.5">{album.description}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <p className="text-[9px] text-primary/60 font-semibold uppercase tracking-wider group-hover:text-primary/90 transition-colors truncate">
+                              {album.artist}
+                            </p>
+                            <span className="text-[9px] text-white/10">•</span>
+                            <p className="text-[9px] text-white/20 line-clamp-1 italic truncate">{album.description}</p>
+                          </div>
                         </div>
                       </button>
                     ))}

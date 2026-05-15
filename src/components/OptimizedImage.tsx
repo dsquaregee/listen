@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn, getAssetUrl } from '../lib/utils';
 
 interface OptimizedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -27,7 +27,7 @@ export function OptimizedImage({ className, src, alt, withWatermark = true, ...p
       </AnimatePresence>
       
       <img
-        src={error ? 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&q=80&w=400' : (src || undefined)}
+        src={error ? 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&q=80&w=400' : getAssetUrl(src)}
         alt={alt}
         loading="lazy"
         onLoad={() => setIsLoaded(true)}

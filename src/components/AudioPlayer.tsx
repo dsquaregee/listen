@@ -16,7 +16,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { hapticFeedback } from '../lib/haptics';
 import { useUserStore } from '../store/useUserStore';
 import { MOCK_ALBUMS } from '../data/mockData';
-import { formatTime, cn } from '../lib/utils';
+import { formatTime, cn, getAssetUrl } from '../lib/utils';
 import { streamingService, StreamingService } from '../services/streamingService';
 import { offlineService } from '../services/offlineService';
 import { Album } from '../types';
@@ -1094,7 +1094,7 @@ export default function AudioPlayer() {
   useEffect(() => {
     const initializeSource = async () => {
       if (isHydrated && currentAlbum && audioRef1.current && audioRef2.current) {
-        let sourceUrl = currentAlbum.hlsUrl;
+        let sourceUrl = getAssetUrl(currentAlbum.hlsUrl);
         let isUsingOffline = false;
         
         if (offlineAlbums.includes(currentAlbum.id)) {
@@ -1315,7 +1315,7 @@ export default function AudioPlayer() {
                   isPlaying ? "border-accent/40 shadow-[0_0_15px_rgba(153,102,204,0.3)]" : "border-white/5"
                 )}>
                   <motion.img 
-                    src={currentAlbum.coverUrl || undefined} 
+                    src={getAssetUrl(currentAlbum.coverUrl) || undefined} 
                     alt="" 
                     className="w-full h-full object-cover"
                     animate={{ 
@@ -1632,7 +1632,7 @@ export default function AudioPlayer() {
             {/* Background Atmosphere */}
             <div className="absolute inset-0 z-0 text-white">
               <img 
-                src={currentAlbum.coverUrl || undefined} 
+                src={getAssetUrl(currentAlbum.coverUrl) || undefined} 
                 className="w-full h-full object-cover opacity-20 blur-3xl scale-110" 
                 alt="" 
               />
@@ -1699,7 +1699,7 @@ export default function AudioPlayer() {
                     } : { duration: 0.5 }}
                     className="absolute inset-4 blur-2xl pointer-events-none"
                   >
-                    <img src={currentAlbum.coverUrl || undefined} className="w-full h-full object-cover rounded-3xl" alt="" />
+                    <img src={getAssetUrl(currentAlbum.coverUrl) || undefined} className="w-full h-full object-cover rounded-3xl" alt="" />
                   </motion.div>
                   
                   <motion.div 
@@ -1709,7 +1709,7 @@ export default function AudioPlayer() {
                     } : { boxShadow: '0 0 20px rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.2)' }}
                     className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 cinematic-glow border-2 transition-colors duration-200"
                   >
-                    <img src={currentAlbum.coverUrl || undefined} className="w-full h-full object-cover" alt="" />
+                    <img src={getAssetUrl(currentAlbum.coverUrl) || undefined} className="w-full h-full object-cover" alt="" />
                     
                     {/* Inner Glowing Border Overlay */}
                     {isPlaying && (
@@ -2459,7 +2459,7 @@ export default function AudioPlayer() {
                      )}
 
                      <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 shadow-lg group-hover:scale-105 transition-transform">
-                        <img src={currentAlbum.coverUrl || undefined} alt="" className="w-full h-full object-cover" />
+                        <img src={getAssetUrl(currentAlbum.coverUrl) || undefined} alt="" className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/30 flex items-center justify-center backdrop-blur-[1px]">
                            <div className="flex gap-0.5 items-end h-7">
                               {[...Array(6)].map((_, i) => (
