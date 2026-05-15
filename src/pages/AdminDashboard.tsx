@@ -430,14 +430,15 @@ function UserListRows() {
             <button 
               onClick={async () => {
                 const newBeta = !u.betaAccess;
+                const newTier = newBeta ? 'premium' : (u.stripeCustomerId ? 'premium' : 'free');
                 try {
                   await updateDoc(doc(db, 'users', u.id), { 
                     betaAccess: newBeta,
-                    tier: newBeta ? 'premium' : u.tier,
+                    tier: newTier,
                     updatedAt: serverTimestamp()
                   });
                   toast.success(`${u.displayName} is now ${newBeta ? 'a Beta Seeker' : 'a regular Seeker'}`);
-                  setUsers(prev => prev.map(user => user.id === u.id ? { ...user, betaAccess: newBeta, tier: newBeta ? 'premium' : user.tier } : user));
+                  setUsers(prev => prev.map(user => user.id === u.id ? { ...user, betaAccess: newBeta, tier: newTier } : user));
                 } catch (e) {
                   toast.error('Failed to update seeker frequency.');
                 }
