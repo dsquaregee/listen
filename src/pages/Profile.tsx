@@ -163,6 +163,31 @@ export default function Profile() {
             >
               Subscribe
             </Link>
+            
+            <button 
+              onClick={async () => {
+                const tid = toast.loading('Synchronizing with Stripe...');
+                try {
+                  const res = await fetch('/api/sync-user-stripe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.uid })
+                  });
+                  const data = await res.json();
+                  if (data.tier === 'premium') {
+                    toast.success('Resonance Restored! Your premium frequencies are now active.', { id: tid });
+                    window.location.reload();
+                  } else {
+                    toast.info('No active subscription found for this account.', { id: tid });
+                  }
+                } catch (e) {
+                  toast.error('Sync failed. Please contact support.', { id: tid });
+                }
+              }}
+              className="mt-4 block text-[8px] uppercase tracking-widest font-bold text-white/20 hover:text-white transition-colors"
+            >
+              Already paid? Sync Subscription
+            </button>
           </motion.div>
         )}
 

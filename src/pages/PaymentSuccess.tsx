@@ -192,13 +192,19 @@ export default function PaymentSuccess() {
                   We couldn't verify your session instantly. This can happen if Stripe notification is still in transit.
                 </p>
                 <p className="text-white/60 text-xs italic">
-                  Don't worry—your account will activate automatically within minutes. You can check your profile tier shortly.
+                  Don't worry—your account will activate automatically within minutes. You can also try to synchronize manually from your Profile page.
                 </p>
               </div>
               <div className="pt-6 space-y-4">
                 <button
+                  onClick={() => navigate('/profile')}
+                  className="w-full py-4 bg-white/5 border border-white/10 rounded-xl text-[10px] uppercase tracking-widest font-bold text-white hover:bg-white hover:text-black transition-all"
+                >
+                  Go to Profile to Sync
+                </button>
+                <button
                   onClick={() => navigate('/')}
-                  className="w-full py-4 text-[10px] uppercase tracking-widest font-bold text-white/40 hover:text-white transition-colors"
+                  className="w-full py-2 text-[10px] uppercase tracking-widest font-bold text-white/20 hover:text-white transition-colors"
                 >
                   Return to Home
                 </button>

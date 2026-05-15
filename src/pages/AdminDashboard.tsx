@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { 
   BarChart3, Users, Clock, Activity, 
   TrendingUp, Wallet, ShieldCheck, ChevronRight,
-  Layers, Music, RefreshCw, Database
+  Layers, Music, RefreshCw, Database, Search
 } from 'lucide-react';
 import CategoryManager from '../components/CategoryManager';
 import AlbumManager from '../components/AlbumManager';
@@ -391,6 +391,7 @@ DsquareGee Music Administration`;
 function UserListRows() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -406,11 +407,30 @@ function UserListRows() {
     fetchUsers();
   }, []);
 
+  const filteredUsers = users.filter(u => 
+    u.email?.toLowerCase().includes(search.toLowerCase()) || 
+    u.displayName?.toLowerCase().includes(search.toLowerCase())
+  );
+
   if (loading) return <tr><td colSpan={4} className="py-8 text-center text-[10px] text-white/20 uppercase tracking-widest">Loading Seeker Data...</td></tr>;
 
   return (
     <>
-      {users.slice(0, 10).map(u => (
+      <tr>
+        <td colSpan={4} className="pb-6">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
+            <input 
+              type="text" 
+              placeholder="Filter by email or name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-white/[0.03] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-[10px] text-white focus:outline-none focus:border-primary/50 transition-all"
+            />
+          </div>
+        </td>
+      </tr>
+      {filteredUsers.slice(0, 50).map(u => (
         <tr key={u.id} className="group">
           <td className="py-4">
             <div className="flex items-center gap-3">
@@ -427,8 +447,30 @@ function UserListRows() {
             <p className="text-xs font-mono text-white/60">{(u.totalMinutesStreamed || 0).toFixed(0)}m</p>
           </td>
           <td className="py-4">
-            <button 
-              onClick={async () => {
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={async () => {
+                  const tid = toast.loading('Syncing seeker...');
+                  try {
+                    const res = await fetch('/api/sync-user-stripe', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ userId: u.id })
+                    });
+                    const data = await res.json();
+                    toast.success(`Synced: ${data.tier} (${data.status})`, { id: tid });
+                    setUsers(prev => prev.map(user => user.id === u.id ? { ...user, tier: data.tier, subscriptionStatus: data.status } : user));
+                  } catch (e) {
+                    toast.error('Sync failed', { id: tid });
+                  }
+                }}
+                title="Force Sync Stripe"
+                className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/20 hover:text-primary hover:border-primary/40 transition-all"
+              >
+                <RefreshCw className="w-3 h-3" />
+              </button>
+              <button 
+                onClick={async () => {
                 const newBeta = !u.betaAccess;
                 // If turning beta ON, they become premium.
                 // If turning beta OFF, they only stay premium if they have an active stripe subscription.
@@ -456,11 +498,12 @@ function UserListRows() {
                 u.betaAccess ? "right-1 bg-primary shadow-[0_0_8px_rgba(153,102,204,0.8)]" : "left-1 bg-white/20"
               )} />
             </button>
-            <div className="mt-1 text-[7px] text-white/20 uppercase tracking-tighter">
-              {u.stripeCustomerId ? `Stripe: ${u.subscriptionStatus || 'Incomplete'}` : 'No Payment Ref'}
-            </div>
-          </td>
-          <td className="py-4">
+          </div>
+          <div className="mt-1 text-[7px] text-white/20 uppercase tracking-tighter">
+            {u.stripeCustomerId ? `Stripe: ${u.subscriptionStatus || 'Incomplete'}` : 'No Payment Ref'}
+          </div>
+        </td>
+        <td className="py-4">
             <span className={cn(
               "text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest",
               u.tier === 'premium' || u.betaAccess ? "bg-primary/20 text-primary" : "bg-white/5 text-white/40"

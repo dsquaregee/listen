@@ -585,6 +585,95 @@ app.post('/api/create-portal-session', async (req, res) => {
   }
 });
 
+// Admin/System: Sync user subscription from Stripe manually
+app.post('/api/sync-user-stripe', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'User ID required' });
+
+    const db = getAdminDb();
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
+
+    const userData = userDoc.data();
+    const stripe = getStripe();
+    let stripeCustomerId = userData?.stripeCustomerId;
+    let subscription: Stripe.Subscription | null = null;
+
+    // Try to find customer by email if ID is missing
+    if (!stripeCustomerId && userData?.email) {
+      logToFile(`Sync: Searching Stripe for customer by email: ${userData.email}`);
+      const customers = await stripe.customers.list({ email: userData.email, limit: 1 });
+      if (customers.data.length > 0) {
+        stripeCustomerId = customers.data[0].id;
+        logToFile(`Sync: Found Stripe Customer ID: ${stripeCustomerId}`);
+      }
+    }
+
+    if (stripeCustomerId) {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: stripeCustomerId,
+        status: 'active',
+      });
+
+      if (subscriptions.data.length > 0) {
+        subscription = subscriptions.data[0];
+      } else {
+        // Check trialing or past_due as well
+        const otherSubs = await stripe.subscriptions.list({
+          customer: stripeCustomerId,
+          status: 'all',
+          limit: 1
+        });
+        if (otherSubs.data.length > 0) {
+          subscription = otherSubs.data[0];
+        }
+      }
+    } else {
+      // Last ditch effort: search by client_reference_id in sessions
+      logToFile(`Sync: Searching Stripe Sessions for client_reference_id: ${userId}`);
+      const sessions = await stripe.checkout.sessions.list({
+        limit: 20,
+      });
+      const userSession = sessions.data.find(s => s.client_reference_id === userId && s.payment_status === 'paid');
+      if (userSession && userSession.subscription) {
+        subscription = await stripe.subscriptions.retrieve(userSession.subscription as string);
+        stripeCustomerId = userSession.customer as string;
+      }
+    }
+
+    if (subscription) {
+      logToFile(`Sync Success: Updating user ${userId} to premium (Stripe Status: ${subscription.status})`);
+      
+      const status = subscription.status;
+      const tier = (status === 'active' || status === 'trialing') ? 'premium' : 'free';
+      
+      const adminLib = await import('firebase-admin');
+      const FieldValue = adminLib.firestore.FieldValue;
+
+      const updateData: any = {
+        tier: tier,
+        subscriptionStatus: status,
+        subscriptionId: subscription.id,
+        updatedAt: FieldValue.serverTimestamp()
+      };
+      
+      if (stripeCustomerId) {
+        updateData.stripeCustomerId = stripeCustomerId;
+      }
+
+      await db.collection('users').doc(userId).set(updateData, { merge: true });
+      return res.json({ success: true, tier, status });
+    }
+
+    res.json({ success: true, tier: userData?.tier || 'free', status: 'no_subscription_found' });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logToFile(`Sync Stripe Failure: ${errMsg}`);
+    res.status(500).json({ error: 'Sync failed', details: errMsg });
+  }
+});
+
 // Global error handlers for better crash reporting
 process.on('uncaughtException', (err) => {
   logToFile(`CRITICAL: Uncaught Exception: ${err.message}`);
