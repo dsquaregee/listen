@@ -113,20 +113,24 @@ export default function Navbar() {
     <>
     <nav className="h-16 flex items-center justify-between px-4 md:px-8 z-20 sticky top-0 bg-[#080808]/90 backdrop-blur-md border-b border-accent/10">
     <div className="flex items-center gap-2 md:gap-4 shrink-0">
-      <Link to="/" className="flex items-center gap-2 md:gap-4 shrink-0 group">
+      <Link to="/" className="flex items-center gap-2 md:gap-3 group">
         <div className="relative w-10 h-10 md:w-12 md:h-12 flex items-center justify-center">
           <motion.div 
             animate={{ rotate: 360 }}
             transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-0 border-2 border-primary/20 rounded-xl"
+            className="absolute inset-0 border border-primary/20 rounded-full"
           />
-          <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(153,102,204,0.4)] group-hover:rotate-12 transition-transform duration-500">
-            <Crown className="w-5 h-5 md:w-6 md:h-6 text-black fill-current" />
+          <div className="relative w-8 h-8 md:w-10 md:h-10 bg-[#0a0a0a] rounded-full flex items-center justify-center border border-primary/20 overflow-hidden shadow-2xl group-hover:scale-110 transition-transform duration-500">
+            <img 
+              src="/logo.jpg"
+              alt="DsquareGee Logo" 
+              className="w-full h-full object-cover"
+            />
           </div>
           <motion.div 
             animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="absolute inset-0 bg-primary/10 rounded-xl blur-md -z-10"
+            transition={{ duration: 3, repeat: Infinity }}
+            className="absolute inset-0 bg-primary/10 rounded-full blur-md -z-10"
           />
         </div>
         <div className="flex flex-col">

@@ -1146,10 +1146,13 @@ export default function AudioPlayer() {
     initializeSource();
   }, [currentAlbum?.id, isHydrated]);
 
-  // Premium event listener removed - handled globally by PremiumGateway
+  // Failsafe: Monitor subscription mismatch and stop playback
   useEffect(() => {
-    // No-op
-  }, []);
+    if (currentAlbum?.tier === 'premium' && userTier !== 'premium' && isPlaying) {
+      pause();
+      window.dispatchEvent(new CustomEvent('premium-required', { detail: currentAlbum }));
+    }
+  }, [currentAlbum?.id, userTier, isPlaying, pause]);
 
   const handleDownload = async () => {
     if (!currentAlbum || userTier !== 'premium') {
