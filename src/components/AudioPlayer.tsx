@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
 import { 
   Play, Pause, SkipBack, SkipForward, 
@@ -664,6 +664,7 @@ export default function AudioPlayer() {
   const sessionDurationRef = useRef<number>(0);
 
   const location = useLocation();
+  const navigate = useNavigate();
   const { 
     currentAlbum, isPlaying, progress, currentTime, duration, 
     volume, isMinimized, queue, togglePlay, play, pause, setProgress, setCurrentTime, 
@@ -2787,13 +2788,12 @@ export default function AudioPlayer() {
               <div className="space-y-3">
                 <button 
                   onClick={() => {
-                    // Simulation of Stripe checkout
                     setShowPremiumModal(false);
-                    usePlayerStore.getState().setUserTier('premium');
+                    navigate('/premium');
                   }}
                   className="w-full py-4 bg-primary text-black font-bold rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20 text-sm uppercase tracking-widest"
                 >
-                  Start Journey
+                  View Plans
                 </button>
                 <button 
                   onClick={() => setShowPremiumModal(false)}

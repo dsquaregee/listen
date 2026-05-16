@@ -1,16 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { useAuth } from '../context/AuthContext';
+import { db, auth } from '../lib/firebase';
+import { useAuthStore } from '../store/useAuthStore';
 import { Album } from '../types';
 import AlbumCard from '../components/AlbumCard';
 import { motion } from 'motion/react';
 import { Library as LibraryIcon, Music, Search, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Skeleton from '../components/ui/Skeleton';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { toast } from 'sonner';
 
 export default function Library() {
-  const { profile, login } = useAuth();
+  const { user: profile } = useAuthStore();
+  
+  const login = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Portal connection failed.');
+    }
+  };
   const [purchasedAlbums, setPurchasedAlbums] = useState<Album[]>([]);
   const [favoriteAlbums, setFavoriteAlbums] = useState<Album[]>([]);
   const [activeTab, setActiveTab] = useState<'collection' | 'favorites'>('collection');

@@ -61,15 +61,16 @@ export const usePlayerStore = create<PlayerState>()(
 
       setAlbum: (album) => {
         const current = get();
-        // If same album, just ensure playing
-        if (current.currentAlbum?.id === album.id) {
-          if (!current.isPlaying) set({ isPlaying: true });
+        
+        // Subscription check FIRST
+        if (album.tier === 'premium' && current.userTier !== 'premium') {
+          window.dispatchEvent(new CustomEvent('premium-required', { detail: album }));
           return;
         }
 
-        // Subscription check
-        if (album.tier === 'premium' && current.userTier !== 'premium') {
-          window.dispatchEvent(new CustomEvent('premium-required', { detail: album }));
+        // If same album, just ensure playing
+        if (current.currentAlbum?.id === album.id) {
+          if (!current.isPlaying) set({ isPlaying: true });
           return;
         }
 

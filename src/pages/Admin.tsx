@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../store/useAuthStore';
 import { db, storage } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, getDocs, doc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -10,7 +10,7 @@ import { Upload, Music, Image as ImageIcon, Check, Loader2, DollarSign, LayoutDa
 import { toast } from 'sonner';
 
 export default function Admin() {
-  const { profile } = useAuth();
+  const { user: profile } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'albums' | 'categories'>('albums');
   const [dbCategories, setDbCategories] = useState<Category[]>([]);

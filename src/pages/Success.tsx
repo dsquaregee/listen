@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { doc, setDoc, query, collection, where, getDocs, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../store/useAuthStore';
 import { CheckCircle2, Music, ArrowRight, Library } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 export default function Success() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { user: profile } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const albumId = searchParams.get('album_id');
 

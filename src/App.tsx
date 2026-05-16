@@ -186,6 +186,7 @@ export default function App() {
       } else {
         setUser(null);
         setPlaylists([]);
+        setUserTier('free');
         setLoading(false);
       }
     });

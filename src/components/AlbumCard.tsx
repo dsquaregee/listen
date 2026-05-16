@@ -4,9 +4,10 @@ import { Play, ShoppingBag, ListPlus, Share2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import React, { useState, memo, useCallback } from 'react';
 import { toast } from 'sonner';
-import { useAuth } from '../context/AuthContext';
-import { usePlayer } from '../context/PlayerContext';
+import { useAuthStore } from '../store/useAuthStore';
+import { usePlayerStore } from '../store/usePlayerStore';
 import ShareModal from './ShareModal';
+import { hapticFeedback } from '../lib/haptics';
 
 interface AlbumCardProps {
   album: Album;
@@ -14,53 +15,40 @@ interface AlbumCardProps {
 }
 
 const AlbumCard = memo(({ album, isOwned = false }: AlbumCardProps) => {
-  const { profile } = useAuth();
-  const { playTrack, addToQueue } = usePlayer();
+  const { user } = useAuthStore();
+  const { setAlbum, addToQueue } = usePlayerStore();
   const [showShareModal, setShowShareModal] = useState(false);
 
   const handleBuy = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault(); // Important: Stop the Link navigation
+    e.preventDefault(); 
     e.stopPropagation();
 
-    if (!profile) {
+    if (!user) {
       toast.error("Please sign in to purchase");
       return;
     }
 
     toast.info("Redirecting to secure checkout...");
     
-    // Simulate checkout initiation
     setTimeout(() => {
-      // In a real app, we'd hit the API then redirect to Stripe
-      // For this demo, we'll go to the success page
-      window.location.href = `/success?album_id=${album.id}`;
+      window.location.href = `/payment/success?session_id=cs_test_${album.id}`;
     }, 1500);
-  }, [profile, album.id]);
+  }, [user, album.id]);
 
   const handlePlayClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    playTrack({
-      id: album.id,
-      title: album.title,
-      url: isOwned ? album.fullUrl : album.previewUrl,
-      coverUrl: album.coverUrl,
-      isPreview: !isOwned
-    });
-  }, [album, isOwned, playTrack]);
+    hapticFeedback.medium();
+    setAlbum(album);
+  }, [album, setAlbum]);
 
   const handleQueueClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addToQueue({
-      id: album.id,
-      title: album.title,
-      url: isOwned ? album.fullUrl : album.previewUrl,
-      coverUrl: album.coverUrl,
-      isPreview: !isOwned
-    });
+    hapticFeedback.light();
+    addToQueue(album);
     toast.success("Added to sequence");
-  }, [album, isOwned, addToQueue]);
+  }, [album, addToQueue]);
 
   return (
     <div className="relative">
