@@ -10,8 +10,6 @@ import { collection, getDocs, query } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { OptimizedImage } from './OptimizedImage';
 
-const logoUrl = '/pwa-512x512.png';
-
 export default function Navbar() {
   const { user, isLoading: authLoading } = useAuthStore();
   const location = useLocation();
@@ -115,16 +113,21 @@ export default function Navbar() {
     <>
     <nav className="h-16 flex items-center justify-between px-4 md:px-8 z-20 sticky top-0 bg-[#080808]/90 backdrop-blur-md border-b border-accent/10">
     <div className="flex items-center gap-2 md:gap-4 shrink-0">
-      <Link to="/" className="flex items-center gap-2 md:gap-3">
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-[#6A4C93] rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
-          <div className="relative w-10 h-10 md:w-12 md:h-12 bg-[#0a0a0a] rounded-full flex items-center justify-center border border-primary/20 overflow-hidden shadow-2xl">
-            <img 
-              src={logoUrl}
-              alt="DsquareGee Logo" 
-              className="w-full h-full object-cover scale-110"
-            />
+      <Link to="/" className="flex items-center gap-2 md:gap-4 shrink-0 group">
+        <div className="relative w-10 h-10 md:w-12 md:h-12 flex items-center justify-center">
+          <motion.div 
+            animate={{ rotate: 360 }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-0 border-2 border-primary/20 rounded-xl"
+          />
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(153,102,204,0.4)] group-hover:rotate-12 transition-transform duration-500">
+            <Crown className="w-5 h-5 md:w-6 md:h-6 text-black fill-current" />
           </div>
+          <motion.div 
+            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="absolute inset-0 bg-primary/10 rounded-xl blur-md -z-10"
+          />
         </div>
         <div className="flex flex-col">
           <span className="text-lg md:text-xl font-serif font-bold italic tracking-tighter text-white leading-none">DsquareGee</span>

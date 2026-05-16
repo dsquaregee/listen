@@ -107,7 +107,7 @@ export const usePlayerStore = create<PlayerState>()(
       toggleShuffle: () => set((state) => ({ isShuffled: !state.isShuffled })),
       
       next: () => {
-        const { queue, currentAlbum, isShuffled } = get();
+        const { queue, isShuffled } = get();
 
         if (queue.length > 0) {
           let nextAlbum: Album;
@@ -147,9 +147,17 @@ export const usePlayerStore = create<PlayerState>()(
       setDuration: (duration) => set({ duration }),
       setMinimized: (isMinimized) => set({ isMinimized }),
       setVolume: (volume) => set({ volume }),
-      addToQueue: (album) => set((state) => ({ 
-        queue: state.queue.some(a => a.id === album.id) ? state.queue : [...state.queue, album] 
-      })),
+      addToQueue: (album) => {
+        // Subscription check for adding to queue
+        if (album.tier === 'premium' && get().userTier !== 'premium') {
+          window.dispatchEvent(new CustomEvent('premium-required', { detail: album }));
+          return;
+        }
+
+        set((state) => ({ 
+          queue: state.queue.some(a => a.id === album.id) ? state.queue : [...state.queue, album] 
+        }));
+      },
       removeFromQueue: (albumId) => set((state) => ({ 
         queue: state.queue.filter(a => a.id !== albumId) 
       })),
@@ -164,13 +172,13 @@ export const usePlayerStore = create<PlayerState>()(
       name: 'dsquaregee-player-storage',
       storage: createJSONStorage(() => localStorage),
       // Only persist the non-transient audio state
+      // CRITICAL: DO NOT PERSIST userTier to prevent bypass via localStorage
       partialize: (state) => ({
         currentAlbum: state.currentAlbum,
         queue: state.queue,
         currentTime: state.currentTime,
         volume: state.volume,
         isMinimized: state.isMinimized,
-        userTier: state.userTier,
         offlineAlbums: state.offlineAlbums,
         preferredQuality: state.preferredQuality,
         autoPlayNext: state.autoPlayNext,

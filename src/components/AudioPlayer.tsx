@@ -831,7 +831,6 @@ export default function AudioPlayer() {
       <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.04-.1z"/>
     </svg>
   );
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showActiveTooltip, setShowActiveTooltip] = useState(false);
   const activeTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1147,16 +1146,14 @@ export default function AudioPlayer() {
     initializeSource();
   }, [currentAlbum?.id, isHydrated]);
 
-  // Premium event listener
+  // Premium event listener removed - handled globally by PremiumGateway
   useEffect(() => {
-    const handlePremiumReq = () => setShowPremiumModal(true);
-    window.addEventListener('premium-required', handlePremiumReq);
-    return () => window.removeEventListener('premium-required', handlePremiumReq);
+    // No-op
   }, []);
 
   const handleDownload = async () => {
     if (!currentAlbum || userTier !== 'premium') {
-      setShowPremiumModal(true);
+      window.dispatchEvent(new CustomEvent('premium-required', { detail: currentAlbum }));
       return;
     }
     setIsDownloading(true);
@@ -2748,62 +2745,6 @@ export default function AudioPlayer() {
               </div>
             </motion.div>
           </>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showPremiumModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowPremiumModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
-            />
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 text-center space-y-6 shadow-2xl overflow-hidden"
-            >
-              {/* Decorative background */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10" />
-              
-              <div className="flex justify-center">
-                <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center relative">
-                  <div className="absolute inset-0 border border-primary/20 rounded-full animate-ping pointer-events-none" />
-                  <Heart className="w-10 h-10 text-primary fill-current" />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h3 className="text-2xl font-serif font-bold text-white italic">Premium Experience</h3>
-                <p className="text-xs text-white/40 uppercase tracking-widest leading-loose">
-                  This curated journey is reserved for our community of seekers. 
-                  Unlock offline listening and exclusive universes.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <button 
-                  onClick={() => {
-                    setShowPremiumModal(false);
-                    navigate('/premium');
-                  }}
-                  className="w-full py-4 bg-primary text-black font-bold rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20 text-sm uppercase tracking-widest"
-                >
-                  View Plans
-                </button>
-                <button 
-                  onClick={() => setShowPremiumModal(false)}
-                  className="w-full py-3 text-white/40 text-[10px] font-bold uppercase tracking-[0.2em] hover:text-white transition-colors"
-                >
-                  Continue as Guest
-                </button>
-              </div>
-            </motion.div>
-          </div>
         )}
       </AnimatePresence>
 
