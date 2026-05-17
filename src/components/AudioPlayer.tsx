@@ -717,6 +717,61 @@ export default function AudioPlayer() {
     }
   }, [isPlaying]);
 
+  // Media Session handlers for Bluetooth and Lock Screen controls
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      // 1. Register Action Handlers once
+      const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
+        ['play', () => usePlayerStore.getState().play()],
+        ['pause', () => usePlayerStore.getState().pause()],
+        ['previoustrack', () => usePlayerStore.getState().previous()],
+        ['nexttrack', () => usePlayerStore.getState().next()],
+        ['seekbackward', (details) => {
+          const { currentTime } = usePlayerStore.getState();
+          const skipTime = details.seekOffset || 10;
+          usePlayerStore.getState().setCurrentTime(Math.max(currentTime - skipTime, 0));
+        }],
+        ['seekforward', (details) => {
+          const { currentTime, duration } = usePlayerStore.getState();
+          const skipTime = details.seekOffset || 10;
+          usePlayerStore.getState().setCurrentTime(Math.min(currentTime + skipTime, duration));
+        }],
+        ['seekto', (details) => {
+          if (details.seekTime !== undefined) {
+            usePlayerStore.getState().setCurrentTime(details.seekTime);
+          }
+        }]
+      ];
+
+      for (const [action, handler] of handlers) {
+        try {
+          navigator.mediaSession.setActionHandler(action, handler);
+        } catch (error) {
+          console.warn(`The media session action "${action}" is not supported.`);
+        }
+      }
+    }
+  }, []);
+
+  // 2. Update Media Session State
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+      
+      if (duration > 0 && 'setPositionState' in navigator.mediaSession) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: duration,
+            playbackRate: 1.0,
+            position: Math.min(currentTime, duration),
+          });
+        } catch (e) {
+          console.warn('Error updating position state:', e);
+        }
+      }
+    }
+  }, [isPlaying, currentTime, duration]);
+
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [queueSearch, setQueueSearch] = useState('');
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
