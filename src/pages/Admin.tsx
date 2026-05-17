@@ -3,7 +3,6 @@ import { useAuthStore } from '../store/useAuthStore';
 import { db, storage } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, getDocs, doc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { GoogleGenAI } from "@google/genai";
 import { Category } from '../types';
 import { useDropzone } from 'react-dropzone';
 import { Upload, Music, Image as ImageIcon, Check, Loader2, DollarSign, LayoutDashboard, Database, Tags, Edit2, Trash2, Plus, X, Sparkles, Wand2 } from 'lucide-react';
@@ -208,30 +207,18 @@ export default function Admin() {
     const toastId = toast.loading("Gemini is imagining your sonic journey...");
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Create a cinematic, high-quality, photorealistic or artistic album cover art for a fusion music album titled "${formData.title}". 
         Description: ${formData.description}. 
         The style should be atmospheric, evocative, professional, and visually striking. Strictly NO text or labels on the image. Minimalist and immersive.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [{ text: prompt }]
-        },
-        config: {
-          imageConfig: {
-            aspectRatio: "1:1"
-          }
-        }
+      const response = await fetch('/api/ai/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, model: 'gemini-2.5-flash-image' }),
       });
 
-      let base64 = "";
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          base64 = part.inlineData.data;
-          break;
-        }
-      }
+      if (!response.ok) throw new Error('AI Art generation failed');
+      const { base64 } = await response.json();
 
       if (base64) {
         const imageUrl = `data:image/png;base64,${base64}`;

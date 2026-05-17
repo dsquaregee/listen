@@ -11,6 +11,7 @@ import Stripe from 'stripe';
 import { initializeApp, cert, getApp, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import admin from 'firebase-admin';
+import { GoogleGenAI } from "@google/genai";
 import firebaseConfig from './firebase-applet-config.json' assert { type: 'json' };
 
 const FieldValue = admin.firestore.FieldValue;
@@ -123,6 +124,25 @@ function getStorage() {
     });
   }
   return storage;
+}
+
+let aiClient: GoogleGenAI | null = null;
+function getGemini() {
+  if (!aiClient) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      logToFile('WARNING: GEMINI_API_KEY is not defined in environment');
+    }
+    aiClient = new GoogleGenAI({
+      apiKey: key || '',
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+  }
+  return aiClient;
 }
 
 const bucketName = process.env.GCS_BUCKET_NAME || '';
@@ -309,6 +329,67 @@ app.post('/api/get-upload-url', async (req, res) => {
       error: 'Failed to generate upload URL', 
       details: errMsg 
     });
+  }
+});
+
+// AI Magic Routes
+app.post('/api/ai/generate-text', async (req, res) => {
+  try {
+    const { prompt, model = 'gemini-3-flash-preview', systemInstruction } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    logToFile(`AI Text Generation: Model=${model}`);
+    const ai = getGemini();
+    
+    const response = await ai.models.generateContent({
+      model,
+      contents: [{ parts: [{ text: prompt }] }],
+      config: systemInstruction ? { systemInstruction } : undefined,
+    });
+
+    res.json({ text: response.text });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logToFile(`AI Text Error: ${errMsg}`);
+    res.status(500).json({ error: 'AI generation failed', details: errMsg });
+  }
+});
+
+app.post('/api/ai/generate-image', async (req, res) => {
+  try {
+    const { prompt, model = 'gemini-2.5-flash-image', aspectRatio = '1:1' } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    logToFile(`AI Image Generation: Model=${model}, Prompt=${prompt}`);
+    const ai = getGemini();
+
+    const response = await ai.models.generateContent({
+      model,
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
+        imageConfig: {
+          aspectRatio,
+        }
+      }
+    });
+
+    let base64 = "";
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        base64 = part.inlineData.data;
+        break;
+      }
+    }
+
+    if (base64) {
+      res.json({ base64 });
+    } else {
+      throw new Error("No image data received from model.");
+    }
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logToFile(`AI Image Error: ${errMsg}`);
+    res.status(500).json({ error: 'AI image generation failed', details: errMsg });
   }
 });
 

@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType } from '../lib/errorHandler';
-import { GoogleGenAI } from "@google/genai";
 import { usePlayerStore } from '../store/usePlayerStore';
 
 import { Toaster, toast } from 'sonner';
@@ -214,8 +213,6 @@ export default function AlbumManager() {
     if (!formData.description) return toast.error('Please paste a description first.');
     setIsGeneratingMagic(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
       const prompt = `Analyze the following music album description and extract/suggest properties in a clean JSON format.
       Description: "${formData.description}"
 
@@ -233,12 +230,16 @@ export default function AlbumManager() {
       
       Only return valid JSON, no markdown.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: [{ parts: [{ text: prompt }] }],
+      const response = await fetch('/api/ai/generate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
       });
 
-      const text = response.text;
+      if (!response.ok) throw new Error('AI Magic failed');
+      const dataResponse = await response.json();
+      const text = dataResponse.text;
+
       if (text) {
         try {
           const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -282,28 +283,26 @@ export default function AlbumManager() {
 
   const generateArtworkForTitle = async (title: string, artist?: string, moods?: string[]) => {
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Create a visually stunning album cover for a music piece titled "${title}". 
       Artist: ${artist || 'Unknown'}. Style: Cosmic, cinematic, futuristic, ethereal. Vibe: ${moods?.join(', ') || 'Ambient'}.
       High resolution, professional design. No text on image.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: [{ parts: [{ text: prompt }] }],
+      const response = await fetch('/api/ai/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, model: 'gemini-2.5-flash-image' }),
       });
+
+      if (!response.ok) throw new Error('Artwork Magic failed');
+      const { base64 } = await response.json();
       
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
-            const base64Data = `data:image/png;base64,${part.inlineData!.data}`;
-            setFormData(prev => ({ ...prev, coverUrl: base64Data }));
-            
-            // Proactively upload to GCS to avoid keeping massive string in state/form if possible
-            const finalUrl = await uploadBase64IfNecessary({ ...formData, coverUrl: base64Data, title });
-            setFormData(prev => ({ ...prev, coverUrl: finalUrl }));
-            return;
-          }
-        }
+      if (base64) {
+        const base64Data = `data:image/png;base64,${base64}`;
+        setFormData(prev => ({ ...prev, coverUrl: base64Data }));
+        
+        // Proactively upload to GCS to avoid keeping massive string in state/form if possible
+        const finalUrl = await uploadBase64IfNecessary({ ...formData, coverUrl: base64Data, title });
+        setFormData(prev => ({ ...prev, coverUrl: finalUrl }));
       }
     } catch (error) {
       console.error('Magic Artwork Error:', error);
@@ -321,17 +320,18 @@ export default function AlbumManager() {
     if (!formData.title) return toast.error('Please enter a title first.');
     setIsGeneratingPreview(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
       const prompt = `Design a 15-second cinematic ambient video preview storyboard for the album "${formData.title}" by ${formData.artist || 'the artist'}. 
       Concept: ${formData.description || 'A celestial journey through sound.'}
       Mood: ${formData.moodTags.join(', ') || 'Atmospheric'}.
       Explain the visual sequence in a way that feels like a director's vision.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: [{ parts: [{ text: prompt }] }],
+      const response = await fetch('/api/ai/generate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
       });
+
+      if (!response.ok) throw new Error('Preview generation failed');
 
       // Using a high-quality ambient stock video as a placeholder for the "AI generated" result
       // as raw video output isn't supported in this SDK version yet.
