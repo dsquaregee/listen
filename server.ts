@@ -247,8 +247,9 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.client_reference_id || session.metadata?.internal_user_id;
       const customerId = session.customer as string;
+      const requestedTier = session.metadata?.requested_tier || 'premium';
 
-      logToFile(`Stripe Webhook: Checkout Completed - session=${session.id}, user=${userId}, customer=${customerId}`);
+      logToFile(`Stripe Webhook: Checkout Completed - session=${session.id}, user=${userId}, customer=${customerId}, tier=${requestedTier}`);
 
       if (userId) {
         // Expand subscription to get status
@@ -256,37 +257,41 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
         const subscription = sessionWithSub.subscription as Stripe.Subscription;
         const status = subscription?.status || 'active';
         
-        logToFile(`Stripe Webhook: Activating Premium for ${userId} (Status: ${status})`);
+        logToFile(`Stripe Webhook: Activating ${requestedTier} for ${userId} (Status: ${status})`);
         
         try {
+          const role = requestedTier.startsWith('business') ? requestedTier : 'consumer';
           await db.collection('users').doc(userId).set({
-            tier: 'premium',
+            tier: requestedTier,
+            role: role,
             stripeCustomerId: customerId,
             subscriptionId: subscription?.id || (typeof session.subscription === 'string' ? session.subscription : null),
             subscriptionStatus: status,
             updatedAt: FieldValue.serverTimestamp()
           }, { merge: true });
+
+          // If it's a business tier, ensure a business document exists
+          if (role.startsWith('business')) {
+            const businessId = `biz_${userId}`;
+            await db.collection('businesses').doc(businessId).set({
+              id: businessId,
+              ownerId: userId,
+              name: 'My Venue',
+              plan: requestedTier,
+              active: true,
+              seatCount: requestedTier === 'business_pro' ? 5 : 1,
+              allowedZones: ['Main Zone'],
+              createdAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            await db.collection('users').doc(userId).update({ businessId });
+          }
+
           logToFile(`Stripe Webhook: Activation SUCCESS (Admin SDK) for ${userId}`);
         } catch (writeErr) {
           const errMsg = writeErr instanceof Error ? writeErr.message : String(writeErr);
-          if (errMsg.includes('PERMISSION_DENIED')) {
-            try {
-              logToFile(`Stripe Webhook: Admin Denied, trying Client SDK for ${userId}`);
-              // Fallback: Direct write since rules allow it
-              await addDoc(clientCollection(clientDb, 'users'), {
-                uid: userId, 
-                tier: 'premium', 
-                stripeCustomerId: customerId, 
-                subscriptionStatus: status, 
-                updatedAt: clientTimestamp()
-              });
-              logToFile(`Stripe Webhook: Activation SUCCESS (Client Fallback) for ${userId}`);
-            } catch (ce) {
-               logToFile(`CRITICAL: Stripe Webhook failed EVERYTHING for ${userId}: ${ce instanceof Error ? ce.message : String(ce)}`);
-            }
-          } else {
-            logToFile(`Stripe Webhook: Activation FAILED for ${userId}: ${errMsg}`);
-          }
+          logToFile(`Stripe Webhook: Activation FAILED for ${userId}: ${errMsg}`);
         }
       } else {
         logToFile('Stripe Webhook: CRITICAL - Session completed without internal_user_id or client_reference_id');
@@ -829,11 +834,13 @@ app.post('/api/create-checkout-session', async (req, res) => {
       allow_promotion_codes: true,
       subscription_data: {
         metadata: {
-          internal_user_id: userId
+          internal_user_id: userId,
+          requested_tier: req.body.tier || 'premium'
         }
       },
       metadata: {
-        internal_user_id: userId
+        internal_user_id: userId,
+        requested_tier: req.body.tier || 'premium'
       },
       success_url: `${baseUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/premium?payment=cancelled`,
@@ -1119,6 +1126,52 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason, promise) => {
   logToFile(`CRITICAL: Unhandled Rejection at: ${promise}, reason: ${reason}`);
   process.exit(1);
+});
+
+// Business Bootstrapping & Analytics
+app.post('/api/business/bootstrap-scenes', async (req, res) => {
+  try {
+    const db = getAdminDb();
+    const scenes = [
+      { id: 'temple-morning', name: 'Temple Morning', description: 'Graceful sunrise ambience.', visualIdentity: 'from-orange-500 to-amber-900', tags: ['Calm', 'Traditional'] },
+      { id: 'midnight-lounge', name: 'Midnight Lounge', description: 'Deep jazz and fusion for late nights.', visualIdentity: 'from-indigo-950 to-purple-900', tags: ['Elegant', 'Deep'] },
+      { id: 'deep-focus', name: 'Deep Focus', description: 'Minimal textures for productivity.', visualIdentity: 'from-slate-900 to-emerald-950', tags: ['Focus', 'Clean'] },
+      { id: 'fusion-dinner', name: 'Fusion Dinner', description: 'Upbeat rhythmic dining atmosphere.', visualIdentity: 'from-rose-900 to-amber-950', tags: ['Social', 'Vibrant'] },
+      { id: 'sacred-calm', name: 'Sacred Calm', description: 'Meditative raga-driven stillness.', visualIdentity: 'from-blue-900 to-slate-900', tags: ['Meditation', 'Peace'] }
+    ];
+
+    const batch = db.batch();
+    for (const scene of scenes) {
+      const ref = db.collection('ambience_scenes').doc(scene.id);
+      batch.set(ref, { 
+        ...scene, 
+        isPrebuilt: true, 
+        albumIds: [], // To be populated later
+        createdAt: FieldValue.serverTimestamp() 
+      }, { merge: true });
+    }
+    await batch.commit();
+    res.json({ success: true, message: 'Ambient scenes manifested.' });
+  } catch (error) {
+    res.status(500).json({ error: String(error) });
+  }
+});
+
+app.get('/api/business/analytics/:businessId', async (req, res) => {
+  try {
+    const { businessId } = req.params;
+    const db = getAdminDb();
+    // Simplified analytics - in real app would query business_analytics collection
+    const stats = {
+      hoursStreamed: Math.floor(Math.random() * 500) + 100,
+      peakTime: '6 PM - 9 PM',
+      activeDevices: 3,
+      topScene: 'Midnight Lounge'
+    };
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: String(error) });
+  }
 });
 
 async function startServer() {

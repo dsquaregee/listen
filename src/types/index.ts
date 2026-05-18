@@ -7,7 +7,8 @@ export interface Category {
   order: number;
 }
 
-export type SubscriptionTier = 'free' | 'premium';
+export type UserRole = 'consumer' | 'business_basic' | 'business_pro' | 'admin';
+export type SubscriptionTier = 'free' | 'premium' | 'business_basic' | 'business_pro';
 
 export interface Album {
   id: string;
@@ -38,6 +39,8 @@ export interface UserProfile {
   displayName: string;
   photoURL: string;
   tier: SubscriptionTier;
+  role: UserRole;
+  businessId?: string;
   isAdmin?: boolean;
   subscriptionAmount?: number;
   subscriptionCurrency?: string;
@@ -65,4 +68,54 @@ export interface Playlist {
   albumIds: string[];
   createdAt: any;
   updatedAt: any;
+}
+
+export interface BusinessProfile {
+  id: string;
+  name: string;
+  ownerId: string;
+  plan: 'business_basic' | 'business_pro';
+  active: boolean;
+  seatCount: number;
+  allowedZones: string[];
+  stripeCustomerId?: string;
+  subscriptionId?: string;
+  address?: string;
+  contactEmail?: string;
+  logoUrl?: string;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface AmbienceScene {
+  id: string;
+  name: string;
+  description: string;
+  albumIds: string[];
+  visualIdentity: string;
+  tags: string[];
+  isPrebuilt?: boolean;
+  businessId?: string;
+  createdAt: any;
+}
+
+export interface ScheduleEntry {
+  id: string;
+  businessId: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  sceneId: string;
+  zoneId: string;
+  active: boolean;
+}
+
+export interface BusinessDevice {
+  id: string;
+  businessId: string;
+  name: string;
+  lastActive: any;
+  status: 'online' | 'offline';
+  currentSceneId?: string;
+  volume: number;
 }

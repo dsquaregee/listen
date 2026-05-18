@@ -8,7 +8,9 @@
         "uid": { "type": "string" },
         "email": { "type": "string" },
         "displayName": { "type": "string" },
-        "tier": { "type": "string", "enum": ["free", "premium"] },
+        "tier": { "type": "string", "enum": ["free", "premium", "business_basic", "business_pro"] },
+        "role": { "type": "string", "enum": ["consumer", "business_basic", "business_pro", "admin"] },
+        "businessId": { "type": "string" },
         "stripeCustomerId": { "type": "string" },
         "subscriptionId": { "type": "string" },
         "subscriptionStatus": { "type": "string" },
@@ -16,6 +18,61 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email"]
+    },
+    "Business": {
+      "title": "Business",
+      "description": "Business venue details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "plan": { "type": "string", "enum": ["business_basic", "business_pro"] },
+        "active": { "type": "boolean" },
+        "seatCount": { "type": "number" },
+        "allowedZones": { "type": "array", "items": { "type": "string" } },
+        "stripeCustomerId": { "type": "string" },
+        "subscriptionId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AmbienceScene": {
+      "title": "Ambience Scene",
+      "description": "Prebuilt or custom audio scene",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "albumIds": { "type": "array", "items": { "type": "string" } },
+        "visualIdentity": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "isPrebuilt": { "type": "boolean" },
+        "businessId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "BusinessSchedule": {
+      "title": "Business Schedule",
+      "description": "Weekly schedule for a business",
+      "type": "object",
+      "properties": {
+        "businessId": { "type": "string" },
+        "entries": { 
+          "type": "array", 
+          "items": {
+            "type": "object",
+            "properties": {
+              "dayOfWeek": { "type": "number" },
+              "startTime": { "type": "string" },
+              "endTime": { "type": "string" },
+              "sceneId": { "type": "string" },
+              "zoneId": { "type": "string" }
+            }
+          }
+        }
+      }
     },
     "GuestMetric": {
       "title": "Guest Metric",
@@ -35,6 +92,26 @@
     "users/{userId}": {
       "schema": "User",
       "description": "User profile and subscription status"
+    },
+    "businesses/{businessId}": {
+      "schema": "Business",
+      "description": "Business venue details"
+    },
+    "business_schedules/{businessId}": {
+      "schema": "BusinessSchedule",
+      "description": "Business weekly schedules"
+    },
+    "ambience_scenes/{sceneId}": {
+      "schema": "AmbienceScene",
+      "description": "Shared and custom ambience scenes"
+    },
+    "business_devices/{deviceId}": {
+      "schema": "object",
+      "description": "Active playback devices per business"
+    },
+    "business_analytics/{businessId}": {
+      "schema": "object",
+      "description": "Business usage metrics"
     },
     "guest_metrics/{metricId}": {
       "schema": "GuestMetric",
