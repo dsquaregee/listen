@@ -17,20 +17,28 @@ import { usePlayerStore } from '../../store/usePlayerStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { cn } from '../../lib/utils';
 import { toast } from 'sonner';
-
-const AMBIENCE_SCENES = [
-  { id: 'temple-morning', name: 'Temple Morning', status: 'Optimal', color: 'from-orange-500/20 to-amber-900/20', borderColor: 'border-orange-500/30' },
-  { id: 'midnight-lounge', name: 'Midnight Lounge', status: 'Scheduled next', color: 'from-indigo-500/20 to-purple-900/20', borderColor: 'border-indigo-500/30' },
-  { id: 'fusion-dinner', name: 'Fusion Dinner', status: 'Ready', color: 'from-rose-500/20 to-amber-950/20', borderColor: 'border-rose-500/30' },
-  { id: 'sacred-calm', name: 'Sacred Calm', status: 'Ready', color: 'from-blue-500/20 to-slate-900/20', borderColor: 'border-blue-500/30' },
-];
+import { db } from '../../lib/firebase';
+import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
+import { AmbienceScene } from '../../types';
 
 export default function BusinessDashboard() {
   const { user } = useAuthStore();
   const { currentAlbum, isPlaying, togglePlay, volume, setVolume } = usePlayerStore();
   const [isVenueMode, setIsVenueMode] = useState(false);
   const [activeZone, setActiveZone] = useState('Main Zone');
+  const [liveScenes, setLiveScenes] = useState<AmbienceScene[]>([]);
   const [systemHealth, setSystemHealth] = useState('Premium');
+
+  // Listen to global scenes
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'ambience_scenes'), limit(4));
+    const unsub = onSnapshot(q, (snap) => {
+      const scenes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as AmbienceScene));
+      setLiveScenes(scenes);
+    });
+    return () => unsub();
+  }, [user]);
 
   // Venue Mode Kiosk logic
   const toggleVenueMode = () => {
@@ -118,7 +126,7 @@ export default function BusinessDashboard() {
             </div>
 
             <div className="space-y-8">
-              {/* Playback Progress (Fake for visual Os) */}
+              {/* Playback Progress */}
               <div className="space-y-2">
                 <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                   <motion.div 
@@ -172,21 +180,24 @@ export default function BusinessDashboard() {
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {AMBIENCE_SCENES.map((scene) => (
+              {(liveScenes.length > 0 ? liveScenes : []).map((scene) => (
                 <button
                   key={scene.id}
                   className={cn(
                     "p-6 rounded-[32px] border transition-all duration-500 group text-left relative overflow-hidden",
-                    scene.id === 'midnight-lounge' ? "bg-white/5 border-white/20 ring-2 ring-indigo-500/20" : "bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.04]"
+                    isPlaying && currentAlbum?.id === scene.id ? "bg-white/10 border-white/20 ring-2 ring-indigo-500/20" : "bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.04]"
                   )}
                 >
-                  <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br", scene.color)} />
+                  <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br", scene.visualIdentity || "from-indigo-500/20 to-purple-900/20")} />
                   <div className="relative z-10 flex justify-between items-center">
                     <div>
                       <h5 className="font-semibold text-lg">{scene.name}</h5>
-                      <p className="text-xs text-slate-500 mt-1">{scene.status}</p>
+                      <p className="text-xs text-slate-500 mt-1">{scene.isPrebuilt ? 'System Core' : 'Custom identity'}</p>
                     </div>
-                    <Radio className="text-slate-600 group-hover:text-indigo-500 transition-colors" size={20} />
+                    <Radio className={cn(
+                      "transition-colors",
+                      currentAlbum?.id === scene.id ? "text-indigo-400" : "text-slate-600 group-hover:text-indigo-500"
+                    )} size={20} />
                   </div>
                 </button>
               ))}

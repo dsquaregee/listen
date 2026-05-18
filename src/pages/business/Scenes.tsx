@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Plus, 
   Search, 
@@ -14,19 +14,25 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { usePlayerStore } from '../../store/usePlayerStore';
-
-const PREBUILT_SCENES = [
-  { id: 'temple-morning', name: 'Temple Morning', description: 'Traditional grace for early starts.', visual: 'from-orange-500 to-amber-900', duration: '4h 20m', tags: ['Calm', 'Traditional'] },
-  { id: 'midnight-lounge', name: 'Midnight Lounge', description: 'Deep jazz and raga fusion.', visual: 'from-indigo-600 to-purple-900', duration: '6h 15m', tags: ['Elegant', 'Deep'] },
-  { id: 'deep-focus', name: 'Deep Focus', description: 'Minimalist ambient textures.', visual: 'from-slate-800 to-emerald-900', duration: '8h 00m', tags: ['Focus', 'Clean'] },
-  { id: 'fusion-dinner', name: 'Fusion Dinner', description: 'Upbeat gastronomic rhythm.', visual: 'from-rose-600 to-orange-950', duration: '5h 45m', tags: ['Social', 'Vibrant'] },
-  { id: 'sacred-calm', name: 'Sacred Calm', description: 'Meditative stillness.', visual: 'from-blue-700 to-slate-950', duration: '3h 30m', tags: ['Peace', 'Sacred'] },
-  { id: 'pulse-energy', name: 'Pulse Energy', description: 'High-intensity rhythmic drive.', visual: 'from-fuchsia-600 to-pink-900', duration: '4h 50m', tags: ['Energy', 'Fitness'] },
-];
+import { db } from '../../lib/firebase';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { AmbienceScene } from '../../types';
 
 export default function BusinessScenes() {
   const { setAlbum } = usePlayerStore();
   const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [scenes, setScenes] = useState<AmbienceScene[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, 'ambience_scenes'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      const liveScenes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as AmbienceScene));
+      setScenes(liveScenes);
+      setIsLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
   return (
     <div className="space-y-10">
@@ -62,87 +68,93 @@ export default function BusinessScenes() {
         </div>
       </div>
 
-      <div className={cn(
-        "grid gap-6",
-        view === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
-      )}>
-        {PREBUILT_SCENES.map((scene, i) => (
-          <motion.div
-            key={scene.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className={cn(
-              "group relative rounded-[40px] overflow-hidden border border-white/5 hover:border-white/10 transition-all duration-500 bg-white/[0.01]",
-              view === 'list' ? "p-4 flex items-center gap-6" : "p-8 aspect-[4/5] flex flex-col justify-end"
-            )}
-          >
-            {/* Background Image/Gradient */}
-            <div className={cn(
-              "absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity bg-gradient-to-br -z-10",
-              scene.visual
-            )} />
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#050505] to-transparent -z-10" />
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[1,2,3].map(i => <div key={i} className="aspect-[4/5] rounded-[40px] bg-white/[0.02] animate-pulse" />)}
+        </div>
+      ) : (
+        <div className={cn(
+          "grid gap-6",
+          view === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+        )}>
+          {scenes.map((scene, i) => (
+            <motion.div
+              key={scene.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className={cn(
+                "group relative rounded-[40px] overflow-hidden border border-white/5 hover:border-white/10 transition-all duration-500 bg-white/[0.01]",
+                view === 'list' ? "p-4 flex items-center gap-6" : "p-8 aspect-[4/5] flex flex-col justify-end"
+              )}
+            >
+              {/* Background Image/Gradient */}
+              <div className={cn(
+                "absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity bg-gradient-to-br -z-10",
+                scene.visualIdentity || "from-slate-800 to-indigo-900"
+              )} />
+              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#050505] to-transparent -z-10" />
 
-            {/* List View Item */}
-            {view === 'list' ? (
-              <>
-                <div className={cn("w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg", scene.visual)}>
-                  <Music2 className="text-white" size={24} />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold">{scene.name}</h3>
-                  <p className="text-xs text-slate-500 line-clamp-1">{scene.description}</p>
-                </div>
-                <div className="flex items-center gap-4 text-xs font-mono text-slate-500">
-                  <span>{scene.duration}</span>
-                  <div className="flex gap-2">
-                    {scene.tags.map(t => <span key={t} className="px-2 py-1 rounded bg-white/5">{t}</span>)}
+              {/* List View Item */}
+              {view === 'list' ? (
+                <>
+                  <div className={cn("w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg", scene.visualIdentity || "from-indigo-500 to-purple-800")}>
+                    <Music2 className="text-white" size={24} />
                   </div>
-                </div>
-                <div className="flex items-center gap-4 px-4">
-                  <button onClick={() => setAlbum(scene as any)} className="p-3 rounded-full bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transform hover:scale-110 active:scale-90 transition-all">
-                    <Play size={20} fill="currentColor" />
-                  </button>
-                  <button className="text-slate-500 hover:text-white transition-colors"><MoreHorizontal size={20} /></button>
-                </div>
-              </>
-            ) : (
-              /* Grid View Item */
-              <>
-                <div className="absolute top-0 right-0 p-8 flex flex-col gap-2">
-                   <button className="p-3 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-white/40 hover:text-rose-500 transition-colors">
-                     <Heart size={18} />
-                   </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex gap-2">
-                    {scene.tags.map(t => (
-                      <span key={t} className="px-2.5 py-1 rounded-full bg-white/5 border border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        {t}
-                      </span>
-                    ))}
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold">{scene.name}</h3>
+                    <p className="text-xs text-slate-500 line-clamp-1">{scene.description}</p>
                   </div>
-                  <div>
-                    <h3 className="text-3xl font-bold tracking-tight text-white mb-2">{scene.name}</h3>
-                    <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">{scene.description}</p>
+                  <div className="flex items-center gap-4 text-xs font-mono text-slate-500">
+                    <span>Continuous</span>
+                    <div className="flex gap-2">
+                       {scene.tags?.map(t => <span key={t} className="px-2 py-1 rounded bg-white/5">{t}</span>)}
+                    </div>
                   </div>
-                  <div className="pt-4 flex items-center justify-between border-t border-white/5">
-                    <span className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">{scene.duration}</span>
-                    <button 
-                      onClick={() => setAlbum(scene as any)}
-                      className="px-6 py-3 rounded-xl bg-white text-black font-bold uppercase tracking-widest text-[10px] transform hover:-translate-y-1 transition-all"
-                    >
-                      Audit Presence
+                  <div className="flex items-center gap-4 px-4">
+                    <button onClick={() => setAlbum(scene as any)} className="p-3 rounded-full bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transform hover:scale-110 active:scale-90 transition-all">
+                      <Play size={20} fill="currentColor" />
                     </button>
+                    <button className="text-slate-500 hover:text-white transition-colors"><MoreHorizontal size={20} /></button>
                   </div>
-                </div>
-              </>
-            )}
-          </motion.div>
-        ))}
-      </div>
+                </>
+              ) : (
+                /* Grid View Item */
+                <>
+                  <div className="absolute top-0 right-0 p-8 flex flex-col gap-2">
+                     <button className="p-3 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-white/40 hover:text-rose-500 transition-colors">
+                       <Heart size={18} />
+                     </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      {scene.tags?.map(t => (
+                        <span key={t} className="px-2.5 py-1 rounded-full bg-white/5 border border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    <div>
+                      <h3 className="text-3xl font-bold tracking-tight text-white mb-2">{scene.name}</h3>
+                      <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">{scene.description}</p>
+                    </div>
+                    <div className="pt-4 flex items-center justify-between border-t border-white/5">
+                      <span className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">Master Presence</span>
+                      <button 
+                        onClick={() => setAlbum(scene as any)}
+                        className="px-6 py-3 rounded-xl bg-white text-black font-bold uppercase tracking-widest text-[10px] transform hover:-translate-y-1 transition-all"
+                      >
+                        Audit Presence
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
