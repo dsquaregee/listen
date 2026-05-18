@@ -34,8 +34,22 @@ import PaymentSuccess from './pages/PaymentSuccess';
 
 import { Toaster, toast } from 'sonner';
 import { MOCK_CATEGORIES, MOCK_ALBUMS } from './data/mockData';
+import { telemetry } from './services/telemetryService';
 
 const queryClient = new QueryClient();
+
+function TelemetryTracker() {
+  const location = useLocation();
+  const { user, isLoading } = useAuthStore();
+
+  useEffect(() => {
+    if (!isLoading) {
+      telemetry.trackPageView(location.pathname, !!user);
+    }
+  }, [location.pathname, user, isLoading]);
+
+  return null;
+}
 
 function LegacyPaymentHandler() {
   const { user } = useAuthStore();
@@ -201,6 +215,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
+        <TelemetryTracker />
         <CopyrightProtection>
           <Toaster position="top-center" theme="dark" closeButton richColors />
           <LegacyPaymentHandler />

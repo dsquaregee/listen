@@ -1,118 +1,44 @@
 {
   "entities": {
-    "Category": {
-      "title": "Category",
-      "description": "Music categories",
+    "User": {
+      "title": "User",
+      "description": "User profile and subscription data",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "slug": { "type": "string" },
-        "description": { "type": "string" },
-        "visualIdentity": { "type": "string" },
-        "order": { "type": "integer" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["name", "slug"]
-    },
-    "Album": {
-      "title": "Album",
-      "description": "Music albums",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "artist": { "type": "string" },
-        "duration": { "type": "integer" },
-        "coverUrl": { "type": "string" },
-        "hlsUrl": { "type": "string" },
-        "videoHlsUrl": { "type": "string" },
-        "categoryId": { "type": "string" },
-        "description": { "type": "string" },
-        "featured": { "type": "boolean" },
-        "tier": { "type": "string" },
-        "playCount": { "type": "integer" },
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "tier": { "type": "string", "enum": ["free", "premium"] },
+        "stripeCustomerId": { "type": "string" },
+        "subscriptionId": { "type": "string" },
+        "subscriptionStatus": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["title", "artist", "categoryId"]
+      "required": ["uid", "email"]
     },
-    "Session": {
-      "title": "Listening Session",
-      "description": "Analytics tracking for user listening behavior",
+    "GuestMetric": {
+      "title": "Guest Metric",
+      "description": "Telemetry and analytics for guests",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
-        "userEmail": { "type": "string" },
-        "albumId": { "type": "string" },
-        "albumTitle": { "type": "string" },
-        "duration": { "type": "integer" },
-        "startTime": { "type": "string", "format": "date-time" },
-        "expireAt": { "type": "string", "format": "date-time", "description": "TTL endpoint (current + 90 days)" },
-        "location": {
-          "type": "object",
-          "properties": {
-            "lat": { "type": "number" },
-            "lng": { "type": "number" },
-            "city": { "type": "string" }
-          }
-        }
-      },
-      "required": ["userId", "albumId", "startTime"]
+        "type": { "type": "string" },
+        "guestId": { "type": "string" },
+        "path": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "processedAt": { "type": "string", "format": "date-time" },
+        "expireAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
-    "categories": {
-      "schema": "Category",
-      "description": "Collection of music categories"
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profile and subscription status"
     },
-    "albums": {
-      "schema": "Album",
-      "description": "Collection of music albums"
-    },
-    "listening_sessions": {
-      "schema": "Session",
-      "description": "Historical record of all playback sessions"
-    },
-    "playlists": {
-      "schema": {
-        "type": "object",
-        "properties": {
-          "name": { "type": "string" },
-          "userId": { "type": "string" },
-          "albumIds": { "type": "array", "items": { "type": "string" } },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "updatedAt": { "type": "string", "format": "date-time" }
-        },
-        "required": ["name", "userId", "albumIds"]
-      },
-      "description": "User created playlists"
-    },
-    "users": {
-      "schema": {
-        "type": "object",
-        "properties": {
-          "uid": { "type": "string" },
-          "email": { "type": "string" },
-          "displayName": { "type": "string" },
-          "photoURL": { "type": "string" },
-          "tier": { "type": "string" },
-          "isAdmin": { "type": "boolean" },
-          "createdAt": { "type": "string", "format": "date-time" }
-        },
-        "required": ["uid", "email"]
-      },
-      "description": "User profiles"
-    },
-    "admins": {
-      "schema": {
-        "type": "object",
-        "properties": {
-          "email": { "type": "string" },
-          "role": { "type": "string" },
-          "bootstrapped": { "type": "boolean" },
-          "updatedAt": { "type": "string", "format": "date-time" }
-        }
-      },
-      "description": "List of authorized administrators"
+    "guest_metrics/{metricId}": {
+      "schema": "GuestMetric",
+      "description": "Telemetry and guest analytics"
     }
   }
 }

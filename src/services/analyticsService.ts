@@ -1,6 +1,7 @@
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { Album } from '../types';
+import { telemetry } from './telemetryService';
 
 export interface ListeningSession {
   userId: string;
@@ -41,7 +42,16 @@ class AnalyticsService {
 
   async recordSession(album: Album, duration: number) {
     const user = auth.currentUser;
-    if (!user || duration < 5) return; // Don't record very short sessions or anonymous ones for now
+    const isGuest = !user;
+
+    // Track via lightweight telemetry regardless of auth status
+    telemetry.trackEvent('listening_resonance', {
+      albumId: album.id,
+      albumTitle: album.title,
+      duration: Math.floor(duration),
+    }, !isGuest);
+
+    if (isGuest || duration < 5) return; // Don't record persistence for anonymous or very short sessions
 
     try {
       const location = await this.getGeoLocation();

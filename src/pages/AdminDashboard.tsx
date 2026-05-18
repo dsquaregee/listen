@@ -24,6 +24,14 @@ export default function AdminDashboard() {
     topAlbum: 'None',
     premiumUsers: 0
   });
+  const [guestStats, setGuestStats] = useState<{
+    last24h: {
+      uniqueGuests: number;
+      totalEvents: number;
+      authRatio: { authenticated: number; guest: number };
+      recentViews: { path: string; timestamp: string }[];
+    }
+  } | null>(null);
 
   useEffect(() => {
     if (user?.isAdmin) {
@@ -53,6 +61,13 @@ export default function AdminDashboard() {
             topAlbum: bestAlbum.title,
             premiumUsers: premium
           });
+
+          // Fetch Guest Stats
+          const guestRes = await fetch('/api/admin/guest-stats');
+          if (guestRes.ok) {
+            const data = await guestRes.json();
+            setGuestStats(data);
+          }
         } catch (e) {
           console.error('Failed to fetch admin metrics:', e);
         }
@@ -65,7 +80,13 @@ export default function AdminDashboard() {
   if (!user?.isAdmin) return <Navigate to="/" replace />;
 
   const stats = [
-    { label: 'Active Seekers', value: metrics.totalUsers.toString(), icon: Users, diff: `+${metrics.premiumUsers} Premium`, color: 'text-primary' },
+    { 
+      label: 'Active Seekers', 
+      value: (metrics.totalUsers + (guestStats?.last24h.uniqueGuests || 0)).toString(), 
+      icon: Users, 
+      diff: `${guestStats?.last24h.uniqueGuests || 0} Guests`, 
+      color: 'text-primary' 
+    },
     { label: 'Streaming Time', value: `${metrics.totalHours} hrs`, icon: Clock, diff: 'Global Accumulation', color: 'text-green-400' },
     { label: 'Top Experience', value: metrics.topAlbum, icon: Music, diff: 'Most Resonated', color: 'text-primary' },
     { label: 'Retention Rate', value: '84%', icon: TrendingUp, diff: '+2.4%', color: 'text-purple-400' },
@@ -220,6 +241,7 @@ export default function AdminDashboard() {
                 { id: 'categories', label: 'Categories', icon: Layers, count: 'Manage Collections' },
                 { id: 'albums', label: 'Universe Albums', icon: Music, count: 'Manage Experiences' },
                 { id: 'analytics', label: 'Resonance Analytics', icon: BarChart3, count: 'Listening Sessions' },
+                { id: 'guests', label: 'Ghost Traffic', icon: Activity, count: 'Guest Exploration' },
                 { id: 'legal', label: 'Legal & IP Hub', icon: ShieldCheck, count: 'Copyright & Protection' },
               ].map(item => (
                 <button 
@@ -243,11 +265,64 @@ export default function AdminDashboard() {
               {activeContent === 'categories' && <CategoryManager />}
               {activeContent === 'albums' && <AlbumManager />}
               {activeContent === 'analytics' && <SessionViewer />}
+              {activeContent === 'guests' && <GuestMetricsViewer stats={guestStats} />}
               {activeContent === 'legal' && <LegalIPHub />}
             </div>
           </main>
         </div>
       )}
+    </div>
+  );
+}
+
+function GuestMetricsViewer({ stats }: { stats: any }) {
+  if (!stats) return <div className="py-20 text-center text-[10px] uppercase font-bold text-white/20 tracking-widest animate-pulse">Synchronizing Universal Flow...</div>;
+
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-end">
+        <div>
+          <h3 className="text-xl font-serif font-bold italic mb-2">Guest & Anonymous Metrics</h3>
+          <p className="text-[10px] text-white/40 uppercase tracking-widest">Last 24 Hours of Ghost Traffic</p>
+        </div>
+        <div className="flex gap-4">
+          <div className="text-right">
+            <p className="text-[8px] text-white/20 uppercase font-bold mb-1">Authenticity Ratio</p>
+            <div className="flex gap-2">
+              <span className="text-[10px] font-bold text-primary font-mono">{stats.last24h.authRatio.authenticated} AU</span>
+              <span className="text-[10px] font-bold text-white/40 font-mono">{stats.last24h.authRatio.guest} GST</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10">
+          <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-4">Frequency Map (Recent Paths)</h4>
+          <div className="space-y-2">
+            {stats.last24h.recentViews.map((view: any, i: number) => (
+              <div key={i} className="flex justify-between items-center text-[10px] p-2 hover:bg-white/5 rounded-lg transition-colors">
+                <span className="text-white/60 font-mono">{view.path}</span>
+                <span className="text-white/20 text-[8px]">{new Date(view.timestamp).toLocaleTimeString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 flex flex-col justify-center items-center text-center">
+          <TrendingUp className="w-8 h-8 text-primary/40 mb-4" />
+          <h4 className="text-3xl font-serif italic mb-1">{stats.last24h.uniqueGuests}</h4>
+          <p className="text-[10px] text-white/20 uppercase tracking-widest">Unique Guest Presences</p>
+          <div className="mt-6 w-full h-1 bg-white/5 rounded-full overflow-hidden">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${(stats.last24h.uniqueGuests / (stats.last24h.uniqueGuests + stats.last24h.authRatio.authenticated)) * 100}%` }}
+              className="h-full bg-primary"
+            />
+          </div>
+          <p className="mt-2 text-[8px] text-white/20 uppercase italic">Percentage of anonymous exploration</p>
+        </div>
+      </div>
     </div>
   );
 }
