@@ -845,40 +845,60 @@ export default function AlbumManager() {
             {albums.map((album) => (
               <div 
                 key={album.id}
-                className="group flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 transition-all"
+                onClick={() => startEdit(album)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    startEdit(album);
+                  }
+                }}
+                className={cn(
+                  "group flex items-center gap-4 p-3 rounded-2xl transition-all border text-left w-full cursor-pointer outline-none focus:ring-2 focus:ring-primary/40",
+                  album.id === editingId 
+                    ? "bg-primary/10 border-primary ring-1 ring-primary/30 shadow-[0_0_20px_rgba(20,184,166,0.1)]" 
+                    : "bg-white/5 border-white/5 hover:border-white/20 hover:bg-white/10"
+                )}
               >
                 <div 
-                  className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden border border-white/10 cursor-pointer"
-                  onClick={() => setAlbum(album)}
+                  className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden border border-white/10"
                 >
                   <img src={album.coverUrl || undefined} alt={album.title} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <PlayCircle className="w-6 h-6 text-white" />
+                    <Music className="w-6 h-6 text-white" />
                   </div>
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-bold italic text-sm truncate">{album.title}</h4>
+                    <h4 className={cn("font-bold italic text-sm truncate", album.id === editingId ? "text-primary" : "text-white")}>
+                      {album.title}
+                    </h4>
                     {album.featured && (
                       <span className="text-[8px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-[#F4C430]/10 text-[#F4C430]">Featured</span>
                     )}
                     {album.tier === 'premium' && (
                       <CrownIcon className="w-3 h-3 text-[#F4C430]" />
                     )}
+                    {album.id === editingId && (
+                      <span className="ml-auto text-[8px] font-bold uppercase tracking-widest text-primary flex items-center gap-1 animate-pulse">
+                        <Activity size={8} /> Editing
+                      </span>
+                    )}
                   </div>
                   <p className="text-[10px] text-white/40 uppercase tracking-widest truncate">{album.artist} • {categories.find(c => c.id === album.categoryId)?.name || 'Unknown'}</p>
                 </div>
 
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pr-2">
-                  <button 
-                    onClick={() => startEdit(album)}
-                    className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-colors"
-                  >
+                  <div className="p-2 rounded-full bg-white/5 text-white/40 group-hover:text-white transition-colors">
                     <Edit2 className="w-4 h-4" />
-                  </button>
+                  </div>
                   <button 
-                    onClick={() => handleDelete(album.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(album.id);
+                    }}
                     className="p-2 rounded-full hover:bg-red-400/10 text-red-400/40 hover:text-red-400 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />

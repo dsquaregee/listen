@@ -5,10 +5,11 @@ import { useAuthStore } from '../store/useAuthStore';
 import { 
   BarChart3, Users, Clock, Activity, 
   TrendingUp, Wallet, ShieldCheck, ChevronRight,
-  Layers, Music, RefreshCw, Database, Search
+  Layers, Music, RefreshCw, Database, Search, Sparkles
 } from 'lucide-react';
 import CategoryManager from '../components/CategoryManager';
 import AlbumManager from '../components/AlbumManager';
+import SceneManager from '../components/SceneManager';
 import { collection, query, where, orderBy, getDocs, updateDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { MOCK_ALBUMS, MOCK_CATEGORIES } from '../data/mockData';
@@ -17,7 +18,7 @@ import { toast } from 'sonner';
 export default function AdminDashboard() {
   const { user, isLoading } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'metrics' | 'content'>('metrics');
-  const [activeContent, setActiveContent] = useState<'categories' | 'albums'>('categories');
+  const [activeContent, setActiveContent] = useState<'categories' | 'albums' | 'scenes' | 'analytics' | 'guests' | 'legal'>('categories');
   const [metrics, setMetrics] = useState({
     totalUsers: 0,
     totalHours: 0,
@@ -240,6 +241,7 @@ export default function AdminDashboard() {
               {[
                 { id: 'categories', label: 'Categories', icon: Layers, count: 'Manage Collections' },
                 { id: 'albums', label: 'Universe Albums', icon: Music, count: 'Manage Experiences' },
+                { id: 'scenes', label: 'Ambience Scenes', icon: Sparkles, count: 'Manage Spectra' },
                 { id: 'analytics', label: 'Resonance Analytics', icon: BarChart3, count: 'Listening Sessions' },
                 { id: 'guests', label: 'Ghost Traffic', icon: Activity, count: 'Guest Exploration' },
                 { id: 'legal', label: 'Legal & IP Hub', icon: ShieldCheck, count: 'Copyright & Protection' },
@@ -264,6 +266,7 @@ export default function AdminDashboard() {
             <div className="p-4 md:p-8 rounded-[32px] md:rounded-[40px] bg-white/10 border border-white/10 backdrop-blur-md overflow-x-auto min-h-[400px]">
               {activeContent === 'categories' && <CategoryManager />}
               {activeContent === 'albums' && <AlbumManager />}
+              {activeContent === 'scenes' && <SceneManager />}
               {activeContent === 'analytics' && <SessionViewer />}
               {activeContent === 'guests' && <GuestMetricsViewer stats={guestStats} />}
               {activeContent === 'legal' && <LegalIPHub />}

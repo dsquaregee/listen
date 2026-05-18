@@ -87,12 +87,19 @@ export interface BusinessProfile {
   updatedAt: any;
 }
 
+export interface VisualConfig {
+  fromColor: string;
+  toColor: string;
+  blur: number;
+  opacity: number;
+}
+
 export interface AmbienceScene {
   id: string;
   name: string;
   description: string;
   albumIds: string[];
-  visualIdentity: string;
+  visualIdentity: VisualConfig;
   tags: string[];
   isPrebuilt?: boolean;
   businessId?: string;

@@ -89,17 +89,36 @@ export default function BusinessScenes() {
               )}
             >
               {/* Background Image/Gradient */}
-              <div className={cn(
-                "absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity bg-gradient-to-br -z-10",
-                scene.visualIdentity || "from-slate-800 to-indigo-900"
-              )} />
+              {scene.visualIdentity && typeof scene.visualIdentity === 'object' ? (
+                <div 
+                  className="absolute inset-0 transition-opacity" 
+                  style={{ 
+                    background: `linear-gradient(to bottom right, ${scene.visualIdentity.fromColor}, ${scene.visualIdentity.toColor})`,
+                    opacity: scene.visualIdentity.opacity,
+                    filter: `blur(${scene.visualIdentity.blur}px)`
+                  }} 
+                />
+              ) : (
+                <div className={cn(
+                  "absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity bg-gradient-to-br -z-10",
+                  (scene.visualIdentity as any) || "from-slate-800 to-indigo-900"
+                )} />
+              )}
               <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#050505] to-transparent -z-10" />
 
               {/* List View Item */}
               {view === 'list' ? (
                 <>
-                  <div className={cn("w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg", scene.visualIdentity || "from-indigo-500 to-purple-800")}>
-                    <Music2 className="text-white" size={24} />
+                  <div 
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden"
+                    style={scene.visualIdentity && typeof scene.visualIdentity === 'object' ? {
+                      background: `linear-gradient(to bottom right, ${scene.visualIdentity.fromColor}, ${scene.visualIdentity.toColor})`
+                    } : {}}
+                  >
+                    {!scene.visualIdentity || typeof scene.visualIdentity !== 'object' ? (
+                      <div className={cn("absolute inset-0 bg-gradient-to-br", (scene.visualIdentity as any) || "from-indigo-500 to-purple-800")} />
+                    ) : null}
+                    <Music2 className="text-white relative z-10" size={24} />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-bold">{scene.name}</h3>

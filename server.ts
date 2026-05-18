@@ -1130,30 +1130,39 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Business Bootstrapping & Analytics
 app.post('/api/business/bootstrap-scenes', async (req, res) => {
+  logToFile('Business Bootstrap: Starting scene population...');
   try {
     const db = getAdminDb();
     const scenes = [
-      { id: 'temple-morning', name: 'Temple Morning', description: 'Graceful sunrise ambience.', visualIdentity: 'from-orange-500 to-amber-900', tags: ['Calm', 'Traditional'] },
-      { id: 'midnight-lounge', name: 'Midnight Lounge', description: 'Deep jazz and fusion for late nights.', visualIdentity: 'from-indigo-950 to-purple-900', tags: ['Elegant', 'Deep'] },
-      { id: 'deep-focus', name: 'Deep Focus', description: 'Minimal textures for productivity.', visualIdentity: 'from-slate-900 to-emerald-950', tags: ['Focus', 'Clean'] },
-      { id: 'fusion-dinner', name: 'Fusion Dinner', description: 'Upbeat rhythmic dining atmosphere.', visualIdentity: 'from-rose-900 to-amber-950', tags: ['Social', 'Vibrant'] },
-      { id: 'sacred-calm', name: 'Sacred Calm', description: 'Meditative raga-driven stillness.', visualIdentity: 'from-blue-900 to-slate-900', tags: ['Meditation', 'Peace'] }
+      { id: 'temple-morning', name: 'Temple Morning', description: 'Graceful sunrise ambience.', visualIdentity: { fromColor: '#f59e0b', toColor: '#78350f', blur: 80, opacity: 0.3 }, tags: ['Calm', 'Traditional'], albumIds: ['sample_1'] },
+      { id: 'midnight-lounge', name: 'Midnight Lounge', description: 'Deep jazz and fusion for late nights.', visualIdentity: { fromColor: '#1e1b4b', toColor: '#581c87', blur: 100, opacity: 0.4 }, tags: ['Elegant', 'Deep'] },
+      { id: 'deep-focus', name: 'Deep Focus', description: 'Minimal textures for productivity.', visualIdentity: { fromColor: '#0f172a', toColor: '#064e3b', blur: 60, opacity: 0.2 }, tags: ['Focus', 'Clean'] },
+      { id: 'fusion-dinner', name: 'Fusion Dinner', description: 'Upbeat rhythmic dining atmosphere.', visualIdentity: { fromColor: '#831843', toColor: '#78350f', blur: 90, opacity: 0.3 }, tags: ['Social', 'Vibrant'] },
+      { id: 'sacred-calm', name: 'Sacred Calm', description: 'Meditative raga-driven stillness.', visualIdentity: { fromColor: '#1e3a8a', toColor: '#0f172a', blur: 120, opacity: 0.2 }, tags: ['Meditation', 'Peace'] }
     ];
 
+    logToFile(`Business Bootstrap: Pushing ${scenes.length} scenes to collection 'ambience_scenes'...`);
     const batch = db.batch();
     for (const scene of scenes) {
       const ref = db.collection('ambience_scenes').doc(scene.id);
       batch.set(ref, { 
         ...scene, 
         isPrebuilt: true, 
-        albumIds: [], // To be populated later
+        albumIds: scene.albumIds || [], 
         createdAt: FieldValue.serverTimestamp() 
       }, { merge: true });
     }
+    
     await batch.commit();
+    logToFile('Business Bootstrap: SUCCESS. Scenes manifested.');
     res.json({ success: true, message: 'Ambient scenes manifested.' });
   } catch (error) {
-    res.status(500).json({ error: String(error) });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logToFile(`Business Bootstrap FAILED: ${errMsg}`);
+    res.status(500).json({ 
+      error: errMsg,
+      help: 'This often means the server identity lacks permissions. Try matching the database ID in firebase-applet-config.json and ensuring Firestore is provisioned.'
+    });
   }
 });
 
