@@ -84,19 +84,21 @@ export default function BusinessLayout() {
                   : "text-slate-400 hover:text-slate-100 hover:bg-white/5"
               )}
             >
-              <item.icon className={cn("w-5 h-5", isCollapsed ? "mx-auto" : "")} />
-              {!isCollapsed && (
-                <span className="font-medium tracking-wide">{item.label}</span>
+              {({ isActive }) => (
+                <>
+                  <item.icon className={cn("w-5 h-5", isCollapsed ? "mx-auto" : "")} />
+                  {!isCollapsed && (
+                    <span className="font-medium tracking-wide">{item.label}</span>
+                  )}
+                  {/* Active Indicator */}
+                  {isActive && (
+                    <motion.div 
+                      layoutId="nav-active"
+                      className="absolute left-0 w-1 h-6 bg-indigo-500 rounded-r-full"
+                    />
+                  )}
+                </>
               )}
-              {/* Active Indicator */}
-              <NavLink to={item.path}>
-                {({ isActive }) => isActive && (
-                  <motion.div 
-                    layoutId="nav-active"
-                    className="absolute left-0 w-1 h-6 bg-indigo-500 rounded-r-full"
-                  />
-                )}
-              </NavLink>
             </NavLink>
           ))}
         </nav>
@@ -125,7 +127,7 @@ export default function BusinessLayout() {
       {/* Main Content */}
       <main className="flex-1 relative flex flex-col overflow-y-auto overflow-x-hidden">
         {/* Top Header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between px-8 py-6 bg-[#050505]/80 backdrop-blur-xl border-bottom border-white/5">
+        <header className="sticky top-0 z-30 flex items-center justify-between px-8 py-6 bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center gap-6">
             <h2 className="text-sm font-medium text-slate-500 uppercase tracking-widest">
               Venue: {user?.displayName || 'My Venue'}
