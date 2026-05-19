@@ -183,7 +183,7 @@ export default function BusinessScenes() {
                         onClick={() => setAlbum(scene as any)}
                         className="px-6 py-3 rounded-xl bg-white text-black font-bold uppercase tracking-widest text-[10px] transform hover:-translate-y-1 transition-all"
                       >
-                        Audit Presence
+                        Audit Scene
                       </button>
                     </div>
                   </div>

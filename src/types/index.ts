@@ -102,6 +102,7 @@ export interface AmbienceScene {
   visualIdentity: VisualConfig;
   tags: string[];
   isPrebuilt?: boolean;
+  isMaster?: boolean;
   businessId?: string;
   createdAt: any;
 }

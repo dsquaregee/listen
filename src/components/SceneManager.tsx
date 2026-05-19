@@ -45,7 +45,8 @@ export default function SceneManager() {
       opacity: 0.2
     },
     tags: [],
-    isPrebuilt: true
+    isPrebuilt: true,
+    isMaster: false
   });
 
   const [tagInput, setTagInput] = useState('');
@@ -157,7 +158,8 @@ export default function SceneManager() {
         opacity: 0.2
       },
       tags: [],
-      isPrebuilt: true
+      isPrebuilt: true,
+      isMaster: false
     });
   };
 
@@ -174,7 +176,8 @@ export default function SceneManager() {
       albumIds: scene.albumIds || [],
       visualIdentity: visual,
       tags: scene.tags || [],
-      isPrebuilt: scene.isPrebuilt ?? true
+      isPrebuilt: scene.isPrebuilt ?? true,
+      isMaster: scene.isMaster ?? false
     });
     setEditingId(scene.id);
   };
@@ -349,6 +352,18 @@ export default function SceneManager() {
                           className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary transition-colors min-h-[100px]"
                           placeholder="Describe the sonic journey..."
                         />
+                      </div>
+
+                      <div className="space-y-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox"
+                            checked={formData.isMaster}
+                            onChange={e => setFormData({...formData, isMaster: e.target.checked})}
+                            className="accent-primary"
+                          />
+                          <span className="text-[10px] uppercase font-bold text-white/40 tracking-widest">Master Scene</span>
+                        </label>
                       </div>
 
                       <div className="space-y-4">
