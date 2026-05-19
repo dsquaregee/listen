@@ -10,7 +10,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Maximize2
+  Maximize2,
+  Square
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { auth } from '../../lib/firebase';
@@ -22,6 +23,7 @@ const navItems = [
   { icon: Music2, label: 'Scenes', path: '/business/scenes' },
   { icon: Calendar, label: 'Schedules', path: '/business/schedules' },
   { icon: Smartphone, label: 'Devices', path: '/business/devices' },
+  { icon: Square, label: 'Zones', path: '/business/zones' },
   { icon: BarChart3, label: 'Analytics', path: '/business/analytics' },
 ];
 

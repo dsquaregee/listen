@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Calendar as CalendarIcon, 
   Plus, 
@@ -12,17 +12,22 @@ import {
 import { motion, Reorder } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { db } from '../../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const TIMES = Array.from({ length: 12 }, (_, i) => `${(i * 2 + 7) % 24}:00`);
 
 export default function BusinessSchedules() {
-  const [schedules, setSchedules] = useState([
-    { id: '1', day: 'Mon', time: '07:00 – 11:00', scene: 'Temple Morning', zone: 'Main Zone' },
-    { id: '2', day: 'Mon', time: '11:00 – 16:00', scene: 'Fusion Dinner', zone: 'Main Zone' },
-    { id: '3', day: 'Wed', time: '18:00 – 22:00', scene: 'Midnight Lounge', zone: 'Terrace' },
-  ]);
+  const [schedules, setSchedules] = useState<any[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'schedules'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setSchedules(data);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTime, setNewTime] = useState('');
@@ -45,6 +50,14 @@ export default function BusinessSchedules() {
       setNewZone('');
     } catch (error) {
       console.error('Error adding interval:', error);
+    }
+  };
+
+  const handleDeleteInterval = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'schedules', id));
+    } catch (error) {
+      console.error('Error deleting interval:', error);
     }
   };
 
@@ -142,16 +155,12 @@ export default function BusinessSchedules() {
             </div>
 
             {/* Draggable Schedule Entries */}
-            <Reorder.Group axis="y" values={schedules} onReorder={setSchedules} className="space-y-4 relative z-10">
+            <div className="space-y-4 relative z-10">
               {schedules.map((item) => (
-                <Reorder.Item 
-                  key={item.id} 
-                  value={item}
-                  className="group cursor-grab active:cursor-grabbing"
-                >
                   <motion.div
+                    key={item.id}
                     whileHover={{ scale: 1.01 }}
-                    className="p-6 rounded-3xl bg-indigo-500/10 border border-indigo-500/30 backdrop-blur-xl flex items-center justify-between group-hover:border-indigo-400/40 transition-all shadow-xl shadow-indigo-500/5"
+                    className="p-6 rounded-3xl bg-indigo-500/10 border border-indigo-500/30 backdrop-blur-xl flex items-center justify-between group-hover:border-indigo-400/40 transition-all shadow-xl shadow-indigo-500/5 group"
                   >
                     <div className="flex items-center gap-6">
                       <div className="p-3 rounded-2xl bg-indigo-500/20 text-indigo-400">
@@ -167,24 +176,18 @@ export default function BusinessSchedules() {
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <div className="flex -space-x-2">
-                        {[1, 2, 3].map(i => (
-                          <div key={i} className="w-8 h-8 rounded-full border border-black bg-slate-800 flex items-center justify-center text-[10px] overflow-hidden">
-                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${item.id}${i}`} alt="user" />
-                          </div>
-                        ))}
-                      </div>
-                      <button className="p-2 rounded-xl text-slate-500 hover:text-white hover:bg-white/5 transition-all">
-                        <MoreVertical size={20} />
+                      <button onClick={() => handleDeleteInterval(item.id)} className="p-2 rounded-xl text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 transition-all">
+                        <X size={20} />
                       </button>
                     </div>
                   </motion.div>
-                </Reorder.Item>
               ))}
-            </Reorder.Group>
+            </div>
 
             {/* Empty State / Add Indicator */}
-            <button className="w-full mt-4 py-8 rounded-[32px] border-2 border-dashed border-white/5 hover:border-indigo-500/20 hover:bg-white/[0.01] transition-all flex flex-col items-center justify-center gap-2 group">
+            <button
+               onClick={() => setIsModalOpen(true)}
+              className="w-full mt-4 py-8 rounded-[32px] border-2 border-dashed border-white/5 hover:border-indigo-500/20 hover:bg-white/[0.01] transition-all flex flex-col items-center justify-center gap-2 group">
               <div className="p-3 rounded-full bg-white/5 text-slate-600 group-hover:text-indigo-400 transition-colors">
                 <Plus size={24} />
               </div>

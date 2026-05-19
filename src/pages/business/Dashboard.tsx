@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Play, 
   Pause, 
@@ -22,6 +23,7 @@ import { collection, query, where, onSnapshot, limit, doc, setDoc, serverTimesta
 import { AmbienceScene } from '../../types';
 
 export default function BusinessDashboard() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { currentAlbum, isPlaying, togglePlay, volume, setVolume } = usePlayerStore();
   const [isVenueMode, setIsVenueMode] = useState(false);
@@ -333,14 +335,23 @@ export default function BusinessDashboard() {
                 </div>
               ))}
             </div>
-            <button className="w-full mt-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+            <button 
+              onClick={() => navigate('/business/schedules')}
+              className="w-full mt-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/10 transition-all">
               Manage Scheduler
             </button>
           </div>
 
           {/* Quick Zone Control */}
           <div className="p-8 rounded-[40px] bg-white/[0.03] border border-white/5">
-            <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 mb-6">Active Zones</h4>
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Active Zones</h4>
+              <button 
+                onClick={() => navigate('/business/zones')}
+                className="text-xs text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-widest transition-colors">
+                Manage
+              </button>
+            </div>
             <div className="space-y-4">
               {['Main Zone', 'Private Lounge', 'Terrace'].map((zone) => (
                 <div 
