@@ -219,6 +219,8 @@ export default function BusinessDashboard() {
                 <div className="flex items-center gap-4 flex-1">
                   <Volume2 className="text-slate-400" size={24} />
                   <input
+                    id="business-volume"
+                    name="business-volume"
                     type="range"
                     min="0"
                     max="1"

@@ -328,6 +328,8 @@ function WaveformSeekbar({ progress, isPlaying, onSeek, albumId, frequencyValue 
 
       {/* Transparent Input for Seeking */}
       <input 
+        id="audio-seekbar"
+        name="audio-seekbar"
         type="range"
         min="0"
         max="1"
@@ -561,6 +563,8 @@ function PlaylistModal({ isOpen, onClose, album }: PlaylistModalProps) {
               ) : (
                 <div className="flex gap-2">
                   <input 
+                    id="player-new-playlist-name"
+                    name="player-new-playlist-name"
                     autoFocus
                     value={newPlaylistName}
                     onChange={e => setNewPlaylistName(e.target.value)}
@@ -1555,6 +1559,8 @@ export default function AudioPlayer() {
                       >
                         <div className="relative w-24 flex items-center h-8 px-2 group/slider-container">
                            <input 
+                            id="audio-volume-min"
+                            name="audio-volume-min"
                             type="range"
                             min="0"
                             max="1"
@@ -2021,6 +2027,8 @@ export default function AudioPlayer() {
                     </div>
 
                     <input 
+                      id="audio-volume-max"
+                      name="audio-volume-max"
                       type="range"
                       min="0"
                       max="1"
@@ -2402,6 +2410,8 @@ export default function AudioPlayer() {
                         )}
                       </div>
                       <input 
+                        id="queue-search"
+                        name="queue-search"
                         ref={searchInputRef}
                         type="text"
                         placeholder="Search tracks in queue..."

@@ -52,6 +52,8 @@ export default function BusinessScenes() {
           <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2 group focus-within:border-indigo-500/50 transition-all">
             <Search size={18} className="text-slate-500 group-focus-within:text-indigo-400" />
             <input 
+              id="business-scenes-search"
+              name="business-scenes-search"
               type="text" 
               placeholder="Search library..." 
               className="bg-transparent border-none outline-none text-sm font-medium placeholder:text-slate-600 w-48"

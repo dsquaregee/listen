@@ -148,6 +148,8 @@ export default function Library() {
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
             <input 
+              id="library-search"
+              name="library-search"
               type="text" 
               placeholder="Search journeys or moods..." 
               value={searchTerm}

@@ -70,6 +70,8 @@ export default function Explore() {
         <div className="flex-1 relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-primary transition-colors" />
           <input 
+            id="explore-search"
+            name="explore-search"
             type="text"
             placeholder="Search titles, souls..."
             value={searchTerm}

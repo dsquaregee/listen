@@ -74,6 +74,8 @@ export default function Playlists() {
           >
             <form onSubmit={handleCreate} className="flex gap-4 p-6 bg-white/5 rounded-3xl border border-white/10 max-w-xl">
               <input
+                id="new-playlist-name"
+                name="new-playlist-name"
                 autoFocus
                 value={newPlaylistName}
                 onChange={e => setNewPlaylistName(e.target.value)}

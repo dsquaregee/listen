@@ -582,6 +582,8 @@ export default function AlbumManager() {
                           </button>
                         </div>
                         <textarea 
+                          id="album-description"
+                          name="album-description"
                           value={formData.description}
                           onChange={e => setFormData({...formData, description: e.target.value})}
                           className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary transition-colors min-h-[120px] leading-relaxed"
@@ -594,6 +596,8 @@ export default function AlbumManager() {
                           <Tag className="w-3 h-3" /> Album Title
                         </label>
                         <input 
+                          id="album-title"
+                          name="album-title"
                           required
                           value={formData.title}
                           onChange={e => setFormData({...formData, title: e.target.value})}
@@ -607,6 +611,8 @@ export default function AlbumManager() {
                           <Activity className="w-3 h-3" /> Target Category
                         </label>
                         <select 
+                          id="album-category"
+                          name="album-category"
                           required
                           value={formData.categoryId}
                           onChange={e => setFormData({...formData, categoryId: e.target.value})}
@@ -644,6 +650,8 @@ export default function AlbumManager() {
                               <div className="relative flex-1">
                                 <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
                                 <input 
+                                  id="album-artwork-url"
+                                  name="album-artwork-url"
                                   value={formData.coverUrl}
                                   onChange={e => setFormData({...formData, coverUrl: e.target.value})}
                                   className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[10px] focus:outline-none focus:border-primary transition-colors"
@@ -685,6 +693,7 @@ export default function AlbumManager() {
                               type="file" 
                               accept=".wav"
                               id="wav-upload"
+                              name="wav-upload"
                               className="hidden"
                               onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
                             />
@@ -720,6 +729,7 @@ export default function AlbumManager() {
                               type="file" 
                               multiple
                               id="hls-upload"
+                              name="hls-upload"
                               className="hidden"
                               {...({ webkitdirectory: "" } as any)}
                               onChange={(e) => {
@@ -758,6 +768,8 @@ export default function AlbumManager() {
                           <div className="relative">
                             <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
                             <input 
+                              id="album-hls-url"
+                              name="album-hls-url"
                               required
                               value={formData.hlsUrl}
                               onChange={e => setFormData({...formData, hlsUrl: e.target.value})}
@@ -768,6 +780,8 @@ export default function AlbumManager() {
                           <div className="relative">
                             <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 opacity-50" />
                             <input 
+                              id="album-video-hls-url"
+                              name="album-video-hls-url"
                               value={formData.videoHlsUrl}
                               onChange={e => setFormData({...formData, videoHlsUrl: e.target.value})}
                               className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-10 pr-12 py-2 text-[10px] focus:outline-none focus:border-primary transition-colors"
@@ -790,6 +804,8 @@ export default function AlbumManager() {
                         <label className="flex items-center gap-3 cursor-pointer group">
                           <div className="relative flex items-center">
                             <input 
+                              id="album-featured"
+                              name="album-featured"
                               type="checkbox"
                               checked={formData.featured}
                               onChange={e => setFormData({...formData, featured: e.target.checked})}

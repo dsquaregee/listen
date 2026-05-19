@@ -388,6 +388,8 @@ export default function Admin() {
               <div className="space-y-2">
               <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Journey Title</label>
               <input 
+                id="journey-title"
+                name="journey-title"
                 required
                 type="text" 
                 placeholder="E.g. Sunrise in Shankarabharanam"
@@ -400,6 +402,8 @@ export default function Admin() {
             <div className="space-y-2">
               <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Description</label>
               <textarea 
+                id="journey-description"
+                name="journey-description"
                 required
                 rows={4}
                 placeholder=" Describe the cinematic journey..."
@@ -413,6 +417,8 @@ export default function Admin() {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Category</label>
                 <select 
+                  id="journey-category"
+                  name="journey-category"
                   value={formData.categoryId}
                   onChange={e => setFormData({...formData, categoryId: e.target.value})}
                   className="w-full bg-black border border-white/10 rounded-xl p-3 focus:border-gold outline-none transition-colors"
@@ -426,6 +432,8 @@ export default function Admin() {
                 <div className="relative">
                   <DollarSign size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
                   <input 
+                    id="journey-price"
+                    name="journey-price"
                     type="number" 
                     step="0.01"
                     value={formData.price}
@@ -440,6 +448,8 @@ export default function Admin() {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Duration</label>
                 <input 
+                  id="journey-duration"
+                  name="journey-duration"
                   type="text" 
                   placeholder="60:00"
                   value={formData.duration}
@@ -450,6 +460,8 @@ export default function Admin() {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Mood Tags</label>
                 <input 
+                  id="journey-mood-tags"
+                  name="journey-mood-tags"
                   type="text" 
                   placeholder="Ambient, High-Energy"
                   value={formData.moodTags}
@@ -461,13 +473,14 @@ export default function Admin() {
 
             <div className="flex items-center gap-3 bg-black/40 p-4 rounded-xl border border-white/5">
               <input 
+                id="journey-is-featured"
+                name="journey-is-featured"
                 type="checkbox" 
-                id="isFeatured"
                 checked={formData.isFeatured}
                 onChange={e => setFormData({...formData, isFeatured: e.target.checked})}
                 className="w-5 h-5 accent-gold"
               />
-              <label htmlFor="isFeatured" className="text-sm font-bold text-zinc-400 cursor-pointer">Featured Hero Spotlight</label>
+              <label htmlFor="journey-is-featured" className="text-sm font-bold text-zinc-400 cursor-pointer">Featured Hero Spotlight</label>
             </div>
           </div>
 
@@ -615,6 +628,8 @@ export default function Admin() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Name</label>
                   <input 
+                    id="category-name"
+                    name="category-name"
                     required
                     type="text" 
                     value={categoryForm.name}
@@ -627,6 +642,8 @@ export default function Admin() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Description</label>
                   <textarea 
+                    id="category-description"
+                    name="category-description"
                     required
                     rows={3}
                     value={categoryForm.description}
@@ -677,6 +694,8 @@ export default function Admin() {
                     })}
                     <div className="relative group">
                       <input 
+                        id="category-color-picker"
+                        name="category-color-picker"
                         type="color"
                         onChange={(e) => setCategoryForm({...categoryForm, colorTheme: `from-[${e.target.value}]/20 to-transparent`})}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"

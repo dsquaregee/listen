@@ -210,6 +210,8 @@ export default function SceneManager() {
           <div className="relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-primary transition-colors" />
             <input 
+              id="search-scenes"
+              name="search-scenes"
               type="text"
               placeholder="Search spectra..."
               value={searchQuery}
@@ -241,6 +243,8 @@ export default function SceneManager() {
         
         {/* Tag Filter */}
         <select 
+          id="filter-tag"
+          name="filter-tag"
           value={selectedTag || ''}
           onChange={(e) => setSelectedTag(e.target.value || null)}
           className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] uppercase font-bold tracking-widest focus:outline-none focus:border-primary/50"
@@ -253,6 +257,8 @@ export default function SceneManager() {
 
         {/* Album Filter */}
         <select 
+          id="filter-album"
+          name="filter-album"
           value={selectedAlbumId || ''}
           onChange={(e) => setSelectedAlbumId(e.target.value || null)}
           className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] uppercase font-bold tracking-widest focus:outline-none focus:border-primary/50"
@@ -320,6 +326,8 @@ export default function SceneManager() {
                           <Tag className="w-3 h-3" /> Scene Name
                         </label>
                         <input 
+                          id="scene-name"
+                          name="scene-name"
                           required
                           value={formData.name}
                           onChange={e => setFormData({...formData, name: e.target.value})}
@@ -333,6 +341,8 @@ export default function SceneManager() {
                           <AlignLeft className="w-3 h-3" /> Description
                         </label>
                         <textarea 
+                          id="scene-description"
+                          name="scene-description"
                           required
                           value={formData.description}
                           onChange={e => setFormData({...formData, description: e.target.value})}
@@ -351,6 +361,8 @@ export default function SceneManager() {
                             <label className="text-[9px] text-white/40 uppercase">Start Color</label>
                             <div className="flex gap-2">
                               <input 
+                                id="visual-from-color-picker"
+                                name="visual-from-color-picker"
                                 type="color" 
                                 value={formData.visualIdentity.fromColor}
                                 onChange={e => setFormData({
@@ -360,6 +372,8 @@ export default function SceneManager() {
                                 className="w-10 h-10 rounded-lg bg-transparent border-none cursor-pointer"
                               />
                               <input 
+                                id="visual-from-color-text"
+                                name="visual-from-color-text"
                                 type="text"
                                 value={formData.visualIdentity.fromColor}
                                 onChange={e => setFormData({
@@ -374,6 +388,8 @@ export default function SceneManager() {
                             <label className="text-[9px] text-white/40 uppercase">End Color</label>
                             <div className="flex gap-2">
                               <input 
+                                id="visual-to-color-picker"
+                                name="visual-to-color-picker"
                                 type="color" 
                                 value={formData.visualIdentity.toColor}
                                 onChange={e => setFormData({
@@ -383,6 +399,8 @@ export default function SceneManager() {
                                 className="w-10 h-10 rounded-lg bg-transparent border-none cursor-pointer"
                               />
                               <input 
+                                id="visual-to-color-text"
+                                name="visual-to-color-text"
                                 type="text"
                                 value={formData.visualIdentity.toColor}
                                 onChange={e => setFormData({
@@ -402,6 +420,8 @@ export default function SceneManager() {
                               <span className="text-[9px] font-mono text-primary">{formData.visualIdentity.blur}px</span>
                             </div>
                             <input 
+                              id="visual-blur"
+                              name="visual-blur"
                               type="range" min="0" max="200"
                               value={formData.visualIdentity.blur}
                               onChange={e => setFormData({
@@ -418,6 +438,8 @@ export default function SceneManager() {
                               <span className="text-[9px] font-mono text-primary">{Math.round(formData.visualIdentity.opacity * 100)}%</span>
                             </div>
                             <input 
+                              id="visual-opacity"
+                              name="visual-opacity"
                               type="range" min="0" max="1" step="0.01"
                               value={formData.visualIdentity.opacity}
                               onChange={e => setFormData({
@@ -478,6 +500,8 @@ export default function SceneManager() {
                         </label>
                         <div className="flex gap-2">
                           <input 
+                            id="scene-tag-input"
+                            name="scene-tag-input"
                             type="text"
                             value={tagInput}
                             onChange={e => setTagInput(e.target.value)}

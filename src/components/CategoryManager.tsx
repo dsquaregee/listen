@@ -101,6 +101,8 @@ function SortableCategoryItem({
         <div className="flex-1">
           {editingId === cat.id && formData ? (
             <input 
+              id="category-edit-name"
+              name="category-edit-name"
               autoFocus
               value={formData.name}
               onChange={e => setFormData({...formData, name: e.target.value})}
@@ -316,6 +318,8 @@ export default function CategoryManager() {
                         <Tag className="w-3 h-3" /> Name
                       </label>
                       <input 
+                        id="category-name"
+                        name="category-name"
                         required
                         value={formData.name}
                         onChange={e => setFormData({...formData, name: e.target.value})}
@@ -328,6 +332,8 @@ export default function CategoryManager() {
                         <Hash className="w-3 h-3" /> Slug
                       </label>
                       <input 
+                        id="category-slug"
+                        name="category-slug"
                         required
                         value={formData.slug}
                         onChange={e => setFormData({...formData, slug: e.target.value})}
@@ -342,6 +348,8 @@ export default function CategoryManager() {
                       <AlignLeft className="w-3 h-3" /> Description
                     </label>
                     <textarea 
+                      id="category-description"
+                      name="category-description"
                       value={formData.description}
                       onChange={e => setFormData({...formData, description: e.target.value})}
                       className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors min-h-[80px] text-white"

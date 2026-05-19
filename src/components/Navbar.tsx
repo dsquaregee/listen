@@ -150,6 +150,8 @@ export default function Navbar() {
         >
           <Search className={cn("w-4 h-4 transition-colors", isFocused ? "text-primary" : "text-primary/60")} />
           <input
+            id="global-search"
+            name="global-search"
             type="text"
             placeholder="Search Universe"
             value={searchQuery}
