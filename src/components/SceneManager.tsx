@@ -162,6 +162,7 @@ export default function SceneManager() {
   };
 
   const startEdit = (scene: AmbienceScene) => {
+    console.log('[SceneManager] startEdit triggered for:', scene.id);
     // Check if visualIdentity is already an object (new format) or string (old format)
     const visual = typeof scene.visualIdentity === 'string' 
       ? { fromColor: '#4f46e5', toColor: '#7c3aed', blur: 40, opacity: 0.2 } // Default for old data
@@ -169,7 +170,7 @@ export default function SceneManager() {
 
     setFormData({
       name: scene.name,
-      description: scene.description,
+      description: scene.description || '',
       albumIds: scene.albumIds || [],
       visualIdentity: visual,
       tags: scene.tags || [],
@@ -217,11 +218,13 @@ export default function SceneManager() {
             />
           </div>
           <button 
+            id="btn-create-scene-admin"
             onClick={() => {
+              console.log('[SceneManager] Create Scene button clicked');
               resetForm();
               setIsAdding(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-black font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-black font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Create Scene

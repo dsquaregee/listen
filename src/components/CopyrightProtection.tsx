@@ -33,7 +33,7 @@ export default function CopyrightProtection({ children }: { children: React.Reac
   }, []);
 
   return (
-    <div className="select-none cursor-default">
+    <div className="min-h-screen">
       {children}
     </div>
   );

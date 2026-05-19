@@ -15,12 +15,13 @@ import {
   Plus, Edit2, Trash2, X, Check, 
   Music, Image as ImageIcon, Sparkles, Loader2,
   Tag, AlignLeft, User, Clock, Link as LinkIcon,
-  PlayCircle, Activity, Search, FolderUp, ToggleLeft, ToggleRight
+  PlayCircle, Activity, Search, FolderUp, ToggleLeft, ToggleRight,
+  Crown as CrownIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType } from '../lib/errorHandler';
 import { usePlayerStore } from '../store/usePlayerStore';
-
+import { cn } from '../lib/utils';
 import { Toaster, toast } from 'sonner';
 
 export default function AlbumManager() {
@@ -922,18 +923,7 @@ export default function AlbumManager() {
   );
 }
 
-function CrownIcon({ className }: { className?: string }) {
-  return (
-    <svg 
-      className={className} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    >
-      <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
-    </svg>
-  );
+export function CrownIconShim({ className }: { className?: string }) {
+  // Keeping this as a shim if needed, but we already imported Crown as CrownIcon
+  return null;
 }

@@ -246,11 +246,15 @@ export default function AdminDashboard() {
                 { id: 'guests', label: 'Ghost Traffic', icon: Activity, count: 'Guest Exploration' },
                 { id: 'legal', label: 'Legal & IP Hub', icon: ShieldCheck, count: 'Copyright & Protection' },
               ].map(item => (
-                <button 
-                  key={item.id}
-                  onClick={() => setActiveContent(item.id as any)}
-                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${activeContent === item.id ? 'bg-primary/10 border-primary/30 shadow-lg' : 'bg-white/[0.03] border border-white/10 hover:bg-white/[0.05] group'}`}
-                >
+                  <button 
+                    key={item.id}
+                    id={`admin-btn-${item.id}`}
+                    onClick={() => {
+                      console.log('[AdminDashboard] Switching tab to:', item.id);
+                      setActiveContent(item.id as any);
+                    }}
+                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all cursor-pointer ${activeContent === item.id ? 'bg-primary/10 border-primary/30 shadow-lg' : 'bg-white/[0.03] border border-white/10 hover:bg-white/[0.05] group'}`}
+                  >
                   <div className="flex items-center gap-3">
                     <item.icon className={`w-4 h-4 ${activeContent === item.id ? 'text-primary' : 'text-white/40 group-hover:text-white'}`} />
                     <span className={`text-xs font-bold ${activeContent === item.id ? 'text-primary' : ''}`}>{item.label}</span>
