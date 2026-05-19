@@ -7,18 +7,23 @@ import {
   ChevronLeft, 
   ChevronRight,
   GripVertical,
-  X
+  X,
+  Music2,
+  RefreshCw
 } from 'lucide-react';
 import { motion, Reorder } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { db } from '../../lib/firebase';
+import { usePlayerStore } from '../../store/usePlayerStore';
 import { collection, addDoc, serverTimestamp, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const TIMES = Array.from({ length: 12 }, (_, i) => `${(i * 2 + 7) % 24}:00`);
 
 export default function BusinessSchedules() {
+  const { currentAlbum } = usePlayerStore();
   const [schedules, setSchedules] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
 
   useEffect(() => {
     const q = query(collection(db, 'schedules'), orderBy('createdAt', 'desc'));
@@ -32,7 +37,7 @@ export default function BusinessSchedules() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTime, setNewTime] = useState('');
   const [newScene, setNewScene] = useState('');
-  const [newZone, setNewZone] = useState('');
+  const [selectedItem, setSelectedItem] = useState<any>(null);
 
   const handleAddInterval = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,13 +46,11 @@ export default function BusinessSchedules() {
         day: 'Mon',
         time: newTime,
         scene: newScene,
-        zone: newZone,
         createdAt: serverTimestamp(),
       });
       setIsModalOpen(false);
       setNewTime('');
       setNewScene('');
-      setNewZone('');
     } catch (error) {
       console.error('Error adding interval:', error);
     }
@@ -96,13 +99,6 @@ export default function BusinessSchedules() {
               onChange={(e) => setNewScene(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all"
             />
-            <input 
-              required
-              placeholder="Zone" 
-              value={newZone} 
-              onChange={(e) => setNewZone(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all"
-            />
             <button type="submit" className="w-full bg-indigo-500 text-white font-bold py-3 rounded-xl hover:bg-indigo-400 transition-all">
               Save Interval
             </button>
@@ -139,28 +135,55 @@ export default function BusinessSchedules() {
               <button className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-white"><ChevronRight size={16} /></button>
             </div>
             <div className="bg-white/5 p-1 rounded-xl flex items-center gap-1">
-              <button className="px-4 py-1.5 rounded-lg bg-white/10 text-[10px] font-bold uppercase tracking-widest text-white shadow-sm">Timeline</button>
-              <button className="px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-300">List View</button>
+              <button 
+                onClick={() => setViewMode('timeline')}
+                className={cn("px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all", viewMode === 'timeline' ? "bg-white/10 text-white shadow-sm" : "text-slate-500 hover:text-slate-300")}
+              >Timeline</button>
+              <button 
+                onClick={() => setViewMode('list')}
+                className={cn("px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all", viewMode === 'list' ? "bg-white/10 text-white shadow-sm" : "text-slate-500 hover:text-slate-300")}
+              >List View</button>
+            </div>
+          </div>
+          
+          <div className="px-4">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Active Atmosphere</h3>
+            <div className="p-6 rounded-[32px] bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                 <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-500/20">
+                    <Music2 className="text-indigo-400" size={24} />
+                 </div>
+                 <div>
+                    <h4 className="text-lg font-bold">{currentAlbum?.title || 'No Active Scene'}</h4>
+                    <p className="text-xs text-indigo-400/70 font-mono tracking-widest uppercase">Live Now</p>
+                 </div>
+              </div>
+              <button className="p-3 rounded-full hover:bg-white/10 transition-all text-slate-400 hover:text-white">
+                <RefreshCw size={20} />
+              </button>
             </div>
           </div>
 
           <div className="relative min-h-[500px] rounded-[40px] bg-white/[0.02] border border-white/5 p-8 overflow-hidden backdrop-blur-sm">
             {/* Timeline Grids */}
-            <div className="absolute inset-0 flex flex-col pointer-events-none opacity-20">
-              {TIMES.map((time) => (
-                <div key={time} className="flex-1 border-b border-white/10 flex items-start px-4">
-                  <span className="text-[10px] font-mono text-slate-600 -translate-y-1/2">{time}</span>
-                </div>
-              ))}
-            </div>
+            {viewMode === 'timeline' && (
+              <div className="absolute inset-0 flex flex-col pointer-events-none opacity-20">
+                {TIMES.map((time) => (
+                  <div key={time} className="flex-1 border-b border-white/10 flex items-start px-4">
+                    <span className="text-[10px] font-mono text-slate-600 -translate-y-1/2">{time}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Draggable Schedule Entries */}
-            <div className="space-y-4 relative z-10">
+            <div className={cn("space-y-4 relative z-10 transition-all", selectedItem ? "lg:w-2/3" : "w-full")}>
               {schedules.map((item) => (
                   <motion.div
                     key={item.id}
+                    onClick={() => setSelectedItem(item)}
                     whileHover={{ scale: 1.01 }}
-                    className="p-6 rounded-3xl bg-indigo-500/10 border border-indigo-500/30 backdrop-blur-xl flex items-center justify-between group-hover:border-indigo-400/40 transition-all shadow-xl shadow-indigo-500/5 group"
+                    className={cn("p-6 rounded-3xl backdrop-blur-xl flex items-center justify-between group transition-all shadow-xl", selectedItem?.id === item.id ? "bg-indigo-500/20 border border-indigo-500/50" : "bg-indigo-500/10 border border-indigo-500/30 group-hover:border-indigo-400/40 shadow-indigo-500/5")}
                   >
                     <div className="flex items-center gap-6">
                       <div className="p-3 rounded-2xl bg-indigo-500/20 text-indigo-400">
@@ -169,8 +192,6 @@ export default function BusinessSchedules() {
                       <div>
                         <div className="flex items-center gap-3">
                           <p className="text-xs font-mono text-indigo-400/80 uppercase tracking-widest">{item.time}</p>
-                          <span className="w-1 h-1 rounded-full bg-slate-700" />
-                          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{item.zone}</p>
                         </div>
                         <h4 className="text-xl font-bold mt-1">{item.scene}</h4>
                       </div>
@@ -183,6 +204,14 @@ export default function BusinessSchedules() {
                   </motion.div>
               ))}
             </div>
+
+            {selectedItem && (
+               <div className="hidden lg:flex fixed right-8 top-1/3 w-1/3 h-1/2 p-6 rounded-3xl bg-zinc-900 border border-white/10 shadow-2xl flex-col items-center justify-center gap-4">
+                 <h3 className="text-2xl font-bold italic font-serif">Preview: {selectedItem.scene}</h3>
+                 <p className="text-slate-500">Scheduled for {selectedItem.time}</p>
+                 <button onClick={() => setSelectedItem(null)} className="text-indigo-400 font-bold">Clear Preview</button>
+               </div>
+            )}
 
             {/* Empty State / Add Indicator */}
             <button

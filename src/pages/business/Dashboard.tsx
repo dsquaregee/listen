@@ -111,29 +111,6 @@ export default function BusinessDashboard() {
 
   return (
     <div className="space-y-10">
-      {/* Header Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[
-          { label: 'System Health', value: systemHealth, icon: Zap, color: 'text-emerald-500' },
-          { label: 'Network', value: 'Stable', icon: Globe, color: 'text-blue-500' },
-          { label: 'Next Event', value: '6:00 PM', icon: Clock, color: 'text-amber-500' },
-          { label: 'Active Zone', value: activeZone, icon: Radio, color: 'text-indigo-500' },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="p-6 rounded-3xl bg-white/[0.03] border border-white/5 backdrop-blur-md"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <stat.icon size={16} className={stat.color} />
-              <span className="text-xs text-slate-500 uppercase tracking-widest">{stat.label}</span>
-            </div>
-            <p className="text-2xl font-semibold tracking-tight">{stat.value}</p>
-          </motion.div>
-        ))}
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Control Center */}
@@ -142,7 +119,7 @@ export default function BusinessDashboard() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className={cn(
-              "relative p-8 rounded-[40px] overflow-hidden group min-h-[400px] flex flex-col justify-between border transition-all duration-700",
+              "relative p-10 rounded-[40px] overflow-hidden group min-h-[440px] flex flex-col justify-between border transition-all duration-700",
               isPlaying ? "bg-white/[0.03] border-white/10" : "bg-white/[0.02] border-white/5"
             )}
           >
@@ -170,13 +147,13 @@ export default function BusinessDashboard() {
 
             <div className="flex justify-between items-start">
               <div>
-                <span className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-bold uppercase tracking-widest border border-indigo-500/20">
-                  Now Streaming
+                <span className="px-4 py-1.5 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-bold uppercase tracking-widest border border-indigo-500/20">
+                  Venue Control
                 </span>
-                <h3 className="mt-4 text-4xl font-bold tracking-tight text-white leading-tight">
+                <h3 className="mt-6 text-5xl font-bold tracking-tight text-white leading-tight">
                   {currentAlbum?.title || 'No Scene Active'}
                 </h3>
-                <p className="text-slate-400 text-lg mt-2 font-light">
+                <p className="text-slate-300 text-xl mt-3 font-light">
                   {currentAlbum?.artist || 'Select an ambience scene to begin'}
                 </p>
               </div>
@@ -240,106 +217,51 @@ export default function BusinessDashboard() {
             </div>
           </motion.div>
 
-          {/* Quick Scene Switcher */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                <LayoutGrid size={16} /> Ambient Scenes
-              </h4>
-              <button className="text-xs text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-widest transition-colors">
-                View All
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {liveScenes.length === 0 ? (
-                <div className="col-span-full p-12 rounded-[40px] border border-dashed border-white/10 bg-white/[0.01] flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 rounded-full bg-indigo-500/10 flex items-center justify-center mb-6">
-                    <RefreshCcw className="text-indigo-400" size={32} />
-                  </div>
-                  <h4 className="text-xl font-bold mb-2">Atmosphere Void Detected</h4>
-                  <p className="text-slate-500 text-sm mb-8 max-w-xs">
-                    The venue is silent. Initialize the core ambience spectrum to begin operations.
-                  </p>
-                  <button 
-                    onClick={handleBootstrap}
-                    disabled={isBootstrapping}
-                    className="px-8 py-4 rounded-2xl bg-indigo-500 text-white font-bold uppercase tracking-widest text-xs hover:bg-indigo-400 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
-                  >
-                    {isBootstrapping ? 'Manifesting...' : 'Bootstrap Core Data'}
-                  </button>
-                </div>
-              ) : liveScenes.map((scene) => (
-                <button
-                  key={scene.id}
-                  className={cn(
-                    "p-6 rounded-[32px] border transition-all duration-500 group text-left relative overflow-hidden",
-                    isPlaying && currentAlbum?.id === scene.id ? "bg-white/10 border-white/20 ring-2 ring-indigo-500/20" : "bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.04]"
-                  )}
-                >
-                  {scene.visualIdentity && typeof scene.visualIdentity === 'object' ? (
-                    <div 
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" 
-                      style={{ 
-                        background: `linear-gradient(to bottom right, ${scene.visualIdentity.fromColor}, ${scene.visualIdentity.toColor})`,
-                        opacity: scene.visualIdentity.opacity,
-                        filter: `blur(${scene.visualIdentity.blur}px)`
-                      }} 
-                    />
-                  ) : (
-                    <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br", (scene.visualIdentity as any) || "from-indigo-500/20 to-purple-900/20")} />
-                  )}
-                  <div className="relative z-10 flex justify-between items-center">
-                    <div>
-                      <h5 className="font-semibold text-lg">{scene.name}</h5>
-                      <p className="text-xs text-slate-500 mt-1">{scene.isPrebuilt ? 'System Core' : 'Custom identity'}</p>
-                    </div>
-                    <Radio className={cn(
-                      "transition-colors",
-                      currentAlbum?.id === scene.id ? "text-indigo-400" : "text-slate-600 group-hover:text-indigo-500"
-                    )} size={20} />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Quick Scene Switcher was here */}
         </div>
 
         {/* Sidebar Context */}
         <div className="space-y-8">
-          {/* Active Schedule Card */}
-          <div className="p-8 rounded-[40px] bg-indigo-600/10 border border-indigo-500/20 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-6">
-              <RefreshCcw className="text-indigo-500/50 group-hover:rotate-180 transition-transform duration-1000" size={20} />
+          {/* Active Scene Card */}
+          <div className="p-8 rounded-[40px] bg-white/[0.03] border border-white/10 relative overflow-hidden group">
+            <div className="flex items-center justify-between mb-8">
+              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Active Scene</h4>
+              <RefreshCcw className="text-indigo-400" size={18} />
             </div>
-            <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-400 mb-6">Active Schedule</h4>
-            <div className="space-y-6">
-              {[
-                { time: '07:00 – 11:00', label: 'Temple Morning', active: false },
-                { time: '11:00 – 16:00', label: 'Fusion Slow', active: false, current: true },
-                { time: '18:00 – 22:00', label: 'Pulse Lounge', active: false }
-              ].map((item, i) => (
-                <div key={i} className={cn(
-                  "flex items-center gap-4 relative",
-                  item.current ? "opacity-100" : "opacity-40"
-                )}>
-                  {item.current && <div className="absolute -left-4 w-1 h-10 bg-indigo-500 rounded-full" />}
-                  <div className="flex-1">
-                    <p className="text-[10px] font-mono text-slate-500 tracking-tighter">{item.time}</p>
-                    <p className="text-sm font-semibold mt-0.5">{item.label}</p>
-                  </div>
-                  {item.current && (
-                    <span className="px-2 py-0.5 rounded-full bg-indigo-500 text-[10px] font-bold uppercase tracking-widest">
-                      Now
-                    </span>
-                  )}
-                </div>
-              ))}
+            
+            <div className="flex items-center gap-5">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/20">
+                <Radio className="text-indigo-400" size={30} />
+              </div>
+              <div>
+                <h4 className="text-xl font-bold">{currentAlbum?.title || 'Inactive'}</h4>
+                <p className="text-xs text-indigo-400 font-mono tracking-widest uppercase mt-1">Live Now</p>
+              </div>
             </div>
-            <button 
-              onClick={() => navigate('/business/schedules')}
-              className="w-full mt-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/10 transition-all">
-              Manage Scheduler
-            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            {/* Scenes Card */}
+            <div className="p-8 rounded-[40px] bg-white/[0.03] border border-white/10">
+              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-4">Scenes</h4>
+              <p className="text-sm text-slate-400 mb-8">Curate and manage your venue atmosphere.</p>
+              <button 
+                onClick={() => navigate('/business/scenes')}
+                className="w-full py-4 rounded-2xl bg-indigo-500 font-bold text-xs uppercase tracking-widest text-white hover:bg-indigo-400 transition-all">
+                Manage Scenes
+              </button>
+            </div>
+            
+            {/* Schedules Card */}
+            <div className="p-8 rounded-[40px] bg-white/[0.03] border border-white/10">
+              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-4">Scheduler</h4>
+              <p className="text-sm text-slate-400 mb-8">Automate atmospheric transitions.</p>
+              <button 
+                onClick={() => navigate('/business/schedules')}
+                className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+                Manage Scheduler
+              </button>
+            </div>
           </div>
         </div>
       </div>

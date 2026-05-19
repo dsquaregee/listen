@@ -177,15 +177,6 @@ export default function BusinessScenes() {
                       <h3 className="text-3xl font-bold tracking-tight text-white mb-2">{scene.name}</h3>
                       <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">{scene.description}</p>
                     </div>
-                    <div className="pt-4 flex items-center justify-between border-t border-white/5">
-                      <span className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">Master Presence</span>
-                      <button 
-                        onClick={() => setAlbum(scene as any)}
-                        className="px-6 py-3 rounded-xl bg-white text-black font-bold uppercase tracking-widest text-[10px] transform hover:-translate-y-1 transition-all"
-                      >
-                        Audit Scene
-                      </button>
-                    </div>
                   </div>
                 </>
               )}

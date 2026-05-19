@@ -5,7 +5,6 @@ import {
   Calendar, 
   Music2, 
   Smartphone, 
-  BarChart3, 
   Settings, 
   LogOut,
   ChevronLeft,
@@ -21,7 +20,6 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/business/dashboard' },
   { icon: Music2, label: 'Scenes', path: '/business/scenes' },
   { icon: Calendar, label: 'Schedules', path: '/business/schedules' },
-  { icon: BarChart3, label: 'Analytics', path: '/business/analytics' },
 ];
 
 export default function BusinessLayout() {
