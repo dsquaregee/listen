@@ -6,10 +6,13 @@ import {
   MoreVertical, 
   ChevronLeft, 
   ChevronRight,
-  GripVertical
+  GripVertical,
+  X
 } from 'lucide-react';
 import { motion, Reorder } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { db } from '../../lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const TIMES = Array.from({ length: 12 }, (_, i) => `${(i * 2 + 7) % 24}:00`);
@@ -21,6 +24,30 @@ export default function BusinessSchedules() {
     { id: '3', day: 'Wed', time: '18:00 – 22:00', scene: 'Midnight Lounge', zone: 'Terrace' },
   ]);
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTime, setNewTime] = useState('');
+  const [newScene, setNewScene] = useState('');
+  const [newZone, setNewZone] = useState('');
+
+  const handleAddInterval = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'schedules'), {
+        day: 'Mon',
+        time: newTime,
+        scene: newScene,
+        zone: newZone,
+        createdAt: serverTimestamp(),
+      });
+      setIsModalOpen(false);
+      setNewTime('');
+      setNewScene('');
+      setNewZone('');
+    } catch (error) {
+      console.error('Error adding interval:', error);
+    }
+  };
+
   return (
     <div className="space-y-10 max-w-6xl mx-auto">
       <div className="flex items-center justify-between">
@@ -28,10 +55,47 @@ export default function BusinessSchedules() {
           <h2 className="text-3xl font-bold tracking-tight">Schedule Engine</h2>
           <p className="text-slate-500 mt-2">Automate your venue architecture with scheduled ambience scenes.</p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-500 text-white font-bold uppercase tracking-widest hover:bg-indigo-400 transition-all shadow-lg shadow-indigo-500/20">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-500 text-white font-bold uppercase tracking-widest hover:bg-indigo-400 transition-all shadow-lg shadow-indigo-500/20">
           <Plus size={20} /> Add Interval
         </button>
       </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <form onSubmit={handleAddInterval} className="bg-zinc-900 border border-white/10 rounded-3xl p-8 w-full max-w-sm space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold">Add Interval</h3>
+              <button type="button" onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-white"><X size={20} /></button>
+            </div>
+            <input 
+              required
+              placeholder="Time (e.g. 07:00 – 11:00)" 
+              value={newTime} 
+              onChange={(e) => setNewTime(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all"
+            />
+            <input 
+              required
+              placeholder="Scene Name" 
+              value={newScene} 
+              onChange={(e) => setNewScene(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all"
+            />
+            <input 
+              required
+              placeholder="Zone" 
+              value={newZone} 
+              onChange={(e) => setNewZone(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all"
+            />
+            <button type="submit" className="w-full bg-indigo-500 text-white font-bold py-3 rounded-xl hover:bg-indigo-400 transition-all">
+              Save Interval
+            </button>
+          </form>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Left: Day Selector */}

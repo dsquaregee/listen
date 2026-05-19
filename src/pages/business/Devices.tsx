@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Smartphone, 
   Monitor, 
@@ -8,17 +8,40 @@ import {
   ShieldCheck,
   Zap,
   RefreshCw,
-  Plus
+  Plus,
+  X
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { db } from '../../lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function BusinessDevices() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deviceName, setDeviceName] = useState('');
+  const [deviceType, setDeviceType] = useState('Tablet');
+  
   const devices = [
     { id: '1', name: 'Main Lobby iPad', type: 'Tablet', status: 'Online', lastActive: 'Active Now', battery: '98%', version: 'v2.4.1' },
     { id: '2', name: 'Private Lounge TV', type: 'Kiosk', status: 'Online', lastActive: 'Active Now', battery: '100%', version: 'v2.4.1' },
     { id: '3', name: 'Terrace Speaker Hub', type: 'Android Box', status: 'Offline', lastActive: '2 hours ago', battery: 'N/A', version: 'v2.3.9' },
   ];
+
+  const handleAddDevice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'devices'), {
+        name: deviceName,
+        type: deviceType,
+        status: 'Offline',
+        createdAt: serverTimestamp(),
+      });
+      setIsModalOpen(false);
+      setDeviceName('');
+    } catch (error) {
+      console.error('Error adding device:', error);
+    }
+  };
 
   return (
     <div className="space-y-10">
@@ -27,10 +50,43 @@ export default function BusinessDevices() {
           <h2 className="text-3xl font-bold tracking-tight">Device Fleet</h2>
           <p className="text-slate-500 mt-2">Manage your authorized venue playback hardware.</p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 border border-white/5 text-xs font-bold uppercase tracking-widest text-white hover:bg-white/10 transition-all">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 border border-white/5 text-xs font-bold uppercase tracking-widest text-white hover:bg-white/10 transition-all"
+        >
           <Plus size={18} /> Add Device
         </button>
       </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <form onSubmit={handleAddDevice} className="bg-zinc-900 border border-white/10 rounded-3xl p-8 w-full max-w-sm space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold">Add New Device</h3>
+              <button type="button" onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-white"><X size={20} /></button>
+            </div>
+            <input 
+              required
+              placeholder="Device Name" 
+              value={deviceName} 
+              onChange={(e) => setDeviceName(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all"
+            />
+            <select 
+              value={deviceType} 
+              onChange={(e) => setDeviceType(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all text-slate-200"
+            >
+              <option value="Tablet">Tablet</option>
+              <option value="Kiosk">Kiosk</option>
+              <option value="Android Box">Android Box</option>
+            </select>
+            <button type="submit" className="w-full bg-indigo-500 text-white font-bold py-3 rounded-xl hover:bg-indigo-400 transition-all">
+              Authorize Device
+            </button>
+          </form>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Fleet Summary */}

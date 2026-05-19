@@ -21,6 +21,14 @@ export default function Navbar() {
   const [allAlbums, setAllAlbums] = useState<Album[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      console.log('Click detected at:', e.target);
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
   // Fetch all albums for local search efficiency
   useEffect(() => {
     const fetchAlbums = async () => {

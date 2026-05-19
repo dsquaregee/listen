@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Search, Play, Music } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, limit, startAfter, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Category, Album } from '../types';
 import { MOCK_CATEGORIES, MOCK_ALBUMS } from '../data/mockData';
@@ -18,33 +18,65 @@ export default function Explore() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMore, setHasMore] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(categoryParam);
+  
+  const observer = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
     setSelectedCategory(categoryParam);
   }, [categoryParam]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const catSn = await getDocs(query(collection(db, 'categories'), orderBy('order', 'asc')));
-        const fetchedCats = catSn.empty ? MOCK_CATEGORIES : catSn.docs.map(d => ({ id: d.id, ...d.data() } as Category));
-        setCategories(fetchedCats);
+  const fetchData = async (isMore = false) => {
+    try {
+      if (!isMore) setLoading(true);
+      else setLoadingMore(true);
 
-        const albumSn = await getDocs(query(collection(db, 'albums'), orderBy('createdAt', 'desc')));
-        const fetchedAlbums = albumSn.empty ? MOCK_ALBUMS : albumSn.docs.map(d => ({ id: d.id, ...d.data() } as Album));
-        setAlbums(fetchedAlbums);
-      } catch (e) {
-        console.error(e);
-        setCategories(MOCK_CATEGORIES);
-        setAlbums(MOCK_ALBUMS);
-      } finally {
-        setLoading(false);
+      const q = isMore && lastVisible
+        ? query(collection(db, 'albums'), orderBy('createdAt', 'desc'), startAfter(lastVisible), limit(12))
+        : query(collection(db, 'albums'), orderBy('createdAt', 'desc'), limit(12));
+      
+      const albumSn = await getDocs(q);
+      
+      const fetchedAlbums = albumSn.docs.map(d => ({ id: d.id, ...d.data() } as Album));
+      
+      setAlbums(prev => isMore ? [...prev, ...fetchedAlbums] : fetchedAlbums);
+      setLastVisible(albumSn.docs[albumSn.docs.length - 1] || null);
+      setHasMore(fetchedAlbums.length === 12);
+
+      if (!isMore) {
+        const catSn = await getDocs(query(collection(db, 'categories'), orderBy('order', 'asc')));
+        setCategories(catSn.empty ? MOCK_CATEGORIES : catSn.docs.map(d => ({ id: d.id, ...d.data() } as Category)));
       }
-    };
+    } catch (e) {
+      console.error(e);
+      setCategories(MOCK_CATEGORIES);
+      setAlbums(MOCK_ALBUMS);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
+
+  const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+    if (loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !searchTerm && !selectedCategory) {
+        fetchData(true);
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [loadingMore, hasMore, searchTerm, selectedCategory]);
 
   const filteredAlbums = albums.filter(album => {
     const matchesSearch = album.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -106,33 +138,41 @@ export default function Explore() {
       </div>
 
       {filteredAlbums.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {filteredAlbums.map((album, idx) => (
-            <motion.div 
-              key={album.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: (idx % 12) * 0.05 }}
-              className="group cursor-pointer"
-              onClick={() => setAlbum(album)}
-            >
-              <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-4 shadow-2xl group-hover:shadow-primary/10 transition-all">
-                <OptimizedImage 
-                  src={album.coverUrl} 
-                  alt={album.title} 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Play className="w-12 h-12 text-white fill-current" />
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {filteredAlbums.map((album, idx) => (
+              <motion.div 
+                key={album.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: (idx % 12) * 0.05 }}
+                className="group cursor-pointer"
+                onClick={() => setAlbum(album)}
+              >
+                <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-4 shadow-2xl group-hover:shadow-primary/10 transition-all">
+                  <OptimizedImage 
+                    src={album.coverUrl} 
+                    alt={album.title} 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Play className="w-12 h-12 text-white fill-current" />
+                  </div>
                 </div>
-              </div>
-              <h3 className="text-xl font-serif italic text-white group-hover:text-primary transition-colors truncate">{album.title}</h3>
-              <p className="text-[10px] uppercase font-bold tracking-widest text-white/30 mt-1">
-                {categories.find(c => c.id === album.categoryId)?.name || 'Unknown Sector'}
-              </p>
-            </motion.div>
-          ))}
-        </div>
+                <h3 className="text-xl font-serif italic text-white group-hover:text-primary transition-colors truncate">{album.title}</h3>
+                <p className="text-[10px] uppercase font-bold tracking-widest text-white/30 mt-1">
+                  {categories.find(c => c.id === album.categoryId)?.name || 'Unknown Sector'}
+                </p>
+              </motion.div>
+            ))}
+            <div ref={sentinelRef} className="h-10" />
+          </div>
+          {loadingMore && (
+            <div className="flex justify-center p-4">
+              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </>
       ) : (
         <div className="py-32 text-center border-t border-white/5">
           <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">

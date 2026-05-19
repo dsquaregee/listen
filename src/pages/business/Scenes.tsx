@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import SceneManager from '../../components/SceneManager';
 import { 
   Plus, 
   Search, 
@@ -23,6 +24,7 @@ export default function BusinessScenes() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [scenes, setScenes] = useState<AmbienceScene[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBuilding, setIsBuilding] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, 'ambience_scenes'), orderBy('createdAt', 'desc'));
@@ -64,11 +66,26 @@ export default function BusinessScenes() {
              <button onClick={() => setView('grid')} className={cn("p-2 rounded-lg transition-all", view === 'grid' ? "bg-white/10 text-white shadow-sm" : "text-slate-500 hover:text-slate-300")}><LayoutGrid size={18} /></button>
              <button onClick={() => setView('list')} className={cn("p-2 rounded-lg transition-all", view === 'list' ? "bg-white/10 text-white shadow-sm" : "text-slate-500 hover:text-slate-300")}><List size={18} /></button>
           </div>
-          <button className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-500 text-white font-bold uppercase tracking-widest hover:bg-indigo-400 transition-all shadow-lg shadow-indigo-500/20">
+          <button 
+            onClick={() => setIsBuilding(true)}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-500 text-white font-bold uppercase tracking-widest hover:bg-indigo-400 transition-all shadow-lg shadow-indigo-500/20"
+          >
             <Plus size={20} /> Build Scene
           </button>
         </div>
       </div>
+
+      {isBuilding && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-zinc-900 rounded-[32px] p-6 max-w-6xl w-full max-h-[90vh] overflow-y-auto border border-white/10 shadow-3xl">
+             <div className="flex justify-between items-center mb-6">
+               <h2 className="text-xl font-serif font-bold italic">Architect Ambience</h2>
+               <button onClick={() => setIsBuilding(false)} className="text-white/60 hover:text-white p-2 rounded-full hover:bg-white/5 transition-all">Close</button>
+             </div>
+             <SceneManager />
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
