@@ -341,36 +341,6 @@ export default function BusinessDashboard() {
               Manage Scheduler
             </button>
           </div>
-
-          {/* Quick Zone Control */}
-          <div className="p-8 rounded-[40px] bg-white/[0.03] border border-white/5">
-            <div className="flex items-center justify-between mb-6">
-              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Active Zones</h4>
-              <button 
-                onClick={() => navigate('/business/zones')}
-                className="text-xs text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-widest transition-colors">
-                Manage
-              </button>
-            </div>
-            <div className="space-y-4">
-              {['Main Zone', 'Private Lounge', 'Terrace'].map((zone) => (
-                <div 
-                  key={zone}
-                  onClick={() => setActiveZone(zone)}
-                  className={cn(
-                    "p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group",
-                    activeZone === zone ? "bg-white/10 border-white/20 text-white" : "bg-transparent border-transparent text-slate-500 hover:text-slate-300"
-                  )}
-                >
-                  <span className="text-sm font-medium">{zone}</span>
-                  <div className={cn(
-                    "w-2 h-2 rounded-full transition-all",
-                    activeZone === zone ? "bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" : "bg-slate-700"
-                  )} />
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -38,7 +38,6 @@ import BusinessGuard from './components/business/BusinessGuard';
 import BusinessDashboard from './pages/business/Dashboard';
 import BusinessSchedules from './pages/business/Schedules';
 import BusinessScenes from './pages/business/Scenes';
-import BusinessDevices from './pages/business/Devices';
 import BusinessAnalytics from './pages/business/Analytics';
 
 import { Toaster, toast } from 'sonner';
@@ -259,7 +258,6 @@ export default function App() {
                     <Route path="dashboard" element={<BusinessDashboard />} />
                     <Route path="schedules" element={<BusinessSchedules />} />
                     <Route path="scenes" element={<BusinessScenes />} />
-                    <Route path="devices" element={<BusinessDevices />} />
                     <Route path="analytics" element={<BusinessAnalytics />} />
                   </Route>
                 </Route>
