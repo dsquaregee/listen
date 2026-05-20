@@ -27,6 +27,8 @@ const getAdminDb = (dbIdOverride?: string) => {
     const targetProject = firebaseConfig.projectId;
     const dbId = dbIdOverride || firebaseConfig.firestoreDatabaseId;
 
+    logToFile(`getAdminDb: Attempting to connect to project=${targetProject}, db=${dbId}`);
+
     // Lazy initialization if somehow it didn't happen in startServer
     if (!app) {
       logToFile('getAdminDb: App not initialized! Triggering emergency init...');
@@ -219,8 +221,7 @@ if (!fs.existsSync(uploadsBaseDir)) {
   }
 }
 
-// STRIPE WEBHOOK (Must be before general express.json middleware)
-app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+const stripeWebhookHandler = async (req: express.Request, res: express.Response) => {
   const stripe = getStripe();
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -344,7 +345,11 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
     console.error('Webhook Error:', err);
     res.status(500).send('Webhook Processing Failed');
   }
-});
+};
+
+// STRIPE WEBHOOK (Must be before general express.json middleware)
+app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), stripeWebhookHandler);
+app.post('/api/webhook', express.raw({ type: 'application/json' }), stripeWebhookHandler);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -1058,6 +1063,7 @@ app.get('/api/db-health', async (req, res) => {
   logToFile(`DB Health: Starting check for ${dbId} in project ${firebaseConfig.projectId}`);
   try {
     const db = getAdminDb();
+    logToFile('DB Health: Successfully called getAdminDb()');
     const start = Date.now();
     // Simple light query to check connectivity
     logToFile(`DB Health: Pinging 'categories' collection...`);

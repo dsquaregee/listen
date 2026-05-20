@@ -11,7 +11,8 @@ import {
   Maximize2,
   RefreshCcw,
   Zap,
-  Globe
+  Globe,
+  Music2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePlayerStore } from '../../store/usePlayerStore';
@@ -19,18 +20,40 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { cn } from '../../lib/utils';
 import { toast } from 'sonner';
 import { db } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, limit, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { AmbienceScene } from '../../types';
+import { collection, query, where, onSnapshot, limit, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { AmbienceScene, Album } from '../../types';
+import { Album as AlbumType } from '../../types';
 
 export default function BusinessDashboard() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { currentAlbum, isPlaying, togglePlay, volume, setVolume } = usePlayerStore();
+  const { currentAlbum, isPlaying, togglePlay, volume, setVolume, setAlbum } = usePlayerStore();
   const [isVenueMode, setIsVenueMode] = useState(false);
   const [activeZone, setActiveZone] = useState('Main Zone');
   const [liveScenes, setLiveScenes] = useState<AmbienceScene[]>([]);
   const [systemHealth, setSystemHealth] = useState('Premium');
   const [isBootstrapping, setIsBootstrapping] = useState(false);
+
+  const handlePlayScene = async (scene: AmbienceScene) => {
+    if (!scene.albumIds || scene.albumIds.length === 0) {
+      toast.error("This scene has no music assigned.");
+      return;
+    }
+    const toastId = toast.loading(`Loading scene: ${scene.name}...`);
+    try {
+      // Take first album for now
+      const albumId = scene.albumIds[0];
+      const albumDoc = await getDoc(doc(db, 'albums', albumId));
+      if (albumDoc.exists()) {
+        setAlbum({ ...albumDoc.data(), id: albumDoc.id } as AlbumType);
+        toast.success(`Playing ${scene.name}`, { id: toastId });
+      } else {
+        toast.error("Album not found.", { id: toastId });
+      }
+    } catch (e) {
+      toast.error("Failed to load scene.", { id: toastId });
+    }
+  };
 
   const handleBootstrap = async () => {
     setIsBootstrapping(true);
@@ -217,7 +240,25 @@ export default function BusinessDashboard() {
             </div>
           </motion.div>
 
-          {/* Quick Scene Switcher was here */}
+          {/* Quick Scene Switcher */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 pl-2">Available Scenes</h4>
+             {liveScenes.slice(0, 3).map(scene => (
+               <button 
+                 key={scene.id}
+                 onClick={() => handlePlayScene(scene)}
+                 className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all text-left"
+               >
+                 <div className="w-12 h-12 rounded-lg bg-indigo-500/20 flex items-center justify-center shrink-0">
+                   <Music2 className="text-indigo-400" size={20} />
+                 </div>
+                 <div className="flex-1">
+                   <p className="text-sm font-bold text-white">{scene.name}</p>
+                   <p className="text-xs text-slate-500">{scene.tags?.[0] || 'Scene'}</p>
+                 </div>
+               </button>
+             ))}
+          </div>
         </div>
 
         {/* Sidebar Context */}
