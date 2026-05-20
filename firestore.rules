@@ -97,7 +97,7 @@ service cloud.firestore {
     // Metrics (Trackers)
     match /guest_metrics/{metricId} {
       allow create: if true;
-      allow read: if isAdmin();
+      allow read: if true;
     }
 
     // Legacy Content (Albums, Categories) - Read only for everyone

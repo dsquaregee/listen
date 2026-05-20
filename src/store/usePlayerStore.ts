@@ -174,15 +174,33 @@ export const usePlayerStore = create<PlayerState>()(
       // Only persist the non-transient audio state
       // CRITICAL: DO NOT PERSIST userTier to prevent bypass via localStorage
       partialize: (state) => ({
-        currentAlbum: state.currentAlbum,
-        queue: state.queue,
+        currentAlbum: state.currentAlbum ? {
+          id: state.currentAlbum.id,
+          title: state.currentAlbum.title,
+          artist: state.currentAlbum.artist,
+          coverUrl: state.currentAlbum.coverUrl,
+          hlsUrl: state.currentAlbum.hlsUrl
+        } : null,
+        queue: state.queue.map(a => ({
+          id: a.id,
+          title: a.title,
+          artist: a.artist,
+          coverUrl: a.coverUrl,
+          hlsUrl: a.hlsUrl
+        })),
         currentTime: state.currentTime,
         volume: state.volume,
         isMinimized: state.isMinimized,
         offlineAlbums: state.offlineAlbums,
         preferredQuality: state.preferredQuality,
         autoPlayNext: state.autoPlayNext,
-        recentlyPlayed: state.recentlyPlayed,
+        recentlyPlayed: state.recentlyPlayed.map(a => ({
+          id: a.id,
+          title: a.title,
+          artist: a.artist,
+          coverUrl: a.coverUrl,
+          hlsUrl: a.hlsUrl
+        })),
         isShuffled: state.isShuffled,
       }),
     }
